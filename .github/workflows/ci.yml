@@ -21,7 +21,7 @@ jobs:
             10.0.x
 
       - name: Restore
-        run: dotnet restore LocalCompanion.csproj
+        run: dotnet restore LocalCompanion.csproj -p:Platform=x64 -r win-x64
 
       - name: Build WinUI (Release x64)
         run: dotnet build LocalCompanion.csproj -c Release -p:Platform=x64 --no-restore
