@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="LocalCompanion.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:LocalCompanion">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#FF000000" />
+            <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#FF000000" />
+            <SolidColorBrush x:Key="NavigationViewCompactPaneBackground" Color="#FF000000" />
+            <SolidColorBrush x:Key="CompanionTitleBarBackground" Color="#FF0E0E0E" />
+            <SolidColorBrush x:Key="CompanionContentBackground" Color="#FF1C1C1C" />
+            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#FF0E0E0E" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
+

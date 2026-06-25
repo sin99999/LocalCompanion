@@ -1,0 +1,72 @@
+﻿name: 不具合報告
+description: 動作しない・期待と違うとき
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        再現手順と環境があると調査しやすくなります。ログは設定画面の「ログフォルダーを開く」から取得できます。
+
+  - type: dropdown
+    id: build
+    attributes:
+      label: 利用形態
+      options:
+        - 配布 ZIP（GitHub Releases 等）
+        - 開発ビルド（ソースからビルド）
+        - わからない
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: バージョン
+      description: 設定画面に表示されるバージョン（例 1.0.0）
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      placeholder: "1. …\n2. …\n3. …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した動作
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "Windows 11 24H2 など"
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU（わかれば）
+      placeholder: "NVIDIA RTX … / 内蔵GPUのみ など"
+
+  - type: checkboxes
+    id: docs
+    attributes:
+      label: 確認済み
+      options:
+        - label: docs/Troubleshooting.md を読んだ
+          required: false

@@ -1,0 +1,8 @@
+﻿blank_issues_enabled: false
+contact_links:
+  - name: トラブルシューティング
+    url: https://github.com/sin99999/LocalCompanion/blob/master/docs/Troubleshooting.md
+    about: 起動しない・チャットが使えない等はまずこちら
+  - name: 変更履歴
+    url: https://github.com/sin99999/LocalCompanion/blob/master/CHANGELOG.md
+    about: 既知の変更・リリース内容

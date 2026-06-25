@@ -1,0 +1,42 @@
+﻿---
+description: LocalCompanion リポの地図・ビルド・スキル起動・完了条件
+alwaysApply: true
+---
+
+# LocalCompanion（常時）
+
+詳細は [AGENTS.md](AGENTS.md)。ここは毎回効く短い判断のみ。
+
+## ビルド・起動
+
+```powershell
+dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64
+.\scripts\run-debug-winui.ps1
+```
+
+- Platform `x64` 必須。`dotnet build` だけでは llama / GGUF は落ちない（初回起動時）。
+
+## データパス
+
+- Debug → `%LocalAppData%\LocalCompanionLlama\`
+- 配布 exe → `{exe 横}\data\`
+
+## プロジェクトスキル（該当時は Read して従う）
+
+| 状況 | スキル |
+|------|--------|
+| ZIP / GitHub Release / push / note 配布 | `.cursor/skills/localcompanion-release/` |
+| WinUI レイアウト・UI 不具合 | `.cursor/skills/localcompanion-winui-debug/` + `winui-design` |
+| ビルド・run-debug | `winui-dev-workflow` |
+
+## Agent の完了条件（実装タスク）
+
+実装タスクでは、可能なら次を満たしてから報告する:
+
+1. `dotnet build` 成功（または失敗理由を明示）
+2. 触った範囲の再現手順 or 確認手順を1〜3行
+3. commit は **明示的な依頼時のみ**（セーブ≠commit）
+
+## 製品文案
+
+README / UI / エラー / `docs/help/` → です・ます。チャット用の口語・絵文字は製品文案に入れない。

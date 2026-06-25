@@ -1,0 +1,87 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>License information — LocalCompanion</title>
+  <link rel="icon" href="app-icon.png" type="image/png" />
+  <link rel="stylesheet" href="help.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1><img class="app-icon" src="app-icon.png" alt="" />License information</h1>
+      <p class="subtitle">Third-party software and models used by LocalCompanion</p>
+    </header>
+
+    <p>Copyright for each component belongs to its respective owners.</p>
+
+    <div class="license-block">
+      <h3>1. llama.cpp (llama-server)</h3>
+      <ul>
+        <li>Purpose: Local LLM inference (downloaded on first launch into <code>tools\llama-cpp\</code>)</li>
+        <li>License: MIT License</li>
+        <li>Source: <a href="https://github.com/ggml-org/llama.cpp">https://github.com/ggml-org/llama.cpp</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>2. NVIDIA CUDA Runtime (CUDA build only)</h3>
+      <ul>
+        <li>Purpose: GPU acceleration on NVIDIA hardware (bundled with CUDA llama.cpp when applicable)</li>
+        <li>License: NVIDIA End User License Agreement</li>
+        <li>Source: <a href="https://developer.nvidia.com/cuda-toolkit">https://developer.nvidia.com/cuda-toolkit</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>3. Windows App SDK / WinUI 3</h3>
+      <ul>
+        <li>Purpose: Application UI framework (included in the release ZIP)</li>
+        <li>License: Microsoft Software License Terms</li>
+        <li>Source: <a href="https://learn.microsoft.com/windows/apps/windows-app-sdk/">Windows App SDK</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>4. .NET libraries</h3>
+      <ul>
+        <li>CommunityToolkit.Mvvm — MIT License (<a href="https://github.com/CommunityToolkit/dotnet">GitHub</a>)</li>
+        <li>Microsoft.Extensions.DependencyInjection / Configuration.Json / Http — MIT License (<a href="https://github.com/dotnet/runtime">GitHub</a>)</li>
+        <li>UglyToad.PdfPig — Apache License 2.0</li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>5. SQLite / sqlite-vec (vec0.dll)</h3>
+      <ul>
+        <li>Purpose: Vector search for RAG (shipped with the app)</li>
+        <li>SQLite: Public Domain — <a href="https://www.sqlite.org/">https://www.sqlite.org/</a></li>
+        <li>sqlite-vec: Apache License 2.0 / MIT License (dual license) — <a href="https://github.com/asg017/sqlite-vec">GitHub</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>6. Default model (Google Gemma 4 E2B, downloaded on first launch)</h3>
+      <ul>
+        <li>Purpose: Default chat model <code>gemma-4-E2B_q4_0-it.gguf</code> when <code>models\</code> is empty and you choose default setup on first launch</li>
+        <li>Skipped if you choose your own GGUF folder at first-time setup, or if a chat GGUF already exists in <code>models\</code></li>
+        <li>Terms: <a href="https://ai.google.dev/gemma/terms">Gemma Terms of Use</a></li>
+        <li>Source: Hugging Face (<a href="https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf">google/gemma-4-E2B-it-qat-q4_0-gguf</a>)</li>
+      </ul>
+      <p class="note">For GGUF models you add yourself, follow each publisher’s license and terms.</p>
+    </div>
+
+    <div class="license-block">
+      <h3>7. VOICEVOX (optional, separate install)</h3>
+      <ul>
+        <li>Purpose: Text-to-speech when VOICEVOX is installed</li>
+        <li>VOICEVOX is not bundled with this app. See the official site and character terms for usage and credits.</li>
+        <li><a href="https://voicevox.hiroshiba.jp/">https://voicevox.hiroshiba.jp/</a></li>
+      </ul>
+    </div>
+
+    <p class="note">If anything here is incorrect or incomplete, contact the distributor. Plain-text version: <code>THIRD-PARTY-NOTICES.txt</code></p>
+  </div>
+</body>
+</html>

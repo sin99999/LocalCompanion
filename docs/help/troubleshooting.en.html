@@ -1,0 +1,128 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Troubleshooting — LocalCompanion</title>
+  <link rel="icon" href="app-icon.png" type="image/png" />
+  <link rel="stylesheet" href="help.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1><img class="app-icon" src="app-icon.png" alt="" />Troubleshooting</h1>
+      <p class="subtitle">If LocalCompanion does not start or behaves unexpectedly, check this page first.</p>
+    </header>
+
+    <h2>Will not start</h2>
+
+    <h3>Double-clicking the exe does nothing / the app closes immediately</h3>
+    <div class="card">
+      <p><strong>.NET 10 Desktop Runtime (x64) may not be installed.</strong></p>
+      <ol class="tl">
+        <li>Open <a href="https://dotnet.microsoft.com/download/dotnet/10.0">https://dotnet.microsoft.com/download/dotnet/10.0</a>.</li>
+        <li>Download and run the <strong>x64</strong> .NET Desktop Runtime installer.</li>
+        <li>Launch LocalCompanion.exe again.</li>
+      </ol>
+    </div>
+
+    <h3>Errors such as “Unable to start the application”</h3>
+    <ul>
+      <li>Windows 10 version 1809 (build 17763) or later is required. Apply Windows Update if your OS is older.</li>
+      <li>If you removed language folders such as <code>en</code>, <code>en-us</code>, or <code>ja</code> from the extracted folder, the app may fail to start. Extract the ZIP again.</li>
+    </ul>
+
+    <h3>SmartScreen: “Windows protected your PC”</h3>
+    <p>This app is not code-signed yet, so SmartScreen may appear on first launch. Choose <strong>More info</strong> → <strong>Run anyway</strong>. Confirm that you obtained the ZIP from a trusted source.</p>
+
+    <h2>First-time setup fails</h2>
+
+    <h3>About the first-time setup screen</h3>
+    <ul>
+      <li>On first launch, after language selection, a <strong>first-time setup</strong> screen appears.</li>
+      <li><strong>Continue with default setup</strong> prepares llama.cpp and downloads the default model <strong>Gemma 4 E2B (QAT)</strong>.</li>
+      <li><strong>Choose folder</strong> lets you point at your own GGUF folder and skip the default model download (read-only; your files are not modified).</li>
+    </ul>
+
+    <h3>llama.cpp / model download fails</h3>
+    <ul>
+      <li>First launch requires an internet connection.</li>
+      <li>Restarting the app many times in a short period may hit a download source limit (403). Wait about an hour and try again.</li>
+      <li>If downloads are blocked on a corporate network, set up on another connection and move the folder afterward.</li>
+    </ul>
+
+    <h3>“DLL not found” errors</h3>
+    <div class="card">
+      <p><strong>Visual C++ Redistributable (x64) is required.</strong></p>
+      <ol class="tl">
+        <li>Open the <a href="https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist">Microsoft VC++ redistributable page</a>.</li>
+        <li>Download and install the X64 package.</li>
+      </ol>
+    </div>
+
+    <h2>Chat does not work</h2>
+
+    <h3>Status never shows OK</h3>
+    <ul>
+      <li>Starting llama-server can take several minutes (especially on first launch or with large models).</li>
+      <li>If another AI app or server app is running, close it. If the problem continues, restart the PC.</li>
+    </ul>
+
+    <h3>Replies are extremely slow</h3>
+    <ul>
+      <li>The app may be running on CPU only. Check the execution backend (CUDA / Vulkan / CPU, etc.) on the Model tab in Settings.</li>
+      <li>If memory is tight, try a smaller model (higher quantization GGUF). You can choose another GGUF or an additional models folder on the Model tab.</li>
+    </ul>
+
+    <h2>Models missing or will not switch</h2>
+    <ul>
+      <li>An <strong>additional models folder</strong> on the Model tab is read-only. You do not need to move files into the app folder.</li>
+      <li>After changing models, press <strong>Apply model (restart llama)</strong>.</li>
+      <li>If mmproj is required for vision, it is downloaded to the app <code>models\</code> folder when missing from your folder.</li>
+    </ul>
+
+    <h2>Text-to-speech (VOICEVOX) does not work</h2>
+    <ul>
+      <li>Install <a href="https://voicevox.hiroshiba.jp/">VOICEVOX</a> separately. The installer UI is in Japanese; chat works without VOICEVOX.</li>
+      <li>Port 50021 must be free for the VOICEVOX engine.</li>
+      <li>If VOICEVOX is installed in a non-default location, start VOICEVOX first, then start LocalCompanion.</li>
+    </ul>
+
+    <h2>Vision / image input fails</h2>
+    <ul>
+      <li>The main GGUF and mmproj files must match.</li>
+      <li>On the Model tab in Settings, confirm that mmproj is configured.</li>
+    </ul>
+
+    <h2>RAG (document search) does not work</h2>
+    <ul>
+      <li>Ingestion and search use the llama-server embedding API. Wait until status is OK.</li>
+      <li>Maximum 20 MB per file; folder import supports up to 200 files.</li>
+    </ul>
+
+    <h2>Log and data locations</h2>
+    <table>
+      <thead>
+        <tr><th>How you launch</th><th>Logs and user data</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>LocalCompanion.exe</td><td><code>{folder containing LocalCompanion.exe}\data\</code></td></tr>
+      </tbody>
+    </table>
+    <p class="note">You can also use <strong>Open log folder</strong> on the General tab in Settings.</p>
+
+    <h2>Backup and restore</h2>
+    <ul>
+      <li>Use <strong>Back up data</strong> on the General tab to export conversations, RAG, and settings to a ZIP file.</li>
+      <li>To restore, exit the app and extract the backup ZIP into the data folder listed above.</li>
+    </ul>
+
+    <h2>Still stuck?</h2>
+    <ol class="tl">
+      <li>Exit the app.</li>
+      <li>Delete the <code>tools\llama-cpp\</code> folder inside the LocalCompanion folder (it will be downloaded again on next launch).</li>
+      <li>If that does not help, back up your data from Settings, move the <code>data\</code> folder somewhere else, and try a clean start.</li>
+    </ol>
+  </div>
+</body>
+</html>

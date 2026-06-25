@@ -1,0 +1,17 @@
+﻿---
+description: WinUI XAML 編集時のレイアウト手順（LocalCompanion）
+globs: "**/*.{xaml,xaml.cs}"
+alwaysApply: false
+---
+
+# WinUI XAML
+
+編集前に **親チェーン** を上まで辿る（Page → ScrollViewer → 子）。
+
+- 幅・高さの所有者を1文で決めてから patch
+- Margin だけの揃えは最後の手段
+- 同ファイルの `git log -p` で再発を確認
+
+UI 不具合時は `.cursor/skills/localcompanion-winui-debug/SKILL.md` を読む。
+
+新規 UI 文言は `LocalizationResources.cs` に日英で追加。

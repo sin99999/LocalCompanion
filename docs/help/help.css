@@ -1,0 +1,104 @@
+﻿:root {
+  --bg: #0e0e0e;
+  --surface: #1a1a1a;
+  --border: #333;
+  --text: #f0f0f0;
+  --muted: #b0b0b0;
+  --accent: #e8a317;
+  --accent2: #c62828;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Yu Gothic UI", Meiryo, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+}
+.wrap { max-width: 920px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+header {
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+}
+h1 {
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+h1 .app-icon {
+  width: 1.25em;
+  height: 1.25em;
+  flex-shrink: 0;
+}
+.subtitle { color: var(--muted); font-size: 0.95rem; }
+h2 {
+  font-size: 1.25rem;
+  margin: 2.25rem 0 0.75rem;
+  padding-left: 0.6rem;
+  border-left: 4px solid var(--accent2);
+}
+h3 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; color: var(--accent); }
+p, li { font-size: 0.95rem; }
+ul, ol { padding-left: 1.25rem; }
+li { margin: 0.35rem 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.15rem;
+  margin: 1rem 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin: 0.75rem 0;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: #252525; }
+code, .path {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 0.88em;
+  background: #111;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+.note { color: var(--muted); font-size: 0.88rem; }
+a { color: var(--accent); }
+a:visited { color: #d49514; }
+.tl { list-style: none; padding-left: 0; counter-reset: step; }
+.tl li {
+  counter-increment: step;
+  margin: 0.65rem 0;
+  padding-left: 2.2rem;
+  position: relative;
+}
+.tl li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: var(--accent2);
+  color: #fff;
+  border-radius: 50%;
+}
+.license-block {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.85rem;
+  margin: 1.25rem 0;
+}
+.license-block h3 { margin-top: 0; }

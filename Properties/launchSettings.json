@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "LocalCompanion (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "LocalCompanion (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

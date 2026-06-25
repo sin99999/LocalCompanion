@@ -1,0 +1,34 @@
+﻿name: 機能要望
+description: 追加・改善のアイデア
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 背景・困っていること
+      description: 何をしたいときに不便か
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案
+      description: どうあるとよいか
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 想定する範囲
+      options:
+        - UI
+        - チャット / LLM
+        - RAG
+        - 読み上げ（VOICEVOX）
+        - 配布・セットアップ
+        - その他
+    validations:
+      required: true

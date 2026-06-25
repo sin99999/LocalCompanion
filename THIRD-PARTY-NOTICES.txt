@@ -1,0 +1,69 @@
+﻿THIRD-PARTY NOTICES / サードパーティーソフトウェアについて
+=============================================================
+
+LocalCompanion は、以下のサードパーティーソフトウェアおよびモデルを
+利用しています。各ソフトウェアの著作権は、それぞれの権利者に帰属します。
+This application uses the following third-party software and models.
+
+-------------------------------------------------------------
+1. llama.cpp（llama-server）
+-------------------------------------------------------------
+- 用途: ローカル LLM の実行（初回起動時に自動取得し、tools\llama-cpp\ に配置）
+- ライセンス: MIT License
+- 配布元: https://github.com/ggml-org/llama.cpp
+
+-------------------------------------------------------------
+2. NVIDIA CUDA Runtime（cudart ほか・CUDA ビルド利用時のみ）
+-------------------------------------------------------------
+- 用途: NVIDIA GPU での推論高速化（CUDA 版 llama.cpp と併せて自動取得）
+- ライセンス: NVIDIA End User License Agreement
+- 配布元: https://developer.nvidia.com/cuda-toolkit
+
+-------------------------------------------------------------
+3. Windows App SDK / WinUI 3
+-------------------------------------------------------------
+- 用途: アプリケーション UI 基盤(ZIP に同梱)
+- ライセンス: Microsoft Software License Terms（NuGet パッケージに同梱）
+- 配布元: https://learn.microsoft.com/windows/apps/windows-app-sdk/
+
+-------------------------------------------------------------
+4. .NET ライブラリ（NuGet パッケージ）
+-------------------------------------------------------------
+- CommunityToolkit.Mvvm — MIT License
+  https://github.com/CommunityToolkit/dotnet
+- Microsoft.Extensions.DependencyInjection / Configuration.Json / Http — MIT License
+  https://github.com/dotnet/runtime
+- Microsoft.Windows.SDK.BuildTools — Microsoft Software License Terms
+
+-------------------------------------------------------------
+5. SQLite / sqlite-vec（vec0.dll）
+-------------------------------------------------------------
+- 用途: RAG のベクトル検索（アプリに同梱）
+- SQLite: Public Domain — https://www.sqlite.org/
+- sqlite-vec: Apache License 2.0 / MIT License（デュアルライセンス）
+  https://github.com/asg017/sqlite-vec
+
+-------------------------------------------------------------
+6. 既定モデル（Google Gemma 4 E2B・初回起動時に自動取得）
+-------------------------------------------------------------
+- 用途: 既定のチャットモデル gemma-4-E2B_q4_0-it.gguf（models\ が空で、
+  初回セットアップで自動セットアップを選んだ場合）
+- 初回セットアップでお手持ちの GGUF フォルダを指定した場合、または models\ に
+  既にチャット用 GGUF がある場合は取得しません
+- 利用条件: Gemma Terms of Use に従ってください
+  https://ai.google.dev/gemma/terms
+- 取得元: Hugging Face（google/gemma-4-E2B-it-qat-q4_0-gguf）
+
+ご自身で配置した GGUF モデルについては、それぞれの配布元の
+ライセンス・利用規約に従ってください。
+
+-------------------------------------------------------------
+7. VOICEVOX（別途インストール・任意）
+-------------------------------------------------------------
+- 用途: 読み上げ（インストールされている場合のみ連携）
+- VOICEVOX は本アプリには同梱されていません。利用規約・クレジット表記は
+  VOICEVOX 公式サイトおよび各キャラクターの規約に従ってください。
+  https://voicevox.hiroshiba.jp/
+
+=============================================================
+本ファイルの記載に誤りや不足がある場合は、配布元までご連絡ください。

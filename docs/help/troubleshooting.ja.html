@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>トラブルシューティング — LocalCompanion</title>
+  <link rel="icon" href="app-icon.png" type="image/png" />
+  <link rel="stylesheet" href="help.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1><img class="app-icon" src="app-icon.png" alt="" />トラブルシューティング</h1>
+      <p class="subtitle">LocalCompanion が動かない・調子が悪いときは、まずこのページをご確認ください。</p>
+    </header>
+
+    <h2>起動しない</h2>
+
+    <h3>exe をダブルクリックしても何も起きない／すぐ閉じる</h3>
+    <div class="card">
+      <p><strong>.NET 10 Desktop Runtime（x64）が未インストールの可能性があります。</strong></p>
+      <ol class="tl">
+        <li><a href="https://dotnet.microsoft.com/download/dotnet/10.0">https://dotnet.microsoft.com/download/dotnet/10.0</a> を開きます。</li>
+        <li>「.NET Desktop Runtime」の <strong>x64</strong> インストーラーをダウンロードして実行します。</li>
+        <li>インストール後、LocalCompanion.exe をもう一度起動します。</li>
+      </ol>
+    </div>
+
+    <h3>「アプリを開始できません」などのエラーが出る</h3>
+    <ul>
+      <li>Windows 10 1809（ビルド 17763）より古い OS では動作しません。Windows Update を適用してください。</li>
+      <li>展開したフォルダーから <code>en</code> <code>en-us</code> <code>ja</code> などの言語フォルダーを削除した場合、起動できないことがあります。ZIP を展開し直してください。</li>
+    </ul>
+
+    <h3>SmartScreen の「Windows によって PC が保護されました」が出る</h3>
+    <p>本アプリは現在コード署名を行っていないため、初回起動時に表示されることがあります。「詳細情報」→「実行」を選択すると起動できます。配布元から入手した ZIP かどうかをご確認ください。</p>
+
+    <h2>初回セットアップが失敗する</h2>
+
+    <h3>初回セットアップ画面について</h3>
+    <ul>
+      <li>初回は <strong>言語選択</strong> のあと、<strong>初回セットアップ</strong> 画面が表示されます。</li>
+      <li><strong>次へ（自動セットアップ）</strong> … llama.cpp の準備と、既定モデル <strong>Gemma 4 E2B（QAT）</strong> の取得を行います。</li>
+      <li><strong>フォルダを選ぶ</strong> … お手持ちの GGUF フォルダを指定すると、既定モデルのダウンロードを省略できます（読み取り専用）。</li>
+    </ul>
+
+    <h3>llama.cpp / モデルのダウンロードに失敗する</h3>
+    <ul>
+      <li>初回起動時はインターネット接続が必要です。</li>
+      <li>短時間に何度も起動し直すと、ダウンロード元の制限（403 エラー）にかかることがあります。1 時間ほど待ってから再試行してください。</li>
+      <li>会社ネットワークなどでダウンロードがブロックされる場合は、別の回線でセットアップした後、フォルダーごと移動する方法もあります。</li>
+    </ul>
+
+    <h3>「DLL が見つかりません」系のエラーが出る</h3>
+    <div class="card">
+      <p><strong>Visual C++ 再頒布可能パッケージ（x64）が必要です。</strong></p>
+      <ol class="tl">
+        <li><a href="https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist">Microsoft の再頒布可能パッケージ</a> を開きます。</li>
+        <li>X64 のインストーラーをダウンロードして実行します。</li>
+      </ol>
+    </div>
+
+    <h2>チャットができない</h2>
+
+    <h3>状態が「OK」にならない</h3>
+    <ul>
+      <li>llama-server の起動に時間がかかることがあります（特に初回・大きいモデル）。数分待ってから確認してください。</li>
+      <li>他のAIアプリやサーバーアプリが動いている場合は終了してください。改善しない場合は PC を再起動してください。</li>
+    </ul>
+
+    <h3>返答が極端に遅い</h3>
+    <ul>
+      <li>CPU のみで動作している可能性があります。設定画面の <strong>モデル</strong> タブで実行バックエンド（CUDA / Vulkan / CPU など）を確認してください。</li>
+      <li>メモリ不足の場合は、より小さいモデル（量子化レベルの高い GGUF）をお試しください。<strong>設定 → モデル</strong> で追加モデルフォルダや別の GGUF を選べます。</li>
+    </ul>
+
+    <h2>モデルが一覧に出ない・切り替わらない</h2>
+    <ul>
+      <li><strong>設定 → モデル</strong> の「追加モデルフォルダ」は読み取り専用です。ファイルをアプリフォルダへ移す必要はありません。</li>
+      <li>モデル変更後は <strong>モデルを適用（llama 再起動）</strong> を押してください。</li>
+      <li>vision 用 mmproj が必要な場合、外部フォルダに無ければ <strong>アプリ側の <code>models\</code></strong> に取得されます。</li>
+    </ul>
+
+    <h2>読み上げ（VOICEVOX）が動かない</h2>
+    <ul>
+      <li>VOICEVOX は別途インストールが必要です（<a href="https://voicevox.hiroshiba.jp/">https://voicevox.hiroshiba.jp/</a>）。</li>
+      <li>インストール済みでも、ポート 50021 を他のアプリが使用していると接続できません。</li>
+      <li>標準以外の場所にインストールした場合は、VOICEVOX を先に起動してから LocalCompanion を起動してください。</li>
+      <li>読み上げが動かなくても、チャットなど他の機能は通常どおり使えます。</li>
+    </ul>
+
+    <h2>画像入力（Vision）が失敗する</h2>
+    <ul>
+      <li>本体 GGUF と mmproj ファイルの組み合わせが一致している必要があります。</li>
+      <li>設定画面のモデルタブで、mmproj が設定されているかを確認してください。</li>
+    </ul>
+
+    <h2>RAG（資料検索）が動かない</h2>
+    <ul>
+      <li>資料の登録・検索には llama-server の埋め込み API を使用します。状態が「OK」になってからお試しください。</li>
+      <li>1 ファイル最大 20 MB、フォルダー取り込みは最大 200 ファイルまでです。</li>
+    </ul>
+
+    <h2>ログの場所</h2>
+    <p>問題を報告いただく際は、ログを添えていただくと原因の特定が早くなります。</p>
+    <table>
+      <thead>
+        <tr><th>起動方法</th><th>ログ・データの場所</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>LocalCompanion.exe</td><td><code>{LocalCompanion.exe のあるフォルダー}\data\</code></td></tr>
+      </tbody>
+    </table>
+    <p class="note">設定画面の「基本」タブにある <strong>ログフォルダーを開く</strong> からも開けます。</p>
+
+    <h2>データのバックアップと復元</h2>
+    <ul>
+      <li>設定画面の「基本」タブにある <strong>データをバックアップ</strong> で、会話・RAG・設定を 1 つの ZIP に書き出せます。</li>
+      <li>復元するときは、アプリを終了した状態で、書き出した ZIP の中身を上記のデータフォルダーに上書き展開してください。</li>
+    </ul>
+
+    <h2>それでも解決しないとき</h2>
+    <ol class="tl">
+      <li>アプリを終了します。</li>
+      <li>LocalCompanion フォルダー内の <code>tools\llama-cpp\</code> フォルダーを削除します（次回起動時に再取得されます）。</li>
+      <li>それでも改善しない場合は、設定画面からデータをバックアップしたうえで <code>data\</code> フォルダーを別の場所へ移動し、初期状態で起動をお試しください。</li>
+    </ol>
+  </div>
+</body>
+</html>

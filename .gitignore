@@ -1,0 +1,67 @@
+﻿## .NET / Visual Studio
+[Bb]in/
+[Oo]bj/
+tools/
+models/*.gguf
+models/.default-model-bootstrap.json
+models/.mmproj-bootstrap.json
+models/selection.json
+characters/*.json
+characters/selection.json
+LocalCompanion.exe
+[Dd]ebug/
+[Rr]elease/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+artifacts/
+data/
+
+# Build logs
+[Ll]og/
+[Ll]ogs/
+*.log
+*.binlog
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+
+# MSIX packaging output
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixupload
+*.appx
+*.appxbundle
+*.appxupload
+
+# Publish output
+publish/
+dist/
+*.pubxml
+PublishScripts/
+
+# Code analysis and tooling
+_ReSharper*/
+*.DotSettings.user
+*.dotCover
+.idea/
+
+# Maintainer-local Cursor rules (not for the public repo)
+docs/cursor-ren-user-rules-*.md
+
+# Generated files
+Generated\ Files/
+*_wpftmp.csproj

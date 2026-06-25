@@ -1,0 +1,74 @@
+﻿{
+  "version": 1,
+  "repoPriorityPrefixes": [
+    "google/",
+    "ggml-org/",
+    "unsloth/"
+  ],
+  "families": [
+    {
+      "id": "gemma-4-26b",
+      "sizeToken": "26B",
+      "matchAny": ["26B", "26b", "gemma-4-26", "gemma4-26"],
+      "excludeAny": ["31B", "12B", "E2B", "E4B"],
+      "mmproj": {
+        "localName": "mmproj-gemma-4-26B-A4B-it-BF16.gguf",
+        "url": "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-BF16.gguf",
+        "repoId": "ggml-org/gemma-4-26B-A4B-it-GGUF",
+        "remotePrefer": ["mmproj-BF16.gguf", "mmproj-gemma-4-26B"]
+      },
+      "hfSearch": ["gemma-4-26B-A4B-it-GGUF", "gemma-4-26b-a4b"]
+    },
+    {
+      "id": "gemma-4-12b",
+      "sizeToken": "12B",
+      "matchAny": ["12B", "12b", "gemma-4-12", "gemma4-12"],
+      "excludeAny": ["26B", "31B", "E2B", "E4B"],
+      "mmproj": {
+        "localName": "mmproj-gemma-4-12B-it-bf16.gguf",
+        "url": "https://huggingface.co/ggml-org/gemma-4-12B-it-GGUF/resolve/main/mmproj-gemma-4-12B-it-bf16.gguf",
+        "repoId": "ggml-org/gemma-4-12B-it-GGUF",
+        "remotePrefer": ["mmproj-gemma-4-12B-it-bf16.gguf", "mmproj-gemma-4-12b"]
+      },
+      "hfSearch": ["gemma-4-12B-it-GGUF", "gemma-4-12b-it"]
+    },
+    {
+      "id": "gemma-4-e4b",
+      "sizeToken": "E4B",
+      "matchAny": ["E4B", "e4b", "gemma-4-e4b", "gemma-4-4b", "gemma4-e4b"],
+      "excludeAny": ["26B", "12B", "E2B", "31B"],
+      "mmproj": {
+        "localName": "mmproj-gemma-4-E4B-it-bf16.gguf",
+        "url": "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-E4B-it-bf16.gguf",
+        "repoId": "ggml-org/gemma-4-E4B-it-GGUF",
+        "remotePrefer": ["mmproj-gemma-4-E4B-it-bf16.gguf", "mmproj-F16.gguf", "mmproj-BF16.gguf"]
+      },
+      "hfSearch": ["gemma-4-E4B-it-GGUF", "gemma-4-e4b-it"]
+    },
+    {
+      "id": "gemma-4-e2b",
+      "sizeToken": "E2B",
+      "matchAny": ["E2B", "e2b", "gemma-4-e2b", "gemma4-e2b"],
+      "excludeAny": ["26B", "12B", "E4B", "31B"],
+      "mmproj": {
+        "localName": "gemma-4-E2B-it-mmproj.gguf",
+        "url": "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/main/gemma-4-E2B-it-mmproj.gguf",
+        "repoId": "google/gemma-4-E2B-it-qat-q4_0-gguf",
+        "remotePrefer": ["gemma-4-E2B-it-mmproj.gguf", "mmproj-BF16.gguf", "mmproj-F16.gguf"]
+      },
+      "hfSearch": ["gemma-4-E2B-it-qat-q4_0-gguf", "gemma-4-E2B-it-GGUF", "gemma-4-e2b-it"]
+    }
+  ],
+  "genericVisionPatterns": [
+    "llava",
+    "qwen.*vl",
+    "minicpm",
+    "pixtral",
+    "moondream",
+    "smolvlm",
+    "internvl",
+    "cogvlm",
+    "gemma-4",
+    "gemma4"
+  ]
+}

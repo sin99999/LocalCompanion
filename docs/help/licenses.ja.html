@@ -1,0 +1,87 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ライセンス情報 — LocalCompanion</title>
+  <link rel="icon" href="app-icon.png" type="image/png" />
+  <link rel="stylesheet" href="help.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1><img class="app-icon" src="app-icon.png" alt="" />ライセンス情報</h1>
+      <p class="subtitle">LocalCompanion が利用するサードパーティーソフトウェアおよびモデルについて</p>
+    </header>
+
+    <p>各ソフトウェアの著作権は、それぞれの権利者に帰属します。</p>
+
+    <div class="license-block">
+      <h3>1. llama.cpp（llama-server）</h3>
+      <ul>
+        <li>用途: ローカル LLM の実行（初回起動時に自動取得し、<code>tools\llama-cpp\</code> に配置）</li>
+        <li>ライセンス: MIT License</li>
+        <li>配布元: <a href="https://github.com/ggml-org/llama.cpp">https://github.com/ggml-org/llama.cpp</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>2. NVIDIA CUDA Runtime（CUDA ビルド利用時のみ）</h3>
+      <ul>
+        <li>用途: NVIDIA GPU での推論高速化（CUDA 版 llama.cpp と併せて自動取得）</li>
+        <li>ライセンス: NVIDIA End User License Agreement</li>
+        <li>配布元: <a href="https://developer.nvidia.com/cuda-toolkit">https://developer.nvidia.com/cuda-toolkit</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>3. Windows App SDK / WinUI 3</h3>
+      <ul>
+        <li>用途: アプリケーション UI 基盤（ZIP に同梱）</li>
+        <li>ライセンス: Microsoft Software License Terms</li>
+        <li>配布元: <a href="https://learn.microsoft.com/windows/apps/windows-app-sdk/">Windows App SDK</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>4. .NET ライブラリ</h3>
+      <ul>
+        <li>CommunityToolkit.Mvvm — MIT License (<a href="https://github.com/CommunityToolkit/dotnet">GitHub</a>)</li>
+        <li>Microsoft.Extensions.DependencyInjection / Configuration.Json / Http — MIT License (<a href="https://github.com/dotnet/runtime">GitHub</a>)</li>
+        <li>UglyToad.PdfPig — Apache License 2.0</li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>5. SQLite / sqlite-vec（vec0.dll）</h3>
+      <ul>
+        <li>用途: RAG のベクトル検索（アプリに同梱）</li>
+        <li>SQLite: Public Domain — <a href="https://www.sqlite.org/">https://www.sqlite.org/</a></li>
+        <li>sqlite-vec: Apache License 2.0 / MIT License（デュアルライセンス） — <a href="https://github.com/asg017/sqlite-vec">GitHub</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>6. 既定モデル（Google Gemma 4 E2B・初回起動時に自動取得）</h3>
+      <ul>
+        <li>用途: 既定のチャットモデル <code>gemma-4-E2B_q4_0-it.gguf</code>（<code>models\</code> が空で、初回セットアップで自動セットアップを選んだ場合）</li>
+        <li>初回セットアップでお手持ちの GGUF フォルダを指定した場合、または <code>models\</code> に既にチャット用 GGUF がある場合は取得しません</li>
+        <li>利用条件: <a href="https://ai.google.dev/gemma/terms">Gemma Terms of Use</a> に従ってください</li>
+        <li>取得元: Hugging Face（<a href="https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf">google/gemma-4-E2B-it-qat-q4_0-gguf</a>）</li>
+      </ul>
+      <p class="note">ご自身で配置した GGUF モデルについては、それぞれの配布元のライセンス・利用規約に従ってください。</p>
+    </div>
+
+    <div class="license-block">
+      <h3>7. VOICEVOX（別途インストール・任意）</h3>
+      <ul>
+        <li>用途: 読み上げ（インストールされている場合のみ連携）</li>
+        <li>VOICEVOX は本アプリには同梱されていません。利用規約・クレジット表記は VOICEVOX 公式サイトおよび各キャラクターの規約に従ってください。</li>
+        <li><a href="https://voicevox.hiroshiba.jp/">https://voicevox.hiroshiba.jp/</a></li>
+      </ul>
+    </div>
+
+    <p class="note">本ページの記載に誤りや不足がある場合は、配布元までご連絡ください。テキスト版: <code>THIRD-PARTY-NOTICES.txt</code></p>
+  </div>
+</body>
+</html>

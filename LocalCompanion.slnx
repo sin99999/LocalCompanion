@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LocalCompanion.Core/LocalCompanion.Core.csproj" />
+  </Folder>
+  <Project Path="LocalCompanion.csproj" />
+</Solution>

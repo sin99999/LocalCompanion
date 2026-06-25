@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="LocalCompanion.Controls.ChatConversationView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <RichEditBox
+        x:Name="ConversationDocument"
+        AcceptsReturn="True"
+        Background="Transparent"
+        BorderThickness="0"
+        HorizontalAlignment="Stretch"
+        IsReadOnly="True"
+        IsSpellCheckEnabled="False"
+        IsTextPredictionEnabled="False"
+        Padding="0,0,12,16"
+        TextWrapping="Wrap"
+        VerticalAlignment="Stretch">
+        <RichEditBox.Resources>
+            <SolidColorBrush x:Key="TextControlBackground" Color="#FF1C1C1C" />
+            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF1C1C1C" />
+            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FF1C1C1C" />
+            <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="#FF1C1C1C" />
+            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent" />
+        </RichEditBox.Resources>
+    </RichEditBox>
+</UserControl>

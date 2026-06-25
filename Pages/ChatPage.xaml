@@ -1,0 +1,182 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="LocalCompanion.Pages.ChatPage"
+    x:Name="ChatPageRoot"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:LocalCompanion.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="using:LocalCompanion.ViewModels"
+    mc:Ignorable="d">
+
+    <Grid Padding="24,8,24,24" Background="{StaticResource CompanionContentBackground}" PreviewKeyDown="OnPagePreviewKeyDown" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <InfoBar
+            Grid.Row="0"
+            IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+            Severity="Error"
+            Title="{x:Bind ViewModel.UiErrorTitle, Mode=OneWay}"
+            Message="{x:Bind ViewModel.ErrorText, Mode=OneWay}" />
+
+        <controls:ChatConversationView
+            x:Name="ConversationView"
+            Grid.Row="1"
+            Messages="{x:Bind ViewModel.Messages, Mode=OneWay}" />
+
+        <TextBlock
+            Grid.Row="2"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" />
+
+        <Border
+            x:Name="InputAreaBorder"
+            Grid.Row="3"
+            AllowDrop="True"
+            DragLeave="OnInputAreaDragLeave"
+            DragOver="OnInputAreaDragOver"
+            Drop="OnInputAreaDrop"
+            Padding="8"
+            Background="{ThemeResource ControlFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="12">
+            <Grid RowSpacing="7">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <ItemsControl
+                    Grid.Row="0"
+                    ItemsSource="{x:Bind ViewModel.PendingAttachments, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.HasPendingAttachments, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="viewModels:ChatAttachmentItemViewModel">
+                            <Border
+                                Margin="0,0,8,8"
+                                Padding="8"
+                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image
+                                        Width="48"
+                                        Height="48"
+                                        Source="{x:Bind PreviewImage, Mode=OneWay}"
+                                        Stretch="UniformToFill"
+                                        Visibility="{x:Bind ImageVisibility, Mode=OneWay}" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        MaxWidth="320"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource BodyTextBlockStyle}"
+                                        Text="{x:Bind FileName, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis"
+                                        TextWrapping="NoWrap" />
+                                    <Button
+                                        Grid.Column="2"
+                                        VerticalAlignment="Center"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Click="OnRemoveAttachmentClick"
+                                        Content="&#xE711;"
+                                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                        Tag="{x:Bind}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <TextBox
+                    x:Name="InputBox"
+                    Grid.Row="1"
+                    AcceptsReturn="True"
+                    AllowDrop="True"
+                    AutomationProperties.Name="{x:Bind ViewModel.UiInputPlaceholder, Mode=OneWay}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    DragLeave="OnInputAreaDragLeave"
+                    DragOver="OnInputAreaDragOver"
+                    Drop="OnInputAreaDrop"
+                    IsEnabled="{x:Bind ViewModel.IsInputEnabled, Mode=OneWay}"
+                    MaxHeight="112"
+                    MinHeight="28"
+                    PlaceholderText="{x:Bind ViewModel.UiInputPlaceholder, Mode=OneWay}"
+                    PreviewKeyDown="OnInputPreviewKeyDown"
+                    Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    TextWrapping="Wrap" />
+
+                <Grid Grid.Row="2" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button
+                        x:Name="InsertMenuButton"
+                        Width="32"
+                        Height="32"
+                        AutomationProperties.Name="{x:Bind ViewModel.UiInsertMenu, Mode=OneWay}"
+                        IsEnabled="{x:Bind ViewModel.IsInputEnabled, Mode=OneWay}"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Content="+"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        ToolTipService.ToolTip="{x:Bind ViewModel.UiInsertMenu, Mode=OneWay}" />
+
+                    <Button
+                        x:Name="ChatOptionsButton"
+                        Grid.Column="1"
+                        MinWidth="96"
+                        IsEnabled="{x:Bind ViewModel.IsInputEnabled, Mode=OneWay}"
+                        Padding="10,5"
+                        Background="Transparent"
+                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock VerticalAlignment="Center" Text="{x:Bind ViewModel.UiChatOptions, Mode=OneWay}" />
+                            <FontIcon
+                                FontSize="10"
+                                Glyph="&#xE70D;"
+                                VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button
+                        x:Name="SendStopButton"
+                        Grid.Column="3"
+                        MinWidth="72"
+                        AutomationProperties.Name="{x:Bind ViewModel.SendStopButtonLabel, Mode=OneWay}"
+                        Click="OnSendOrStopClick"
+                        Content="{x:Bind ViewModel.SendStopButtonLabel, Mode=OneWay}"
+                        Style="{StaticResource AccentButtonStyle}" />
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>
