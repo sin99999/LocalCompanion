@@ -90,17 +90,20 @@ public partial class ChatPageViewModel : ObservableObject
         try
         {
             var h = await _health.GetAsync(ct);
-            HealthText = h.Message;
-            ImageAttachEnabled = h.ImageAttachEnabled;
-            ImageAttachHint = h.ImageAttachHint;
-            OnPropertyChanged(nameof(ImageAttachEnabled));
-            OnPropertyChanged(nameof(ImageAttachHint));
-            if (!ImageAttachEnabled)
-                ClearPendingImageAttachments();
+            RunOnUi(() =>
+            {
+                HealthText = h.Message;
+                ImageAttachEnabled = h.ImageAttachEnabled;
+                ImageAttachHint = h.ImageAttachHint;
+                OnPropertyChanged(nameof(ImageAttachEnabled));
+                OnPropertyChanged(nameof(ImageAttachHint));
+                if (!ImageAttachEnabled)
+                    ClearPendingImageAttachments();
+            });
         }
         catch (Exception ex)
         {
-            HealthText = UserFacingErrorLocalizer.Localize(ex);
+            RunOnUi(() => HealthText = UserFacingErrorLocalizer.Localize(ex));
         }
     }
 
@@ -421,13 +424,16 @@ public partial class ChatPageViewModel : ObservableObject
         ClearPendingAttachments();
 
         // ユーザー発言を1フレーム描画してから生成開始
-        await Task.Yield();
+        await AwaitUiFrameAsync();
 
-        IsBusy = true;
-        NotifySendStopButtonLabelChanged();
-        SetStatusByKey("Chat.Status.Generating");
-        SendCommand.NotifyCanExecuteChanged();
-        StopGenerationCommand.NotifyCanExecuteChanged();
+        RunOnUi(() =>
+        {
+            IsBusy = true;
+            NotifySendStopButtonLabelChanged();
+            SetStatusByKey("Chat.Status.Generating");
+            SendCommand.NotifyCanExecuteChanged();
+            StopGenerationCommand.NotifyCanExecuteChanged();
+        });
 
         var sessionId = EnsureActiveSession();
         var req = new ChatRequestDto(
@@ -464,43 +470,46 @@ public partial class ChatPageViewModel : ObservableObject
 
             await foreach (var chunk in _chat.StreamChatAsync(req, sendCt))
             {
-                switch (chunk.Type)
+                await RunOnUiAsync(() =>
                 {
-                    case "content":
+                    switch (chunk.Type)
                     {
-                        var line = EnsureAssistantLine();
-                        if (replyAcc.Length == 0)
-                            line.ClearReasoning();
-                        replyAcc.Append(chunk.Text);
-                        break;
-                    }
-                    case "reasoning" when UseReasoning:
-                    {
-                        var line = EnsureAssistantLine();
-                        if (replyAcc.Length == 0)
+                        case "content":
                         {
-                            reasoningAcc.Append(chunk.Text);
-                            line.SetReasoning(reasoningAcc.ToString());
-                        }
-                        break;
-                    }
-                    case "done":
-                        if (!string.IsNullOrWhiteSpace(chunk.Text))
-                        {
-                            EnsureAssistantLine();
-                            replyAcc.Clear();
+                            var line = EnsureAssistantLine();
+                            if (replyAcc.Length == 0)
+                                line.ClearReasoning();
                             replyAcc.Append(chunk.Text);
+                            break;
                         }
-                        break;
-                }
+                        case "reasoning" when UseReasoning:
+                        {
+                            var line = EnsureAssistantLine();
+                            if (replyAcc.Length == 0)
+                            {
+                                reasoningAcc.Append(chunk.Text);
+                                line.SetReasoning(reasoningAcc.ToString());
+                            }
+                            break;
+                        }
+                        case "done":
+                            if (!string.IsNullOrWhiteSpace(chunk.Text))
+                            {
+                                EnsureAssistantLine();
+                                replyAcc.Clear();
+                                replyAcc.Append(chunk.Text);
+                            }
+                            break;
+                    }
 
-                if (assistantLine is null)
-                    continue;
+                    if (assistantLine is null)
+                        return;
 
-                if (replyAcc.Length > 0)
-                    assistantLine.ClearReasoning();
-                if (replyAcc.Length > 0 || !string.IsNullOrWhiteSpace(assistantLine.ReasoningText))
-                    assistantLine.SetText(replyAcc.ToString());
+                    if (replyAcc.Length > 0)
+                        assistantLine.ClearReasoning();
+                    if (replyAcc.Length > 0 || !string.IsNullOrWhiteSpace(assistantLine.ReasoningText))
+                        assistantLine.SetText(replyAcc.ToString());
+                });
             }
 
             if (replyAcc.Length == 0)
@@ -552,15 +561,18 @@ public partial class ChatPageViewModel : ObservableObject
         }
         finally
         {
-            IsBusy = false;
-            NotifySendStopButtonLabelChanged();
-            SendCommand.NotifyCanExecuteChanged();
-            StopGenerationCommand.NotifyCanExecuteChanged();
-            if (_sendCts is not null)
+            await RunOnUiAsync(() =>
             {
-                _sendCts.Dispose();
-                _sendCts = null;
-            }
+                IsBusy = false;
+                NotifySendStopButtonLabelChanged();
+                SendCommand.NotifyCanExecuteChanged();
+                StopGenerationCommand.NotifyCanExecuteChanged();
+                if (_sendCts is not null)
+                {
+                    _sendCts.Dispose();
+                    _sendCts = null;
+                }
+            });
         }
     }
 

@@ -121,6 +121,9 @@ public partial class SettingsPageViewModel : ObservableObject
     public partial string CharacterPersona { get; set; } = "";
 
     [ObservableProperty]
+    public partial string CharacterSpeakingStyle { get; set; } = "";
+
+    [ObservableProperty]
     public partial double CharacterTemperature { get; set; } = CharacterDefaults.AppTemperature;
 
     [ObservableProperty]
@@ -466,6 +469,7 @@ public partial class SettingsPageViewModel : ObservableObject
 
         CharacterName = CharacterPresetService.IsNoneSelection(fileName) ? "" : profile.Name;
         CharacterPersona = profile.Persona;
+        CharacterSpeakingStyle = profile.SpeakingStyle;
         CharacterTemperature = profile.Temperature;
         CharacterTopP = profile.TopP;
         CharacterTopK = profile.TopK;
@@ -505,7 +509,7 @@ public partial class SettingsPageViewModel : ObservableObject
             var profile = new CharacterProfileDto(
                 CharacterName.Trim(),
                 CharacterPersona.Trim(),
-                "",
+                CharacterSpeakingStyle.Trim(),
                 CharacterTemperature,
                 CharacterTopP,
                 (int)Math.Round(CharacterTopK),

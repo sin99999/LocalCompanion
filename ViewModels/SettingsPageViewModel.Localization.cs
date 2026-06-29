@@ -32,6 +32,7 @@ public partial class SettingsPageViewModel
     [ObservableProperty] public partial string UiCharacterRegistered { get; set; }
     [ObservableProperty] public partial string UiCharacterName { get; set; }
     [ObservableProperty] public partial string UiCharacterPersona { get; set; }
+    [ObservableProperty] public partial string UiCharacterSpeakingStyle { get; set; }
     [ObservableProperty] public partial string UiApplyCharacterDefaults { get; set; }
     [ObservableProperty] public partial string UiCharacterTemperatureHint { get; set; }
     [ObservableProperty] public partial string UiCharacterTopPHint { get; set; }
@@ -221,6 +222,7 @@ public partial class SettingsPageViewModel
         UiCharacterRegistered = _loc.Get("Settings.Character.Registered");
         UiCharacterName = _loc.Get("Settings.Character.Name");
         UiCharacterPersona = _loc.Get("Settings.Character.Persona");
+        UiCharacterSpeakingStyle = _loc.Get("Settings.Character.SpeakingStyle");
         UiApplyCharacterDefaults = _loc.Get("Settings.Character.ApplyDefaults");
         UiCharacterTemperatureHint = _loc.Get("Settings.Character.Hint.Temperature");
         UiCharacterTopPHint = _loc.Get("Settings.Character.Hint.TopP");

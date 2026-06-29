@@ -81,6 +81,7 @@ public sealed partial class ChatPage : Page
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ViewModel.BindUiDispatcher(DispatcherQueue);
         _appearance = AppServices.Get<AppAppearanceService>();
         _appearance.Changed += OnAppearanceChanged;
         ApplyAppearanceFromSettings();

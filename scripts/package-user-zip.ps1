@@ -31,6 +31,7 @@ function Test-DistributionFolder {
         "scripts\stop-llama.ps1",
         "models\README.md",
         "characters\README.md",
+        "LICENSE",
         "THIRD-PARTY-NOTICES.txt",
         "CHANGELOG.md",
         "docs\Troubleshooting.md",

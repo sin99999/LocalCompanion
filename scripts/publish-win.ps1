@@ -51,7 +51,7 @@ function Remove-PublishArtifacts {
 function Copy-DistributionDocs {
     param([string]$PublishRoot)
 
-    foreach ($rel in @("THIRD-PARTY-NOTICES.txt", "CHANGELOG.md")) {
+    foreach ($rel in @("LICENSE", "THIRD-PARTY-NOTICES.txt", "CHANGELOG.md")) {
         $src = Join-Path $Root $rel
         if (-not (Test-Path $src)) {
             throw "配布用ドキュメントがありません: $rel"
