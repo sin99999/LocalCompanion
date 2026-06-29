@@ -93,6 +93,7 @@ public sealed partial class ChatConversationView : UserControl
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         StopRebuildTimer();
+        AttachMessages(_messages, null);
         if (_documentScrollHost is not null)
             _documentScrollHost.ViewChanged -= OnDocumentScrollViewChanged;
     }

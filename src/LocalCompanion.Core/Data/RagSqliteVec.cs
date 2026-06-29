@@ -65,24 +65,26 @@ public sealed class RagSqliteVec
         RebuildFromLegacyEmbeddings(conn, dimension);
     }
 
-    public void InsertVector(SqliteConnection conn, long chunkId, float[] embedding)
+    public void InsertVector(SqliteConnection conn, long chunkId, float[] embedding, SqliteTransaction? transaction = null)
     {
         if (!IsAvailable || !TableExists(conn, "rag_vec"))
             return;
 
         var cmd = conn.CreateCommand();
+        cmd.Transaction = transaction;
         cmd.CommandText = "INSERT INTO rag_vec(rowid, embedding) VALUES ($id, $emb)";
         cmd.Parameters.AddWithValue("$id", chunkId);
         cmd.Parameters.AddWithValue("$emb", JsonSerializer.Serialize(embedding));
         cmd.ExecuteNonQuery();
     }
 
-    public void DeleteVectorsForSource(SqliteConnection conn, string source)
+    public void DeleteVectorsForSource(SqliteConnection conn, string source, SqliteTransaction? transaction = null)
     {
         if (!IsAvailable || !TableExists(conn, "rag_vec"))
             return;
 
         var cmd = conn.CreateCommand();
+        cmd.Transaction = transaction;
         cmd.CommandText = """
             DELETE FROM rag_vec
             WHERE rowid IN (SELECT id FROM rag_chunks WHERE source = $s)

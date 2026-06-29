@@ -53,18 +53,20 @@ public sealed class RagService
         await conn.OpenAsync(ct);
         _db.PrepareVectors(conn);
 
+        var embeddingDim = prepared[0].Embedding.Length;
+        _db.Vector.EnsureVectorTable(conn, embeddingDim);
+
         await using var tx = await conn.BeginTransactionAsync(ct);
+        var sqliteTx = (SqliteTransaction)tx;
         try
         {
-            DeleteSourceChunks(conn, source);
+            DeleteSourceChunks(conn, source, sqliteTx);
 
             var count = 0;
             foreach (var (draft, emb) in prepared)
             {
-                _db.Vector.EnsureVectorTable(conn, emb.Length);
-
                 var cmd = conn.CreateCommand();
-                cmd.Transaction = (SqliteTransaction)tx;
+                cmd.Transaction = sqliteTx;
                 cmd.CommandText = """
                     INSERT INTO rag_chunks (
                       source, text, embedding, created_at,
@@ -90,8 +92,14 @@ public sealed class RagService
                     continue;
 
                 var chunkId = Convert.ToInt64(idObj);
-                _db.Vector.InsertVector(conn, chunkId, emb);
+                _db.Vector.InsertVector(conn, chunkId, emb, sqliteTx);
                 count++;
+            }
+
+            if (count == 0)
+            {
+                await tx.RollbackAsync(ct);
+                return 0;
             }
 
             await tx.CommitAsync(ct);
@@ -104,11 +112,12 @@ public sealed class RagService
         }
     }
 
-    private void DeleteSourceChunks(SqliteConnection conn, string source)
+    private void DeleteSourceChunks(SqliteConnection conn, string source, SqliteTransaction? transaction = null)
     {
-        _db.Vector.DeleteVectorsForSource(conn, source);
+        _db.Vector.DeleteVectorsForSource(conn, source, transaction);
 
         var cmd = conn.CreateCommand();
+        cmd.Transaction = transaction;
         cmd.CommandText = "DELETE FROM rag_chunks WHERE source = $s";
         cmd.Parameters.AddWithValue("$s", source);
         cmd.ExecuteNonQuery();

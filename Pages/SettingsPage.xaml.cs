@@ -21,7 +21,13 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
         ViewModel.BindUiDispatcher(DispatcherQueue);
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Unloaded += OnUnloaded;
         UpdateVoicevoxPoweredByLinkText();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

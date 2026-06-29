@@ -517,47 +517,57 @@ public partial class ChatPageViewModel : ObservableObject
 
             replyText = replyAcc.ToString();
             var isDefaultAi = CharacterPresetService.IsNoneSelection(_characters.GetActivePresetFileName());
-            SetStatusByKey(!string.IsNullOrWhiteSpace(sessionId)
-                ? isDefaultAi
-                    ? "Chat.Status.SessionContinued"
-                    : "Chat.Status.SessionSaved"
-                : "Chat.Status.Done");
+            await RunOnUiAsync(() =>
+            {
+                SetStatusByKey(!string.IsNullOrWhiteSpace(sessionId)
+                    ? isDefaultAi
+                        ? "Chat.Status.SessionContinued"
+                        : "Chat.Status.SessionSaved"
+                    : "Chat.Status.Done");
+
+                if (!string.IsNullOrWhiteSpace(sessionId))
+                    _continueSession = true;
+
+                ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
+                if (!isDefaultAi)
+                    MainWindow.Instance?.EnsureConversationHistoryVisible();
+            });
 
             if (!string.IsNullOrWhiteSpace(replyText))
                 _ = _voicevoxSpeech.MaybeSpeakAssistantAsync(replyText);
 
-            if (!string.IsNullOrWhiteSpace(sessionId))
-                _continueSession = true;
-
-            ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
-            if (!isDefaultAi)
-                MainWindow.Instance?.EnsureConversationHistoryVisible();
             _ = RefreshHealthAsync();
         }
         catch (OperationCanceledException) when (sendCt.IsCancellationRequested)
         {
             var loc = LocalizationService.Instance;
-            SetStatusByKey("Chat.Status.Stopped");
-            if (assistantLine is null)
+            await RunOnUiAsync(() =>
             {
-                assistantLine = new ChatLineViewModel("assistant", loc.Get("Chat.Status.StoppedHint"), GetAssistantDisplayName());
-                Messages.Add(assistantLine);
-            }
-            else if (string.IsNullOrWhiteSpace(assistantLine.Text))
-            {
-                assistantLine.SetText(loc.Get("Chat.Status.StoppedHint"));
-            }
+                SetStatusByKey("Chat.Status.Stopped");
+                if (assistantLine is null)
+                {
+                    assistantLine = new ChatLineViewModel("assistant", loc.Get("Chat.Status.StoppedHint"), GetAssistantDisplayName());
+                    Messages.Add(assistantLine);
+                }
+                else if (string.IsNullOrWhiteSpace(assistantLine.Text))
+                {
+                    assistantLine.SetText(loc.Get("Chat.Status.StoppedHint"));
+                }
+            });
         }
         catch (Exception ex)
         {
-            SetError(ex);
-            SetStatusByKey("Chat.Status.Error");
-            if (assistantLine is null)
-                Messages.Add(new ChatLineViewModel("system", ErrorText));
-            else if (string.IsNullOrEmpty(assistantLine.Text))
-                assistantLine.SetText(ErrorText);
-            else
-                Messages.Add(new ChatLineViewModel("system", ErrorText));
+            await RunOnUiAsync(() =>
+            {
+                SetError(ex);
+                SetStatusByKey("Chat.Status.Error");
+                if (assistantLine is null)
+                    Messages.Add(new ChatLineViewModel("system", ErrorText));
+                else if (string.IsNullOrEmpty(assistantLine.Text))
+                    assistantLine.SetText(ErrorText);
+                else
+                    Messages.Add(new ChatLineViewModel("system", ErrorText));
+            });
         }
         finally
         {
