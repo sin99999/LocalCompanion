@@ -165,6 +165,14 @@ if ($AlsoDist) {
     Write-Host "[OK] dist → $DistDir" -ForegroundColor DarkGray
 }
 
+if ($env:LOCALCOMPANION_SIGN_PFX_PATH) {
+    $signScript = Join-Path $Root "scripts\sign-authenticode.ps1"
+    if (Test-Path $signScript) {
+        & $signScript -PublishRoot $OutputDir
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+}
+
 Write-Host ""
 Write-Host "起動: publish フォルダ内の LocalCompanion.exe（同フォルダに scripts / models / characters が必要）" -ForegroundColor Green
 Write-Host "公開 ZIP: .\scripts\package-user-zip.ps1" -ForegroundColor Cyan
