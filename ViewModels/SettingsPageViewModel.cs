@@ -194,6 +194,11 @@ public partial class SettingsPageViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
+    public bool IsSettingsInputEnabled => !IsBusy && !IsModelLoadInProgress;
+
+    partial void OnIsBusyChanged(bool value) =>
+        OnPropertyChanged(nameof(IsSettingsInputEnabled));
+
     [ObservableProperty]
     public partial bool ModelHasError { get; set; }
 

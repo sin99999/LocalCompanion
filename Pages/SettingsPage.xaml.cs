@@ -178,6 +178,8 @@ public sealed partial class SettingsPage : Page
 
     private async void OnIngestFileClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
+        if (!ViewModel.IsSettingsInputEnabled)
+            return;
         var path = await RagPathPicker.PickFileAsync(null, App.WindowHandle);
         if (path is null)
             return;
@@ -186,6 +188,8 @@ public sealed partial class SettingsPage : Page
 
     private async void OnIngestFolderClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
+        if (!ViewModel.IsSettingsInputEnabled)
+            return;
         var path = await RagPathPicker.PickFolderAsync(null, App.WindowHandle);
         if (path is null)
             return;
@@ -200,6 +204,8 @@ public sealed partial class SettingsPage : Page
 
     private async void OnBrowseModelsFolderClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
+        if (!ViewModel.IsSettingsInputEnabled)
+            return;
         var initial = ViewModel.HasAdditionalModelsFolder ? ViewModel.AdditionalModelsFolder : null;
         var path = await RagPathPicker.PickModelsFolderAsync(initial, App.WindowHandle);
         if (string.IsNullOrWhiteSpace(path))

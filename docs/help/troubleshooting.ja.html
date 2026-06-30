@@ -85,6 +85,8 @@
     <h2>読み上げ（VOICEVOX）が動かない</h2>
     <ul>
       <li>VOICEVOX は別途インストールが必要です（<a href="https://voicevox.hiroshiba.jp/">https://voicevox.hiroshiba.jp/</a>）。</li>
+      <li><strong>未インストール時は設定に VOICEVOX タブは表示されません。</strong> インストール後に LocalCompanion を再起動するか、設定画面を開き直してください。</li>
+      <li><strong>設定 → VOICEVOX</strong> で「読み上げを有効」にし、話者を選んだあと <strong>「VOICEVOX 設定を保存」</strong> を押してください。</li>
       <li>インストール済みでも、ポート 50021 を他のアプリが使用していると接続できません。</li>
       <li>標準以外の場所にインストールした場合は、VOICEVOX を先に起動してから LocalCompanion を起動してください。</li>
       <li>読み上げが動かなくても、チャットなど他の機能は通常どおり使えます。</li>
@@ -93,7 +95,8 @@
     <h2>画像入力（Vision）が失敗する</h2>
     <ul>
       <li>本体 GGUF と mmproj ファイルの組み合わせが一致している必要があります。</li>
-      <li>設定画面のモデルタブで、mmproj が設定されているかを確認してください。</li>
+      <li>設定画面の <strong>モデル</strong> タブで、mmproj が設定されているかを確認してください。</li>
+      <li>チャットの <strong>画像を挿入</strong> が無効なときは、mmproj 未設定・非対応モデルなどが考えられます（実行状態の「OK」だけでは vision 可否は分かりません）。</li>
     </ul>
 
     <h2>RAG（資料検索）が動かない</h2>

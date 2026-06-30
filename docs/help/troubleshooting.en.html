@@ -85,6 +85,8 @@
     <h2>Text-to-speech (VOICEVOX) does not work</h2>
     <ul>
       <li>Install <a href="https://voicevox.hiroshiba.jp/">VOICEVOX</a> separately. The installer UI is in Japanese; chat works without VOICEVOX.</li>
+      <li><strong>The VOICEVOX tab is hidden until VOICEVOX is installed.</strong> Restart LocalCompanion or reopen Settings after installation.</li>
+      <li>On <strong>Settings → VOICEVOX</strong>, enable speech, choose a speaker, then click <strong>Save VOICEVOX settings</strong>.</li>
       <li>Port 50021 must be free for the VOICEVOX engine.</li>
       <li>If VOICEVOX is installed in a non-default location, start VOICEVOX first, then start LocalCompanion.</li>
     </ul>
@@ -93,6 +95,7 @@
     <ul>
       <li>The main GGUF and mmproj files must match.</li>
       <li>On the Model tab in Settings, confirm that mmproj is configured.</li>
+      <li>If <strong>Insert image</strong> in chat is disabled, mmproj may be missing or the model may not support vision (runtime status “OK” alone does not prove vision works).</li>
     </ul>
 
     <h2>RAG (document search) does not work</h2>

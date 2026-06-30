@@ -43,8 +43,11 @@ public partial class SettingsPageViewModel
     public Visibility MmprojDownloadProgressVisibility =>
         IsMmprojDownloadInProgress ? Visibility.Visible : Visibility.Collapsed;
 
-    partial void OnIsModelLoadInProgressChanged(bool value) =>
+    partial void OnIsModelLoadInProgressChanged(bool value)
+    {
         OnPropertyChanged(nameof(ModelLoadProgressVisibility));
+        OnPropertyChanged(nameof(IsSettingsInputEnabled));
+    }
 
     partial void OnIsMmprojDownloadInProgressChanged(bool value) =>
         OnPropertyChanged(nameof(MmprojDownloadProgressVisibility));
