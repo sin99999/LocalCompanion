@@ -516,34 +516,6 @@
 
                         </StackPanel>
 
-                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
-
-                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiCharacterSpeakingStyle, Mode=OneWay}" />
-
-                            <Border Height="56" Style="{StaticResource SettingsInputBorderStyle}">
-
-                                <TextBox
-
-                                    AcceptsReturn="True"
-
-                                    Height="56"
-
-                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-
-                                    ScrollViewer.VerticalScrollBarVisibility="Auto"
-
-                                    Style="{StaticResource SettingsInBorderTextBoxStyle}"
-
-                                    Text="{x:Bind ViewModel.CharacterSpeakingStyle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-
-                                    TextWrapping="Wrap"
-
-                                    VerticalAlignment="Stretch" />
-
-                            </Border>
-
-                        </StackPanel>
-
                         <StackPanel Style="{StaticResource SettingsTabSectionStackStyle}">
 
                             <Grid Style="{StaticResource SettingsSliderLabelRowStyle}">

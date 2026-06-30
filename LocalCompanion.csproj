@@ -6,9 +6,9 @@
     <RootNamespace>LocalCompanion</RootNamespace>
     <AssemblyName>LocalCompanion</AssemblyName>
     <!-- 製品バージョン（公開 ZIP 名・アプリ内表示・exe プロパティで共通利用） -->
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>1.0.1</Version>
+    <FileVersion>1.0.1.0</FileVersion>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
     <Product>LocalCompanion</Product>
     <Company>LocalCompanion Project</Company>
     <Copyright>© 2026 LocalCompanion Project</Copyright>

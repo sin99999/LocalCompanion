@@ -26,7 +26,6 @@
 {
   "name": "AI",
   "persona": "あなたはAI。…",
-  "speakingStyle": "",
   "temperature": 0.8,
   "topP": 0.95,
   "contextLength": 8192,
@@ -36,6 +35,7 @@
 
 - `temperature`: **0.0 〜 2.0**
 - `topP`: **0.05 〜 1.0**
+- 口調・話し方は `persona` に書いてください。既存 JSON の `speakingStyle` も引き続き読み込まれます。
 
 `selection.json` は選択中のファイル名（自動更新・手編集不要・**ローカル専用**）。
 

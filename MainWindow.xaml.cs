@@ -73,23 +73,14 @@ public sealed partial class MainWindow : Window
 
         StartupStatusText.Text = LocalizationService.Instance.Get("Splash.Wait");
         Activated += OnFirstActivated;
-        AppWindow.Closing += (_, _) => { /* shutdown は Closed で一度だけ */ };
+        AppWindow.Closing += (_, _) => CompanionStartup.ShutdownInBackground();
         Closed += (_, _) =>
         {
             AppWindow.Changed -= OnAppWindowChanged;
             LocalizationService.Instance.Changed -= OnLocalizationChanged;
             AppServices.Get<AppAppearanceService>().Changed -= OnAppAppearanceChanged;
-            try
-            {
-                FinalizeChatSessionOnCloseAsync().Wait(TimeSpan.FromSeconds(3));
-            }
-            catch
-            {
-                /* ignore */
-            }
-
+            _ = FinalizeChatSessionOnCloseAsync();
             Instance = null;
-            CompanionStartup.ShutdownInBackground();
         };
     }
 

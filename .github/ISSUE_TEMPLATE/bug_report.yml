@@ -23,7 +23,7 @@ body:
     id: version
     attributes:
       label: バージョン
-      description: 設定画面に表示されるバージョン（例 1.0.0）
+      description: 設定画面に表示されるバージョン（例 1.0.1）
     validations:
       required: true
 
