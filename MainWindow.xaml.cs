@@ -147,6 +147,7 @@ public sealed partial class MainWindow : Window
             ContentFrame.Navigate(typeof(ChatPage));
             ReloadConversationThreads();
             UpdateConversationHistoryLayout();
+            await OfferAppUpdateIfNeededAsync();
             _ = OfferVoicevoxUpdateIfNeededAsync();
         }
         catch (Exception ex)
@@ -703,6 +704,19 @@ public sealed partial class MainWindow : Window
         };
         block.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         return block.DesiredSize.Width;
+    }
+
+    private async Task OfferAppUpdateIfNeededAsync()
+    {
+        try
+        {
+            var coordinator = AppServices.Get<AppUpdateStartupCoordinator>();
+            await coordinator.CheckAndOfferUpdateOnStartupAsync(Content.XamlRoot);
+        }
+        catch
+        {
+            /* 更新確認失敗は起動を妨げない */
+        }
     }
 
     private async Task OfferVoicevoxUpdateIfNeededAsync()

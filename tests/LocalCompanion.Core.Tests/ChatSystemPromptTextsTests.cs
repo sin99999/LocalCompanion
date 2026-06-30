@@ -19,4 +19,12 @@ public sealed class ChatSystemPromptTextsTests
         Assert.Contains("太郎", line);
         Assert.Contains("レン", line);
     }
+
+    [Fact]
+    public void RagPriorityInstruction_RequiresCitingSourcesWhenRelevant()
+    {
+        var line = ChatSystemPromptTexts.RagPriorityInstruction(japanese: true);
+        Assert.Contains("参考資料を優先", line);
+        Assert.Contains("無関係", line);
+    }
 }

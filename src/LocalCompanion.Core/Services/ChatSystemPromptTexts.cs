@@ -130,6 +130,23 @@ internal static class ChatSystemPromptTexts
     internal static string RagHitsHeader(bool japanese) =>
         japanese ? "【参考資料（RAG・資料DB検索）】" : "[Reference materials (RAG)]";
 
+    internal static string RagPriorityInstruction(bool japanese) =>
+        japanese
+            ? """
+              【RAG優先（必須）】
+              直後に続く「【参考資料（RAG・資料DB検索）】」は、登録資料から今回の質問に関連する断片です。
+              - 質問が参考資料の内容に関係する場合：一般知識や推測より参考資料を優先し、根拠として資料名・見出し・ページ等を示しながら答える
+              - 参考資料と一般知識が食い違う場合：参考資料の記述を優先する（資料が古い・不全な可能性があるときはその旨を短く添えてよい）
+              - 質問が参考資料と無関係、または資料に該当がない場合：資料を無視し、普段どおり自然に会話する。資料に書いていないことを資料由来と言わない
+              """.Trim()
+            : """
+              [RAG priority — required]
+              The "[Reference materials (RAG)]" section immediately below contains passages from registered documents relevant to this question.
+              - When the question relates to those passages: prioritize them over general knowledge or guesses; cite file name, heading, page, etc. as grounds
+              - When passages conflict with general knowledge: follow the reference materials (you may briefly note they may be outdated or incomplete)
+              - When the question is unrelated or not covered: ignore the materials and reply naturally; do not attribute unstated facts to the documents
+              """.Trim();
+
     internal static string RagDisabledNote(bool japanese) =>
         japanese
             ? "【RAG】オフ。資料DB（RAG）は参照していない。過去の会話や、このメッセージの添付以外の資料を読んだとは言わない。"

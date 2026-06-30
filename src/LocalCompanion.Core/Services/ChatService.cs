@@ -435,12 +435,7 @@ public sealed class ChatService
         if (req.UseRag && req.Message.Length >= 4 && !heavyRequest && _rag.GetChunkCount() > 0)
         {
             var hits = await TrySearchRagAsync(req.Message, ct);
-            if (hits.Count > 0)
-            {
-                ragSources = hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
-                var ragHeader = ChatSystemPromptTexts.RagHitsHeader(japaneseReply);
-                systemParts.Add(ragHeader + "\n" + string.Join("\n\n", hits.Select((h, i) => h.FormatForPrompt(i))));
-            }
+            ragSources = TryAppendRagHits(systemParts, hits, japaneseReply);
         }
         else if (!req.UseRag)
         {
@@ -550,12 +545,7 @@ public sealed class ChatService
         if (req.UseRag && req.Message.Length >= 4 && !heavyRequest && _rag.GetChunkCount() > 0)
         {
             var hits = await TrySearchRagAsync(req.Message, ct);
-            if (hits.Count > 0)
-            {
-                ragSources = hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
-                var ragHeader = ChatSystemPromptTexts.RagHitsHeader(japaneseReply);
-                systemParts.Add(ragHeader + "\n" + string.Join("\n\n", hits.Select((h, i) => h.FormatForPrompt(i))));
-            }
+            ragSources = TryAppendRagHits(systemParts, hits, japaneseReply);
         }
         else if (!req.UseRag)
         {
@@ -1033,6 +1023,21 @@ public sealed class ChatService
         }
 
         return selected;
+    }
+
+    private static string[]? TryAppendRagHits(
+        List<string> systemParts,
+        IReadOnlyList<RagSearchHit> hits,
+        bool japanese)
+    {
+        if (hits.Count == 0)
+            return null;
+
+        var ragSources = hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
+        systemParts.Add(ChatSystemPromptTexts.RagPriorityInstruction(japanese));
+        var ragHeader = ChatSystemPromptTexts.RagHitsHeader(japanese);
+        systemParts.Add(ragHeader + "\n" + string.Join("\n\n", hits.Select((h, i) => h.FormatForPrompt(i))));
+        return ragSources;
     }
 
     private async Task<IReadOnlyList<RagSearchHit>> TrySearchRagAsync(string message, CancellationToken ct)

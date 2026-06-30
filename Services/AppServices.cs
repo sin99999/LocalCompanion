@@ -34,6 +34,7 @@ public static class AppServices
         services.AddSingleton(paths);
         services.Configure<LlamaOptions>(config.GetSection(LlamaOptions.SectionName));
         services.Configure<VoicevoxOptions>(config.GetSection(VoicevoxOptions.SectionName));
+        services.Configure<AppUpdateOptions>(config.GetSection(AppUpdateOptions.SectionName));
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Information));
         services.AddHttpClient<LlamaServerClient>();
         services.AddHttpClient<VoicevoxClient>((sp, client) =>
@@ -50,6 +51,9 @@ public static class AppServices
         services.AddSingleton<VoicevoxSpeakerCacheStore>();
         services.AddSingleton<VoicevoxSpeechService>();
         services.AddSingleton<VoicevoxStartupCoordinator>();
+        services.AddSingleton<AppUpdateDismissStore>();
+        services.AddSingleton<AppUpdateService>();
+        services.AddSingleton<AppUpdateStartupCoordinator>();
         services.AddSingleton(languageStore);
         services.AddSingleton(LocalizationService.Instance);
         services.AddSingleton<RagDatabase>();
