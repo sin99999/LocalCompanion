@@ -41,7 +41,7 @@ public sealed class RagSqliteVec
         return int.TryParse(raw, out var dim) && dim > 0 ? dim : null;
     }
 
-    public void EnsureVectorTable(SqliteConnection conn, int dimension)
+    public void EnsureVectorTable(SqliteConnection conn, int dimension, SqliteTransaction? transaction = null)
     {
         if (!IsAvailable || dimension <= 0)
             return;
@@ -53,16 +53,18 @@ public sealed class RagSqliteVec
         if (TableExists(conn, "rag_vec"))
         {
             var drop = conn.CreateCommand();
+            drop.Transaction = transaction;
             drop.CommandText = "DROP TABLE IF EXISTS rag_vec";
             drop.ExecuteNonQuery();
         }
 
         var create = conn.CreateCommand();
+        create.Transaction = transaction;
         create.CommandText = $"CREATE VIRTUAL TABLE rag_vec USING vec0(embedding float[{dimension}])";
         create.ExecuteNonQuery();
 
-        SetMeta(conn, MetaKeyDim, dimension.ToString());
-        RebuildFromLegacyEmbeddings(conn, dimension);
+        SetMeta(conn, MetaKeyDim, dimension.ToString(), transaction);
+        RebuildFromLegacyEmbeddings(conn, dimension, transaction);
     }
 
     public void InsertVector(SqliteConnection conn, long chunkId, float[] embedding, SqliteTransaction? transaction = null)
@@ -164,9 +166,10 @@ public sealed class RagSqliteVec
         cmd.ExecuteNonQuery();
     }
 
-    private static void SetMeta(SqliteConnection conn, string key, string value)
+    private static void SetMeta(SqliteConnection conn, string key, string value, SqliteTransaction? transaction = null)
     {
         var cmd = conn.CreateCommand();
+        cmd.Transaction = transaction;
         cmd.CommandText = """
             INSERT INTO rag_vec_meta(key, value) VALUES ($k, $v)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value
@@ -184,9 +187,10 @@ public sealed class RagSqliteVec
         return cmd.ExecuteScalar() is not null;
     }
 
-    private static void RebuildFromLegacyEmbeddings(SqliteConnection conn, int dimension)
+    private static void RebuildFromLegacyEmbeddings(SqliteConnection conn, int dimension, SqliteTransaction? transaction = null)
     {
         var select = conn.CreateCommand();
+        select.Transaction = transaction;
         select.CommandText = "SELECT id, embedding FROM rag_chunks";
         using var reader = select.ExecuteReader();
         while (reader.Read())
@@ -197,6 +201,7 @@ public sealed class RagSqliteVec
                 continue;
 
             var insert = conn.CreateCommand();
+            insert.Transaction = transaction;
             insert.CommandText = "INSERT INTO rag_vec(rowid, embedding) VALUES ($id, $emb)";
             insert.Parameters.AddWithValue("$id", id);
             insert.Parameters.AddWithValue("$emb", JsonSerializer.Serialize(vec));

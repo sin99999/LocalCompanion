@@ -1,4 +1,4 @@
-using LocalCompanion.Services.LlamaNative;
+﻿using LocalCompanion.Services.LlamaNative;
 
 namespace LocalCompanion.Services;
 
@@ -17,63 +17,30 @@ public sealed class LlamaLifecycleService
     }
 
     public bool StopIfManaged()
-    {
-        if (!LlamaManagedMarker.IsActive(_markerPath))
-            return false;
+        => ManagedLlamaProcess.StopManaged(_paths.ToolsDirectory, waitAfterKill: true, requireMarker: true);
 
-        var stopped = StopAllLlamaServers();
-
-        try { File.Delete(_markerPath); } catch { /* ignore */ }
-
-        return stopped;
-    }
-
-    /// <summary>マーカー不整合時の保険として llama-server を強制停止する。</summary>
+    /// <summary>モデル適用など。記録 PID があれば停止（他アプリの llama-server は対象外）。</summary>
     public bool ForceStopAll()
-    {
-        var stopped = StopAllLlamaServers();
-        try { File.Delete(_markerPath); } catch { /* ignore */ }
-        return stopped;
-    }
-
-    private static bool StopAllLlamaServers()
-    {
-        var procs = System.Diagnostics.Process.GetProcessesByName("llama-server");
-        if (procs.Length == 0)
-            return false;
-
-        foreach (var proc in procs)
-        {
-            try
-            {
-                if (!proc.HasExited)
-                    proc.Kill(entireProcessTree: true);
-            }
-            catch
-            {
-                // 既に終了している場合など
-            }
-            finally
-            {
-                proc.Dispose();
-            }
-        }
-
-        // すぐ再起動すると競合しやすいので、終了を少し待つ
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (System.Diagnostics.Process.GetProcessesByName("llama-server").Length == 0)
-                break;
-            Thread.Sleep(150);
-        }
-        return true;
-    }
+        => ManagedLlamaProcess.StopManaged(_paths.ToolsDirectory, waitAfterKill: true, requireMarker: false);
 
     public bool IsManagedMarkerPresent() => LlamaManagedMarker.IsActive(_markerPath);
 
-    public static bool IsLlamaProcessRunning()
-        => System.Diagnostics.Process.GetProcessesByName("llama-server").Length > 0;
+    public bool IsManagedLlamaRunning()
+    {
+        var pid = ManagedLlamaProcess.TryReadPid(_paths.ToolsDirectory);
+        if (pid is not int trackedPid)
+            return false;
+        try
+        {
+            using var proc = System.Diagnostics.Process.GetProcessById(trackedPid);
+            return !proc.HasExited
+                   && proc.ProcessName.Equals("llama-server", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     /// <summary>モデル変更後などに llama-server をバックグラウンド起動する。</summary>
     public bool TryStartManagedInBackground()

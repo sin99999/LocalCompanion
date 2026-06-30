@@ -22,7 +22,23 @@ public sealed class RagDatabase
 
     public RagSqliteVec Vector => _vec;
 
-    public SqliteConnection Open() => new SqliteConnection($"Data Source={_dbPath}");
+    public SqliteConnection Open()
+    {
+        var conn = new SqliteConnection($"Data Source={_dbPath};Default Timeout=30");
+        conn.Open();
+        ApplyConnectionPragmas(conn);
+        return conn;
+    }
+
+    private static void ApplyConnectionPragmas(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            PRAGMA journal_mode=WAL;
+            PRAGMA busy_timeout=5000;
+            """;
+        cmd.ExecuteNonQuery();
+    }
 
     public void PrepareVectors(SqliteConnection conn) => _vec.TryPrepare(conn);
 

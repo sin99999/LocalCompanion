@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -46,8 +46,11 @@ public static class RagDocumentReader
 
     public static RagDocument ReadDocument(Stream stream, string fileName)
     {
+        var safeName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(safeName))
+            safeName = "upload";
         var text = ReadText(stream, fileName);
-        return new RagDocument(fileName, text);
+        return new RagDocument(safeName, text);
     }
 
     public static string ReadText(string path)

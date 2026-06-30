@@ -82,11 +82,21 @@ public static class LlamaServerNativeHost
             if (lastCtx == context && lastModel == modelKey)
             {
                 SetManagedFlag(managedMarker);
+                TryCaptureManagedPid(toolsDir);
                 NativeLog.WriteKey("Startup.LlamaAlreadyRunning", null, context);
                 return 0;
             }
-            NativeLog.WriteKey("Startup.LlamaRestart");
-            StopLlamaProcesses();
+
+            if (LlamaManagedMarker.IsActiveInToolsDir(toolsDir) || ManagedLlamaProcess.TryReadPid(toolsDir) is not null)
+            {
+                NativeLog.WriteKey("Startup.LlamaRestart");
+                StopLlamaProcesses(toolsDir);
+            }
+            else
+            {
+                NativeLog.WriteKey("Startup.PortInUseForeign");
+                return 1;
+            }
         }
 
         var extraArgs = new List<string>();
@@ -133,7 +143,9 @@ public static class LlamaServerNativeHost
                 NativeLog.WriteKey("Startup.GpuLayersRetry", null, gpuLayers);
 
             SetGpuLayers(args, gpuLayers);
-            StartLlamaProcess(exe, args, Path.GetDirectoryName(exe)!, logFile);
+            var pid = StartLlamaProcess(exe, args, Path.GetDirectoryName(exe)!, logFile);
+            if (pid is int startedPid)
+                ManagedLlamaProcess.WritePid(toolsDir, startedPid);
             // 起動待ち中にアプリが終了しても停止対象になるよう、先に管理マーカーを立てる
             SetManagedFlag(managedMarker);
 
@@ -148,11 +160,12 @@ public static class LlamaServerNativeHost
                     WriteMarker(ctxMarker, context.ToString());
                     WriteMarker(modelMarker, modelKey);
                     SetManagedFlag(managedMarker);
+                    TryCaptureManagedPid(toolsDir);
                     NativeLog.WriteKey("Startup.LlamaReady", 100);
                     return 0;
                 }
 
-                if (Process.GetProcessesByName("llama-server").Length == 0)
+                if (!IsManagedLlamaAlive(toolsDir))
                 {
                     NativeLog.WriteKey("Startup.LlamaProcessExited");
                     if (attemptIndex + 1 < gpuLayerAttempts.Count)
@@ -171,7 +184,7 @@ public static class LlamaServerNativeHost
 
             if (attemptIndex + 1 < gpuLayerAttempts.Count)
             {
-                StopLlamaProcesses();
+                StopLlamaProcesses(toolsDir);
                 continue;
             }
 
@@ -195,7 +208,7 @@ public static class LlamaServerNativeHost
         args.AddRange(["-ngl", gpuLayers.ToString()]);
     }
 
-    private static void StartLlamaProcess(string exe, List<string> args, string workDir, string logFile)
+    private static int? StartLlamaProcess(string exe, List<string> args, string workDir, string logFile)
     {
         try { if (File.Exists(logFile)) File.Delete(logFile); } catch { /* ignore */ }
         var errLog = logFile + ".err";
@@ -237,7 +250,7 @@ public static class LlamaServerNativeHost
                 }
                 catch { /* ignore */ }
             });
-            return;
+            return proc.Id;
         }
         catch
         {
@@ -253,31 +266,50 @@ public static class LlamaServerNativeHost
             CreateNoWindow = true,
             UseShellExecute = false,
         };
-        Process.Start(fallback);
+        return Process.Start(fallback)?.Id;
     }
 
     private static string Quote(string arg) =>
         arg.Contains(' ') || arg.Contains('"') ? "\"" + arg.Replace("\"", "\\\"") + "\"" : arg;
 
     /// <param name="waitAfterKill">再起動前は true（ポート解放待ち）。アプリ終了時は false で UI をブロックしない。</param>
-    internal static void StopLlamaProcesses(bool waitAfterKill = true)
-    {
-        foreach (var proc in Process.GetProcessesByName("llama-server"))
-        {
-            try
-            {
-                if (!proc.HasExited)
-                    proc.Kill(entireProcessTree: true);
-            }
-            catch { /* ignore */ }
-            finally
-            {
-                proc.Dispose();
-            }
-        }
+    internal static void StopLlamaProcesses(string toolsDir, bool waitAfterKill = true)
+        => ManagedLlamaProcess.StopManaged(toolsDir, waitAfterKill, requireMarker: true);
 
-        if (waitAfterKill)
-            Thread.Sleep(2000);
+    private static bool IsManagedLlamaAlive(string toolsDir)
+    {
+        var pid = ManagedLlamaProcess.TryReadPid(toolsDir);
+        if (pid is not int trackedPid)
+            return Process.GetProcessesByName("llama-server").Length > 0;
+
+        try
+        {
+            using var proc = Process.GetProcessById(trackedPid);
+            return !proc.HasExited;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>PID 未記録の既存起動を引き継ぐ（単一 llama-server のみ）。</summary>
+    private static void TryCaptureManagedPid(string toolsDir)
+    {
+        if (ManagedLlamaProcess.TryReadPid(toolsDir) is not null)
+            return;
+
+        var procs = Process.GetProcessesByName("llama-server");
+        try
+        {
+            if (procs.Length == 1)
+                ManagedLlamaProcess.WritePid(toolsDir, procs[0].Id);
+        }
+        finally
+        {
+            foreach (var proc in procs)
+                proc.Dispose();
+        }
     }
 
     private static void SetManagedFlag(string path)

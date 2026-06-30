@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using LocalCompanion.Services;
 using LocalCompanion.Services.LlamaNative;
 
@@ -37,6 +37,13 @@ public static class AppBootstrap
 
     public static void StopExistingUiListeners()
     {
+        var currentPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(currentPath))
+        {
+            try { currentPath = Process.GetCurrentProcess().MainModule?.FileName; }
+            catch { /* ignore */ }
+        }
+
         var killed = false;
         foreach (var proc in Process.GetProcessesByName("LocalCompanion"))
         {
@@ -44,6 +51,17 @@ public static class AppBootstrap
             {
                 if (proc.Id == Environment.ProcessId)
                     continue;
+
+                if (!string.IsNullOrWhiteSpace(currentPath))
+                {
+                    string? otherPath = null;
+                    try { otherPath = proc.MainModule?.FileName; }
+                    catch { /* access denied etc. */ }
+
+                    if (!string.Equals(otherPath, currentPath, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+
                 if (!proc.HasExited)
                 {
                     proc.Kill(entireProcessTree: true);
@@ -70,34 +88,6 @@ public static class AppBootstrap
         var managed = LlamaManagedMarker.IsActiveInToolsDir(toolsDir);
 
         if (managed)
-        {
-            LlamaServerNativeHost.StopLlamaProcesses(waitForLlamaExit);
-            ClearManagedMarkers(toolsDir);
-        }
-    }
-
-    private static void KillLlamaServerProcesses()
-    {
-        foreach (var proc in Process.GetProcessesByName("llama-server"))
-        {
-            try
-            {
-                if (!proc.HasExited)
-                    proc.Kill(entireProcessTree: true);
-            }
-            catch { /* ignore */ }
-            finally
-            {
-                proc.Dispose();
-            }
-        }
-
-        Thread.Sleep(500);
-    }
-
-    private static void ClearManagedMarkers(string toolsDir)
-    {
-        LlamaManagedMarker.RemoveLegacyMarkers(toolsDir);
-        try { File.Delete(LlamaManagedMarker.ResolvePath(toolsDir)); } catch { /* ignore */ }
+            LlamaServerNativeHost.StopLlamaProcesses(toolsDir, waitForLlamaExit);
     }
 }

@@ -299,8 +299,11 @@ public partial class SettingsPageViewModel : ObservableObject
         SetVoicevoxSpeakersStatus("");
         if (!IsVoicevoxInstalled)
         {
-            VoicevoxSpeakers.Clear();
-            SelectedVoicevoxSpeaker = null;
+            RunOnUi(() =>
+            {
+                VoicevoxSpeakers.Clear();
+                SelectedVoicevoxSpeaker = null;
+            });
             VoicevoxPoweredByText = "Powered by VOICEVOX";
             return;
         }
@@ -311,19 +314,25 @@ public partial class SettingsPageViewModel : ObservableObject
             UpdateVoicevoxPoweredByText(status.Version);
             if (!status.Available)
             {
-                VoicevoxSpeakers.Clear();
-                SelectedVoicevoxSpeaker = null;
+                RunOnUi(() =>
+                {
+                    VoicevoxSpeakers.Clear();
+                    SelectedVoicevoxSpeaker = null;
+                });
                 SetVoicevoxSpeakersStatus(status.Hint ?? LocalizationService.Instance.Get("Settings.Voicevox.Waiting"));
                 return;
             }
 
             var speakers = await _voicevoxClient.ListSpeakersAsync(ct);
-            VoicevoxSpeakers.Clear();
-            foreach (var s in speakers)
-                VoicevoxSpeakers.Add(new VoicevoxSpeakerChoiceViewModel(s.Id, s.SpeakerName, s.StyleName));
+            RunOnUi(() =>
+            {
+                VoicevoxSpeakers.Clear();
+                foreach (var s in speakers)
+                    VoicevoxSpeakers.Add(new VoicevoxSpeakerChoiceViewModel(s.Id, s.SpeakerName, s.StyleName));
 
-            var saved = _voicevoxSettings.Load();
-            SelectVoicevoxSpeaker(saved);
+                var saved = _voicevoxSettings.Load();
+                SelectVoicevoxSpeaker(saved);
+            });
             _speakerCache.Save(speakers);
 
             if (VoicevoxSpeakers.Count == 0)
@@ -331,8 +340,11 @@ public partial class SettingsPageViewModel : ObservableObject
         }
         catch
         {
-            VoicevoxSpeakers.Clear();
-            SelectedVoicevoxSpeaker = null;
+            RunOnUi(() =>
+            {
+                VoicevoxSpeakers.Clear();
+                SelectedVoicevoxSpeaker = null;
+            });
             SetVoicevoxSpeakersStatus(LocalizationService.Instance.Get("Settings.Voicevox.LoadFailed"));
         }
     }

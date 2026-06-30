@@ -405,6 +405,13 @@ public sealed class ChatService
             return new(false, false, sessionKey, null);
         if (!req.UseHistory)
             return new(false, false, sessionKey, req.SessionId);
+
+        var session = GetSession(req.SessionId);
+        if (session is null)
+            return new(false, false, sessionKey, req.SessionId);
+        if (!string.Equals(session.PresetKey, sessionKey, StringComparison.OrdinalIgnoreCase))
+            return new(false, true, sessionKey, req.SessionId);
+
         return new(true, true, sessionKey, req.SessionId);
     }
 
@@ -641,7 +648,8 @@ public sealed class ChatService
                     if (replyBuilder.Length >= maxReplyChars)
                     {
                         streamTruncated = true;
-                        continue;
+                        streamed = true;
+                        break;
                     }
 
                     var pieceText = piece.Text;
@@ -649,7 +657,8 @@ public sealed class ChatService
                     if (remaining <= 0)
                     {
                         streamTruncated = true;
-                        continue;
+                        streamed = true;
+                        break;
                     }
 
                     if (pieceText.Length > remaining)
@@ -662,6 +671,12 @@ public sealed class ChatService
                     {
                         replyBuilder.Append(pieceText);
                         yield return new ChatStreamChunkDto("content", pieceText);
+                    }
+
+                    if (streamTruncated)
+                    {
+                        streamed = true;
+                        break;
                     }
                 }
             }
@@ -897,6 +912,24 @@ public sealed class ChatService
         return string.Join("\n\n", parts);
     }
 
+    /// <summary>キャンセル時にユーザーメッセージだけ履歴へ残す。</summary>
+    public void PersistCancelledUserMessage(string sessionId, string presetKey, ChatRequestDto req)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(presetKey))
+            return;
+
+        SaveMessage(sessionId, presetKey, "user", SummarizeForHistory(req));
+        TouchSession(sessionId, req.Message);
+    }
+
+    public void DeleteSessionIfNoMessages(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return;
+        if (LoadSessionMessages(sessionId, 1).Count == 0)
+            DeleteSession(sessionId);
+    }
+
     private void SaveMessage(string sessionId, string presetKey, string role, string content)
     {
         using var conn = _db.Open();
@@ -993,6 +1026,12 @@ public sealed class ChatService
         }
 
         selected.Reverse();
+        while (selected.Count > 0
+               && string.Equals(selected[0].Role, "assistant", StringComparison.OrdinalIgnoreCase))
+        {
+            selected.RemoveAt(0);
+        }
+
         return selected;
     }
 

@@ -10,10 +10,20 @@ public partial class ChatPageViewModel
 
     private void RunOnUi(Action action)
     {
-        if (_uiDispatcher is null || _uiDispatcher.HasThreadAccess)
+        if (_uiDispatcher is null)
+        {
             action();
-        else
-            _uiDispatcher.TryEnqueue(() => action());
+            return;
+        }
+
+        if (_uiDispatcher.HasThreadAccess)
+        {
+            action();
+            return;
+        }
+
+        if (!_uiDispatcher.TryEnqueue(() => action()))
+            _uiDispatcher.TryEnqueue(DispatcherQueuePriority.High, () => action());
     }
 
     private async Task RunOnUiAsync(Action action)
@@ -38,7 +48,11 @@ public partial class ChatPageViewModel
                 }
             }))
         {
-            action();
+            await AwaitUiFrameAsync();
+            if (_uiDispatcher.HasThreadAccess)
+                action();
+            else
+                throw new InvalidOperationException("UI dispatcher is unavailable.");
             return;
         }
 
@@ -55,8 +69,8 @@ public partial class ChatPageViewModel
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (!_uiDispatcher.TryEnqueue(DispatcherQueuePriority.Normal, () => tcs.TrySetResult(true)))
-            tcs.TrySetResult(true);
-
-        await tcs.Task;
+            await Task.Delay(1);
+        else
+            await tcs.Task;
     }
 }

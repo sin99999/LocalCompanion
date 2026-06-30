@@ -41,13 +41,18 @@ public sealed partial class ChatConversationView : UserControl
     private IReadOnlyList<ChatTextRange> _reasoningRanges = Array.Empty<ChatTextRange>();
     private bool _documentHasRichFormatting;
 
+    private readonly PointerEventHandler _documentPointerPressedHandler;
+    private readonly PointerEventHandler _documentPointerReleasedHandler;
+
     public ChatConversationView()
     {
         InitializeComponent();
+        _documentPointerPressedHandler = OnDocumentPointerPressed;
+        _documentPointerReleasedHandler = OnDocumentPointerReleased;
         Unloaded += OnUnloaded;
         Loaded += OnLoaded;
-        ConversationDocument.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnDocumentPointerPressed), true);
-        ConversationDocument.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnDocumentPointerReleased), true);
+        ConversationDocument.AddHandler(UIElement.PointerPressedEvent, _documentPointerPressedHandler, true);
+        ConversationDocument.AddHandler(UIElement.PointerReleasedEvent, _documentPointerReleasedHandler, true);
     }
 
     public IList? Messages
@@ -94,6 +99,8 @@ public sealed partial class ChatConversationView : UserControl
     {
         StopRebuildTimer();
         AttachMessages(_messages, null);
+        ConversationDocument.RemoveHandler(UIElement.PointerPressedEvent, _documentPointerPressedHandler);
+        ConversationDocument.RemoveHandler(UIElement.PointerReleasedEvent, _documentPointerReleasedHandler);
         if (_documentScrollHost is not null)
             _documentScrollHost.ViewChanged -= OnDocumentScrollViewChanged;
     }

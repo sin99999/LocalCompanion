@@ -262,17 +262,17 @@
 
                         <StackPanel Style="{StaticResource SettingsTabButtonRowStyle}">
 
-                            <Button Command="{x:Bind ViewModel.OpenLicensesCommand}" Content="{x:Bind ViewModel.UiAboutLicenses, Mode=OneWay}" />
+                            <Button Command="{x:Bind ViewModel.OpenLicensesCommand}" Content="{x:Bind ViewModel.UiAboutLicenses, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
 
-                            <Button Command="{x:Bind ViewModel.OpenTroubleshootingCommand}" Content="{x:Bind ViewModel.UiAboutOpenTroubleshooting, Mode=OneWay}" />
+                            <Button Command="{x:Bind ViewModel.OpenTroubleshootingCommand}" Content="{x:Bind ViewModel.UiAboutOpenTroubleshooting, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
 
                         </StackPanel>
 
                         <StackPanel Style="{StaticResource SettingsTabButtonRowStyle}">
 
-                            <Button Command="{x:Bind ViewModel.OpenLogFolderCommand}" Content="{x:Bind ViewModel.UiAboutOpenLogFolder, Mode=OneWay}" />
+                            <Button Command="{x:Bind ViewModel.OpenLogFolderCommand}" Content="{x:Bind ViewModel.UiAboutOpenLogFolder, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
 
-                            <Button Command="{x:Bind ViewModel.BackupDataCommand}" Content="{x:Bind ViewModel.UiAboutBackup, Mode=OneWay}" />
+                            <Button Command="{x:Bind ViewModel.BackupDataCommand}" Content="{x:Bind ViewModel.UiAboutBackup, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
 
                         </StackPanel>
 

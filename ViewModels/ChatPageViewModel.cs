@@ -177,6 +177,9 @@ public partial class ChatPageViewModel : ObservableObject
 
     public void BeginNewConversation()
     {
+        if (IsBusy)
+            return;
+
         DeleteActiveDefaultAiSessionIfAny();
         _activeSessionId = null;
         _continueSession = false;
@@ -222,7 +225,7 @@ public partial class ChatPageViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanMutateConversation))]
     private void ClearHistory()
     {
         var historyDeleted = false;
@@ -246,7 +249,7 @@ public partial class ChatPageViewModel : ObservableObject
 
     public void LoadConversationSession(string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
+        if (IsBusy || string.IsNullOrWhiteSpace(sessionId))
             return;
 
         var session = _chat.GetSession(sessionId);
@@ -541,8 +544,23 @@ public partial class ChatPageViewModel : ObservableObject
         catch (OperationCanceledException) when (sendCt.IsCancellationRequested)
         {
             var loc = LocalizationService.Instance;
+            var presetKey = CharacterPresetService.ResolveSessionPresetKey(_characters.GetActivePresetFileName());
+            if (UseHistory && !string.IsNullOrWhiteSpace(sessionId))
+                _chat.PersistCancelledUserMessage(sessionId, presetKey, req);
+            else if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                _chat.DeleteSessionIfNoMessages(sessionId);
+                sessionId = null;
+            }
+
             await RunOnUiAsync(() =>
             {
+                if (sessionId is null)
+                {
+                    _activeSessionId = null;
+                    _continueSession = false;
+                }
+
                 SetStatusByKey("Chat.Status.Stopped");
                 if (assistantLine is null)
                 {
@@ -600,6 +618,10 @@ public partial class ChatPageViewModel : ObservableObject
 
     public bool IsInputEnabled => !IsBusy;
 
+    public bool CanMutateConversation => !IsBusy;
+
+    public void NotifyBusyMutationBlocked() => SetStatusByKey("Chat.Status.BusyCannotSwitch");
+
     private void NotifySendStopButtonLabelChanged() =>
         OnPropertyChanged(nameof(SendStopButtonLabel));
 
@@ -607,6 +629,8 @@ public partial class ChatPageViewModel : ObservableObject
     {
         NotifySendStopButtonLabelChanged();
         OnPropertyChanged(nameof(IsInputEnabled));
+        OnPropertyChanged(nameof(CanMutateConversation));
+        ClearHistoryCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanSend() =>

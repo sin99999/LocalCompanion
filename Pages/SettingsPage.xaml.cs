@@ -15,6 +15,8 @@ public sealed partial class SettingsPage : Page
 {
     public SettingsPageViewModel ViewModel { get; }
 
+    private CancellationTokenSource? _pageCts;
+
     public SettingsPage()
     {
         ViewModel = AppServices.Get<SettingsPageViewModel>();
@@ -28,6 +30,9 @@ public sealed partial class SettingsPage : Page
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _pageCts?.Cancel();
+        _pageCts?.Dispose();
+        _pageCts = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -47,6 +52,9 @@ public sealed partial class SettingsPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _pageCts?.Cancel();
+        _pageCts?.Dispose();
+        _pageCts = new CancellationTokenSource();
         ViewModel.Refresh();
         await ViewModel.RefreshRuntimeHealthAsync();
         SyncVoicevoxTab();
@@ -183,7 +191,7 @@ public sealed partial class SettingsPage : Page
         var path = await RagPathPicker.PickFileAsync(null, App.WindowHandle);
         if (path is null)
             return;
-        await ViewModel.IngestPathAsync(path, CancellationToken.None);
+        await ViewModel.IngestPathAsync(path, _pageCts?.Token ?? CancellationToken.None);
     }
 
     private async void OnIngestFolderClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -193,11 +201,13 @@ public sealed partial class SettingsPage : Page
         var path = await RagPathPicker.PickFolderAsync(null, App.WindowHandle);
         if (path is null)
             return;
-        await ViewModel.IngestPathAsync(path, CancellationToken.None);
+        await ViewModel.IngestPathAsync(path, _pageCts?.Token ?? CancellationToken.None);
     }
 
     private void OnDeleteRagSourceClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
+        if (!ViewModel.IsSettingsInputEnabled)
+            return;
         if (sender is Button { Tag: string source })
             ViewModel.DeleteRagSourceCommand.Execute(source);
     }

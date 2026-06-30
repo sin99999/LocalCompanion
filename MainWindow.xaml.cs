@@ -68,22 +68,25 @@ public sealed partial class MainWindow : Window
         Instance = this;
         AppServices.Get<AppAppearanceService>().Changed += OnAppAppearanceChanged;
 
-        LocalizationService.Instance.Changed += (_, _) =>
-            _ = DispatcherQueue.TryEnqueue(ApplyLocalization);
+        LocalizationService.Instance.Changed += OnLocalizationChanged;
         ApplyLocalization();
 
         StartupStatusText.Text = LocalizationService.Instance.Get("Splash.Wait");
         Activated += OnFirstActivated;
-        Activated += (_, _) => ConfigureTitleBar();
-        AppWindow.Closing += (_, _) => CompanionStartup.ShutdownInBackground();
+        AppWindow.Closing += (_, _) => { /* shutdown は Closed で一度だけ */ };
         Closed += (_, _) =>
         {
+            AppWindow.Changed -= OnAppWindowChanged;
+            LocalizationService.Instance.Changed -= OnLocalizationChanged;
             AppServices.Get<AppAppearanceService>().Changed -= OnAppAppearanceChanged;
             _ = FinalizeChatSessionOnCloseAsync();
             Instance = null;
             CompanionStartup.ShutdownInBackground();
         };
     }
+
+    private void OnLocalizationChanged(object? sender, EventArgs e) =>
+        _ = DispatcherQueue.TryEnqueue(ApplyLocalization);
 
     private void OnAppAppearanceChanged(object? sender, EventArgs e)
     {
@@ -487,6 +490,12 @@ public sealed partial class MainWindow : Window
 
     private void SelectCharacter(CharacterChoiceViewModel choice)
     {
+        if (ContentFrame.Content is ChatPage activeChat && activeChat.ViewModel.IsBusy)
+        {
+            activeChat.ViewModel.NotifyBusyMutationBlocked();
+            return;
+        }
+
         var characters = AppServices.Get<CharacterPresetService>();
         try
         {
@@ -524,6 +533,13 @@ public sealed partial class MainWindow : Window
     {
         if (ThreadList.SelectedItem is not ConversationThreadPreview thread)
             return;
+
+        if (ContentFrame.Content is ChatPage busyPage && busyPage.ViewModel.IsBusy)
+        {
+            busyPage.ViewModel.NotifyBusyMutationBlocked();
+            ThreadList.SelectedItem = null;
+            return;
+        }
 
         if (ContentFrame.CurrentSourcePageType != typeof(ChatPage))
         {

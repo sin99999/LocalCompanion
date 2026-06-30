@@ -1,4 +1,4 @@
-using LocalCompanion.Localization;
+﻿using LocalCompanion.Localization;
 
 namespace LocalCompanion.Services;
 
@@ -49,7 +49,14 @@ public static class CompanionStartup
     public static void Shutdown() => ShutdownCore();
 
     /// <summary>ウィンドウを閉じたあと、UI をブロックせずバックグラウンドで終了処理する。</summary>
-    public static void ShutdownInBackground() => _ = Task.Run(ShutdownCore);
+    private static int _shutdownStarted;
+
+    public static void ShutdownInBackground()
+    {
+        if (Interlocked.Exchange(ref _shutdownStarted, 1) != 0)
+            return;
+        _ = Task.Run(ShutdownCore);
+    }
 
     private static void ShutdownCore()
     {

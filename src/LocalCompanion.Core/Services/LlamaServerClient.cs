@@ -93,8 +93,7 @@ public sealed class LlamaServerClient
         {
             var match = ids.FirstOrDefault(id =>
                 string.Equals(ModelCatalogService.NormalizeModelFileName(id), selected, StringComparison.OrdinalIgnoreCase)
-                || id.EndsWith(selected, StringComparison.OrdinalIgnoreCase)
-                || id.Contains(selected, StringComparison.OrdinalIgnoreCase));
+                || id.EndsWith(selected, StringComparison.OrdinalIgnoreCase));
             if (match is not null)
                 return match;
         }

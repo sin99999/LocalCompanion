@@ -18,6 +18,9 @@ public sealed class RagService
     private readonly RagDatabase _db;
     private readonly LlamaServerClient _llama;
     private readonly LlamaOptions _opt;
+    private readonly SemaphoreSlim _ingestLock = new(1, 1);
+
+    private const int MaxLegacySearchChunks = 3000;
 
     public RagService(RagDatabase db, LlamaServerClient llama, IOptions<LlamaOptions> opt)
     {
@@ -49,66 +52,75 @@ public sealed class RagService
         if (prepared.Count == 0)
             return 0;
 
-        using var conn = _db.Open();
-        await conn.OpenAsync(ct);
-        _db.PrepareVectors(conn);
-
-        var embeddingDim = prepared[0].Embedding.Length;
-        _db.Vector.EnsureVectorTable(conn, embeddingDim);
-
-        await using var tx = await conn.BeginTransactionAsync(ct);
-        var sqliteTx = (SqliteTransaction)tx;
+        await _ingestLock.WaitAsync(ct);
         try
         {
-            DeleteSourceChunks(conn, source, sqliteTx);
+            using var conn = _db.Open();
+            await conn.OpenAsync(ct);
+            _db.PrepareVectors(conn);
 
-            var count = 0;
-            foreach (var (draft, emb) in prepared)
+            var embeddingDim = prepared[0].Embedding.Length;
+
+            await using var tx = await conn.BeginTransactionAsync(ct);
+            var sqliteTx = (SqliteTransaction)tx;
+            try
             {
-                var cmd = conn.CreateCommand();
-                cmd.Transaction = sqliteTx;
-                cmd.CommandText = """
-                    INSERT INTO rag_chunks (
-                      source, text, embedding, created_at,
-                      chunk_id, header_text, header_level, page, chapter, section, subsection
-                    )
-                    VALUES ($s, $t, $e, $at, $cid, $ht, $hl, $pg, $ch, $sec, $sub)
-                    RETURNING id
-                    """;
-                cmd.Parameters.AddWithValue("$s", source);
-                cmd.Parameters.AddWithValue("$t", draft.Text);
-                cmd.Parameters.AddWithValue("$e", JsonSerializer.Serialize(emb));
-                cmd.Parameters.AddWithValue("$at", DateTime.UtcNow.ToString("O"));
-                cmd.Parameters.AddWithValue("$cid", draft.ChunkId);
-                cmd.Parameters.AddWithValue("$ht", draft.HeaderText);
-                cmd.Parameters.AddWithValue("$hl", draft.HeaderLevel);
-                cmd.Parameters.AddWithValue("$pg", draft.Page);
-                cmd.Parameters.AddWithValue("$ch", draft.Chapter);
-                cmd.Parameters.AddWithValue("$sec", draft.Section);
-                cmd.Parameters.AddWithValue("$sub", draft.Subsection);
+                _db.Vector.EnsureVectorTable(conn, embeddingDim, sqliteTx);
 
-                var idObj = await cmd.ExecuteScalarAsync(ct);
-                if (idObj is null)
-                    continue;
+                DeleteSourceChunks(conn, source, sqliteTx);
 
-                var chunkId = Convert.ToInt64(idObj);
-                _db.Vector.InsertVector(conn, chunkId, emb, sqliteTx);
-                count++;
+                var count = 0;
+                foreach (var (draft, emb) in prepared)
+                {
+                    var cmd = conn.CreateCommand();
+                    cmd.Transaction = sqliteTx;
+                    cmd.CommandText = """
+                        INSERT INTO rag_chunks (
+                          source, text, embedding, created_at,
+                          chunk_id, header_text, header_level, page, chapter, section, subsection
+                        )
+                        VALUES ($s, $t, $e, $at, $cid, $ht, $hl, $pg, $ch, $sec, $sub)
+                        RETURNING id
+                        """;
+                    cmd.Parameters.AddWithValue("$s", source);
+                    cmd.Parameters.AddWithValue("$t", draft.Text);
+                    cmd.Parameters.AddWithValue("$e", JsonSerializer.Serialize(emb));
+                    cmd.Parameters.AddWithValue("$at", DateTime.UtcNow.ToString("O"));
+                    cmd.Parameters.AddWithValue("$cid", draft.ChunkId);
+                    cmd.Parameters.AddWithValue("$ht", draft.HeaderText);
+                    cmd.Parameters.AddWithValue("$hl", draft.HeaderLevel);
+                    cmd.Parameters.AddWithValue("$pg", draft.Page);
+                    cmd.Parameters.AddWithValue("$ch", draft.Chapter);
+                    cmd.Parameters.AddWithValue("$sec", draft.Section);
+                    cmd.Parameters.AddWithValue("$sub", draft.Subsection);
+
+                    var idObj = await cmd.ExecuteScalarAsync(ct);
+                    if (idObj is null)
+                        continue;
+
+                    var chunkId = Convert.ToInt64(idObj);
+                    _db.Vector.InsertVector(conn, chunkId, emb, sqliteTx);
+                    count++;
+                }
+
+                if (count == 0)
+                {
+                    await tx.RollbackAsync(ct);
+                    return 0;
+                }
+
+                await tx.CommitAsync(ct);
+                return count;
             }
-
-            if (count == 0)
+            catch
             {
                 await tx.RollbackAsync(ct);
-                return 0;
+                throw;
             }
-
-            await tx.CommitAsync(ct);
-            return count;
         }
-        catch
+        finally
         {
-            await tx.RollbackAsync(ct);
-            throw;
+            _ingestLock.Release();
         }
     }
 
@@ -126,21 +138,32 @@ public sealed class RagService
     public int DeleteSource(string source)
     {
         using var conn = _db.Open();
-        conn.Open();
         _db.PrepareVectors(conn);
-        _db.Vector.DeleteVectorsForSource(conn, source);
+        using var tx = conn.BeginTransaction();
+        try
+        {
+            _db.Vector.DeleteVectorsForSource(conn, source, tx);
 
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = "DELETE FROM rag_chunks WHERE source = $s";
-        cmd.Parameters.AddWithValue("$s", source);
-        var deleted = cmd.ExecuteNonQuery();
+            var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "DELETE FROM rag_chunks WHERE source = $s";
+            cmd.Parameters.AddWithValue("$s", source);
+            var deleted = cmd.ExecuteNonQuery();
 
-        var pref = conn.CreateCommand();
-        pref.CommandText = "DELETE FROM rag_source_prefs WHERE source = $s";
-        pref.Parameters.AddWithValue("$s", source);
-        pref.ExecuteNonQuery();
+            var pref = conn.CreateCommand();
+            pref.Transaction = tx;
+            pref.CommandText = "DELETE FROM rag_source_prefs WHERE source = $s";
+            pref.Parameters.AddWithValue("$s", source);
+            pref.ExecuteNonQuery();
 
-        return deleted;
+            tx.Commit();
+            return deleted;
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
     }
 
     public bool IsSourceEnabled(string source)
@@ -393,9 +416,21 @@ public sealed class RagService
         IReadOnlyList<string> enabledSources,
         CancellationToken ct)
     {
-        var rows = new List<(RagSearchHit Hit, float[] Vec)>();
         var cmd = conn.CreateCommand();
         var inClause = BuildInClause(cmd, enabledSources, "src");
+        var countCmd = conn.CreateCommand();
+        countCmd.CommandText = $"""
+            SELECT COUNT(*)
+            FROM rag_chunks
+            WHERE source IN ({inClause})
+            """;
+        foreach (SqliteParameter p in cmd.Parameters)
+            countCmd.Parameters.AddWithValue(p.ParameterName, p.Value);
+        var total = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
+        if (total > MaxLegacySearchChunks)
+            return Array.Empty<RagSearchHit>();
+
+        var rows = new List<(RagSearchHit Hit, float[] Vec)>();
         cmd.CommandText = $"""
             SELECT text, source, header_text, page, chunk_id, embedding
             FROM rag_chunks

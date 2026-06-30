@@ -645,6 +645,12 @@ public sealed partial class ChatPage : Page
 
     private async Task ConfirmAndClearHistoryAsync()
     {
+        if (ViewModel.IsBusy)
+        {
+            ViewModel.NotifyBusyMutationBlocked();
+            return;
+        }
+
         var appearance = _appearance ?? AppServices.Get<AppAppearanceService>();
         if (appearance.ShouldConfirmHistoryDelete())
         {
