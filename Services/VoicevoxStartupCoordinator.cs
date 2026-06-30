@@ -1,4 +1,4 @@
-using LocalCompanion.Localization;
+﻿using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.ViewModels;
 using Microsoft.UI.Xaml;
@@ -81,7 +81,7 @@ public sealed class VoicevoxStartupCoordinator
             },
             XamlRoot = xamlRoot,
         };
-        _ = progress.ShowAsync();
+        var showTask = progress.ShowAsync();
 
         var ok = false;
         try
@@ -90,7 +90,8 @@ public sealed class VoicevoxStartupCoordinator
         }
         finally
         {
-            progress.Hide();
+            try { progress.Hide(); } catch { /* ignore */ }
+            try { await showTask; } catch { /* ignore */ }
         }
 
         if (!ok)

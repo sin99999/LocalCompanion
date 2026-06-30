@@ -79,7 +79,15 @@ public sealed partial class MainWindow : Window
             AppWindow.Changed -= OnAppWindowChanged;
             LocalizationService.Instance.Changed -= OnLocalizationChanged;
             AppServices.Get<AppAppearanceService>().Changed -= OnAppAppearanceChanged;
-            _ = FinalizeChatSessionOnCloseAsync();
+            try
+            {
+                FinalizeChatSessionOnCloseAsync().Wait(TimeSpan.FromSeconds(3));
+            }
+            catch
+            {
+                /* ignore */
+            }
+
             Instance = null;
             CompanionStartup.ShutdownInBackground();
         };

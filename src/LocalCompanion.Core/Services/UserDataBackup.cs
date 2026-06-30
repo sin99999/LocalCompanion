@@ -9,7 +9,7 @@ public static class UserDataBackup
     /// dataDirectory の中身を destinationZipPath に書き出す。
     /// SQLite 等が開いているファイルも読み取り共有でコピーする。
     /// </summary>
-    public static int ExportToZip(string dataDirectory, string destinationZipPath)
+    public static int ExportToZip(string dataDirectory, string destinationZipPath, Action<string>? beforeCopyFile = null)
     {
         if (!Directory.Exists(dataDirectory))
             throw new DirectoryNotFoundException(dataDirectory);
@@ -22,9 +22,10 @@ public static class UserDataBackup
         using var zip = ZipFile.Open(destFull, ZipArchiveMode.Create);
         foreach (var file in Directory.EnumerateFiles(dataDirectory, "*", SearchOption.AllDirectories))
         {
-            // 出力先 ZIP がデータフォルダー内に指定された場合の自己参照を避ける
             if (string.Equals(Path.GetFullPath(file), destFull, StringComparison.OrdinalIgnoreCase))
                 continue;
+
+            beforeCopyFile?.Invoke(file);
 
             var relative = Path.GetRelativePath(dataDirectory, file).Replace('\\', '/');
             var entry = zip.CreateEntry(relative, CompressionLevel.Optimal);

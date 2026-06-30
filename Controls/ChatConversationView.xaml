@@ -19,10 +19,10 @@
         TextWrapping="Wrap"
         VerticalAlignment="Stretch">
         <RichEditBox.Resources>
-            <SolidColorBrush x:Key="TextControlBackground" Color="#FF1C1C1C" />
-            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF1C1C1C" />
-            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FF1C1C1C" />
-            <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="#FF1C1C1C" />
+            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent" />
             <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
             <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
             <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />

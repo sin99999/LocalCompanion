@@ -53,7 +53,7 @@ public static class ModelLibrarySettings
             additionalModelsFolder = normalized,
             firstRunSetupComplete = doc.FirstRunSetupComplete,
         };
-        File.WriteAllText(SettingsPath(dataDir), JsonSerializer.Serialize(payload, JsonOpts));
+        AtomicFile.WriteAllText(SettingsPath(dataDir), JsonSerializer.Serialize(payload, JsonOpts));
     }
 
     /// <summary>追加モデルフォルダ（未設定・存在しない場合は null）。</summary>

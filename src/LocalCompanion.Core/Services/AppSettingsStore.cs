@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Models;
 
@@ -43,7 +43,7 @@ public sealed class AppSettingsStore
         var normalized = Normalize(dto);
         lock (_lock)
         {
-            File.WriteAllText(_path, JsonSerializer.Serialize(normalized, JsonOpts));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(normalized, JsonOpts));
         }
 
         return normalized;

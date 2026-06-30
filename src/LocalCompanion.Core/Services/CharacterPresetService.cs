@@ -147,7 +147,7 @@ public sealed class CharacterPresetService
         var fileName = ToFileName(profile.Name);
         var path = Path.Combine(_charactersDir, fileName);
         var json = JsonSerializer.Serialize(profile, JsonOpts);
-        File.WriteAllText(path, json);
+        AtomicFile.WriteAllText(path, json);
         if (activate)
         {
             SetActiveFileName(fileName);
@@ -276,7 +276,7 @@ public sealed class CharacterPresetService
         var json = JsonSerializer.Serialize(
             new { activeFileName = IsNoneSelection(fileName) ? null : fileName },
             JsonOpts);
-        File.WriteAllText(_selectionPath, json);
+        AtomicFile.WriteAllText(_selectionPath, json);
     }
 
     internal static string ToFileName(string name)
@@ -321,7 +321,7 @@ public sealed class CharacterPresetService
                 temperature = p.Temperature,
                 maxOutputTokens = p.MaxOutputTokens
             });
-            File.WriteAllText(path, json);
+            AtomicFile.WriteAllText(path, json);
         }
         catch (Exception ex)
         {

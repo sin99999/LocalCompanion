@@ -55,6 +55,7 @@ public partial class SettingsPageViewModel
     private CancellationTokenSource? _mmprojDownloadCts;
     private Task? _mmprojDownloadTask;
     private int _mmprojDownloadGeneration;
+    private int _settingsRefreshGeneration;
 
     public void BindUiDispatcher(DispatcherQueue dispatcher) => _uiDispatcher = dispatcher;
 
@@ -63,13 +64,18 @@ public partial class SettingsPageViewModel
         if (IsModelLoadInProgress)
             return;
 
+        var generation = Interlocked.Increment(ref _settingsRefreshGeneration);
         try
         {
             var summary = await _health.GetAsync(ct);
+            if (generation != _settingsRefreshGeneration)
+                return;
             RunOnUi(() => RuntimeHealthText = summary.Message);
         }
         catch (Exception ex)
         {
+            if (generation != _settingsRefreshGeneration)
+                return;
             RunOnUi(() => RuntimeHealthText = UserFacingErrorLocalizer.Localize(ex));
         }
     }
@@ -100,7 +106,6 @@ public partial class SettingsPageViewModel
 
     private void EndModelLoadUi()
     {
-        StartupProgress.Handler = null;
         IsModelLoadInProgress = false;
         ModelLoadProgress = 0;
         ModelLoadStatusMessage = "";
@@ -118,9 +123,6 @@ public partial class SettingsPageViewModel
     {
         if (!IsMmprojDownloadInProgress)
             return;
-
-        if (StartupProgress.Handler is not null && !IsModelLoadInProgress)
-            StartupProgress.Handler = null;
 
         IsMmprojDownloadInProgress = false;
         MmprojDownloadProgress = 0;
@@ -167,17 +169,18 @@ public partial class SettingsPageViewModel
             BeginMmprojDownloadUi(modelFileName);
         });
 
-        StartupProgress.Handler = report => RunOnUi(() =>
-        {
-            if (generation != _mmprojDownloadGeneration)
-                return;
-            MmprojDownloadStatusMessage = report.Message;
-            if (report.Percent is not null)
-                MmprojDownloadProgress = report.Percent.Value;
-        });
-
+        StartupProgressScope? progressScope = null;
         try
         {
+            progressScope = StartupProgressScope.Acquire(this, report => RunOnUi(() =>
+            {
+                if (generation != _mmprojDownloadGeneration)
+                    return;
+                MmprojDownloadStatusMessage = report.Message;
+                if (report.Percent is not null)
+                    MmprojDownloadProgress = report.Percent.Value;
+            }));
+
             await MmprojSupport.EnsureKnownMmprojAsync(_paths.Root, modelFileName, modelFullPath, ct);
         }
         catch (OperationCanceledException)
@@ -186,6 +189,7 @@ public partial class SettingsPageViewModel
         }
         finally
         {
+            progressScope?.Dispose();
             RunOnUi(() =>
             {
                 if (generation != _mmprojDownloadGeneration)
@@ -228,23 +232,24 @@ public partial class SettingsPageViewModel
         var maxWaitSeconds = EstimateModelLoadWaitSeconds(_paths);
         BeginModelLoadUi(maxWaitSeconds);
 
-        StartupProgress.Handler = report => RunOnUi(() =>
-        {
-            ModelLoadStatusMessage = report.Message;
-            if (report.Percent is not null)
-                ModelLoadProgress = report.Percent.Value;
-            UpdateModelLoadRemainingText();
-        });
-
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-        var loadTask = Task.Run(() =>
-        {
-            _lifecycle.ForceStopAll();
-            return LlamaServerNativeHost.EnsureAndStart(_paths);
-        }, ct);
-
+        StartupProgressScope? progressScope = null;
         try
         {
+            progressScope = StartupProgressScope.Acquire(this, report => RunOnUi(() =>
+            {
+                ModelLoadStatusMessage = report.Message;
+                if (report.Percent is not null)
+                    ModelLoadProgress = report.Percent.Value;
+                UpdateModelLoadRemainingText();
+            }));
+
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            var loadTask = Task.Run(() =>
+            {
+                _lifecycle.ForceStopAll();
+                return LlamaServerNativeHost.EnsureAndStart(_paths);
+            }, ct);
+
             while (!loadTask.IsCompleted)
             {
                 RunOnUi(() => UpdateModelLoadRemainingText());
@@ -256,6 +261,7 @@ public partial class SettingsPageViewModel
         }
         finally
         {
+            progressScope?.Dispose();
             EndModelLoadUi();
         }
     }

@@ -156,7 +156,11 @@ public partial class SettingsPageViewModel
 
         try
         {
-            await Task.Run(() => UserDataBackup.ExportToZip(dataDir, dest));
+            await Task.Run(() =>
+            {
+                _ragDb.CheckpointWal();
+                UserDataBackup.ExportToZip(dataDir, dest);
+            });
             SetAboutStatus("Settings.About.BackupDone", dest);
         }
         catch (Exception ex)

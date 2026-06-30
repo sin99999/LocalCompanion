@@ -30,6 +30,14 @@ public sealed class RagDatabase
         return conn;
     }
 
+    public void CheckpointWal()
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA wal_checkpoint(FULL);";
+        cmd.ExecuteNonQuery();
+    }
+
     private static void ApplyConnectionPragmas(SqliteConnection conn)
     {
         using var cmd = conn.CreateCommand();

@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Data;
@@ -25,6 +26,7 @@ public partial class SettingsPageViewModel : ObservableObject
     private readonly VoicevoxSpeakerCacheStore _speakerCache;
     private readonly AppAppearanceService _appearance;
     private readonly RuntimeHealthService _health;
+    private int _voicevoxLoadGeneration;
 
     public SettingsPageViewModel(
         AppPaths paths,
@@ -296,6 +298,7 @@ public partial class SettingsPageViewModel : ObservableObject
 
     public async Task LoadVoicevoxSpeakersAsync(CancellationToken ct = default)
     {
+        var generation = Interlocked.Increment(ref _voicevoxLoadGeneration);
         SetVoicevoxSpeakersStatus("");
         if (!IsVoicevoxInstalled)
         {
@@ -311,6 +314,8 @@ public partial class SettingsPageViewModel : ObservableObject
         try
         {
             var status = await _voicevoxLifecycle.EnsureRunningAsync(ct);
+            if (generation != _voicevoxLoadGeneration)
+                return;
             UpdateVoicevoxPoweredByText(status.Version);
             if (!status.Available)
             {
@@ -324,6 +329,8 @@ public partial class SettingsPageViewModel : ObservableObject
             }
 
             var speakers = await _voicevoxClient.ListSpeakersAsync(ct);
+            if (generation != _voicevoxLoadGeneration)
+                return;
             RunOnUi(() =>
             {
                 VoicevoxSpeakers.Clear();

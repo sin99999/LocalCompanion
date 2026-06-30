@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Models;
 
@@ -44,7 +44,7 @@ public sealed class VoicevoxSpeakerCacheStore
             .ToList();
         lock (_lock)
         {
-            File.WriteAllText(_path, JsonSerializer.Serialize(entries, JsonOpts));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(entries, JsonOpts));
         }
     }
 

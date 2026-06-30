@@ -1045,10 +1045,12 @@ public sealed class ChatService
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            StartupLog.Write("RAG search timed out.");
             return Array.Empty<RagSearchHit>();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            StartupLog.Write(ex, "RAG search failed");
             return Array.Empty<RagSearchHit>();
         }
     }

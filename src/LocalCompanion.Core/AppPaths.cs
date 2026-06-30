@@ -1,4 +1,4 @@
-namespace LocalCompanion;
+﻿namespace LocalCompanion;
 
 /// <summary>配布フォルダのルート（models / scripts と並ぶ階層）を解決する。</summary>
 public sealed class AppPaths
@@ -203,11 +203,24 @@ public sealed class AppPaths
         if (!string.IsNullOrWhiteSpace(configuredDataDirectory))
         {
             var trimmed = configuredDataDirectory.Trim();
-            return Path.IsPathRooted(trimmed)
+            var resolved = Path.IsPathRooted(trimmed)
                 ? Path.GetFullPath(trimmed)
                 : Path.GetFullPath(Path.Combine(Current.Root, trimmed));
+            var rootFull = Path.GetFullPath(Current.Root);
+            if (!IsSubPathOf(resolved, rootFull))
+            {
+                StartupLog.Write($"DataDirectory escaped app root; using default. configured={trimmed}");
+                return GetDefaultUserDataDirectory();
+            }
+
+            return resolved;
         }
 
+        return GetDefaultUserDataDirectory();
+    }
+
+    private static string GetDefaultUserDataDirectory()
+    {
         var root = Current.Root;
         if (IsCompleteDistributionFolder(root) && !IsDevelopmentOutputPath(GetInstallDirectory()))
             return Path.Combine(root, "data");
@@ -215,5 +228,12 @@ public sealed class AppPaths
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalCompanionLlama");
+    }
+
+    private static bool IsSubPathOf(string childFullPath, string parentFullPath)
+    {
+        var relative = Path.GetRelativePath(parentFullPath, childFullPath);
+        return !relative.StartsWith("..", StringComparison.Ordinal)
+               && !Path.IsPathRooted(relative);
     }
 }

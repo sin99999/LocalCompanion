@@ -11,7 +11,7 @@ internal static class LocalizationResources
         ["Nav.Settings"] = "設定",
         ["Nav.CharacterDefault"] = "キャラクター(規定)",
         ["Nav.ConversationHistory"] = "会話履歴",
-        ["Nav.Language"] = "Language Settings",
+        ["Nav.Language"] = "言語設定",
 
         ["Splash.Subtitle"] = "LocalCompanion を起動しています…",
         ["Splash.Wait"] = "しばらくお待ちください…",
@@ -208,6 +208,7 @@ internal static class LocalizationResources
         ["Settings.Rag.Error.SkippedEmpty"] = "{0}（本文なし）",
         ["Settings.Rag.Error.SkippedFolderLimit"] = "フォルダ登録は最大 {0} ファイルまでです。",
         ["Settings.Rag.Error.SkippedZeroChunks"] = "{0}（登録0・埋め込み失敗の可能性）",
+        ["Settings.Rag.Error.SkippedPartialEmbed"] = "{0}（{1} チャンクの埋め込み失敗）",
         ["Settings.Rag.Error.SkippedWithReason"] = "{0}（{1}）",
         ["Settings.Rag.Picker.FileTitle"] = "RAG に登録するファイル",
         ["Settings.Rag.Picker.FolderDescription"] = "RAG に登録するフォルダ（中の対応ファイルを再帰的に読み込み）",
@@ -325,7 +326,7 @@ internal static class LocalizationResources
         ["Error.MemoryInsufficient"] = "このPCのメモリ構成では、既定モデル（Gemma 4 E2B）を十分な品質で起動できません。\r\n\r\n目安：\r\n・GPU 専用メモリ（VRAM）6 GB 以上 かつ システム内存 8 GB 以上\r\n・GPU を使わない場合はシステム内存 12 GB 以上\r\n・CPU と GPU で内存を共有する構成では 16 GB 以上\r\n\r\nいずれかの条件を満たす環境でのご利用をお勧めします。",
         ["Error.LlamaConnectionFailed"] = "llama-server に接続できません。llama-server が起動していないか、models フォルダにモデルがない可能性があります。確認してから、アプリを再起動してください。",
         ["Error.LlamaModelIdUnavailable"] = "llama-server のモデル ID を取得できませんでした。アプリを再起動するか、appsettings の LlamaModel に GGUF ファイル名を指定してください。",
-        ["Error.ContextOverflow"] = "会話が長すぎてコンテキスト上限に達しました。設定から会話履歴を削除するか、LocalCompanion.exe を再起動してから続けてください。",
+        ["Error.ContextOverflow"] = "会話が長すぎてコンテキスト上限に達しました。チャットの「この履歴を削除」で履歴を減らすか、LocalCompanion.exe を再起動してから続けてください。",
         ["Error.LlamaSetupFailed"] = "llama.cpp のセットアップに失敗しました。ネットワーク接続を確認して、もう一度お試しください。",
         ["Error.Unexpected"] = "エラーが発生しました。",
 
@@ -549,6 +550,7 @@ internal static class LocalizationResources
         ["Settings.Rag.Error.SkippedEmpty"] = "{0} (empty content)",
         ["Settings.Rag.Error.SkippedFolderLimit"] = "Folder import is limited to {0} files.",
         ["Settings.Rag.Error.SkippedZeroChunks"] = "{0} (0 chunks; embedding may have failed)",
+        ["Settings.Rag.Error.SkippedPartialEmbed"] = "{0} ({1} chunk(s) failed to embed)",
         ["Settings.Rag.Error.SkippedWithReason"] = "{0} ({1})",
         ["Settings.Rag.Picker.FileTitle"] = "File to register in RAG",
         ["Settings.Rag.Picker.FolderDescription"] = "Folder to register in RAG (supported files inside are imported recursively)",
@@ -666,7 +668,7 @@ internal static class LocalizationResources
         ["Error.MemoryInsufficient"] = "This PC does not have enough memory to run the default model (Gemma 4 E2B) with acceptable quality.\r\n\r\nGuidelines:\r\n· GPU memory (VRAM) 6 GB or more and system memory 8 GB or more\r\n· 12 GB or more system memory if GPU offload is not used\r\n· 16 GB or more for shared CPU/GPU memory configurations\r\n\r\nWe recommend using the app on a system that meets one of these conditions.",
         ["Error.LlamaConnectionFailed"] = "Cannot connect to llama-server. llama-server may not be running, or the models folder may not contain a model file. Please check and restart the app.",
         ["Error.LlamaModelIdUnavailable"] = "Could not obtain a model ID from llama-server. Restart the app or specify a GGUF file name in appsettings LlamaModel.",
-        ["Error.ContextOverflow"] = "The conversation is too long and reached the context limit. Delete conversation history in Settings or restart LocalCompanion.exe before continuing.",
+        ["Error.ContextOverflow"] = "The conversation is too long and reached the context limit. Delete history from the chat options menu, or restart LocalCompanion.exe before continuing.",
         ["Error.LlamaSetupFailed"] = "Failed to set up llama.cpp. Check your network connection and try again.",
         ["Error.Unexpected"] = "An error occurred.",
 

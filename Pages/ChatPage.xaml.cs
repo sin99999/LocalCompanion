@@ -118,6 +118,11 @@ public sealed partial class ChatPage : Page
 
     private void WireInputFlyouts()
     {
+        if (InsertMenuButton.Flyout is MenuFlyout oldInsert)
+            oldInsert.Opening -= OnInsertFlyoutOpening;
+        if (ChatOptionsButton.Flyout is MenuFlyout oldOptions)
+            oldOptions.Opening -= OnOptionsFlyoutOpening;
+
         var insertFlyout = new MenuFlyout();
         _insertImageItem = new MenuFlyoutItem
         {

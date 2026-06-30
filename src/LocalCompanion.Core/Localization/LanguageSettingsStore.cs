@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using LocalCompanion.Services;
 
 namespace LocalCompanion.Localization;
 
@@ -60,6 +61,6 @@ public sealed class LanguageSettingsStore
             language = language == AppLanguage.English ? "en" : "ja",
             updatedAt = DateTimeOffset.Now.ToString("o"),
         };
-        File.WriteAllText(_path, JsonSerializer.Serialize(payload));
+        AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(payload));
     }
 }

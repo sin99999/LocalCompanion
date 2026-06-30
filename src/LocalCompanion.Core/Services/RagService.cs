@@ -29,28 +29,32 @@ public sealed class RagService
         _opt = opt.Value;
     }
 
-    public async Task<int> IngestTextAsync(string source, string text, CancellationToken ct)
+    public async Task<(int ChunkCount, int EmbedSkipped)> IngestTextAsync(string source, string text, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(text))
-            return 0;
+            return (0, 0);
 
         if (!await _llama.EmbeddingsSupportedAsync(ct))
             throw new LocalizedServiceException("Settings.Rag.Error.EmbeddingsUnavailable");
 
         var drafts = RagStructuralChunker.CreateChunks(text, source, _opt.ChunkSize, _opt.ChunkOverlap);
         var prepared = new List<(RagChunkDraft Draft, float[] Embedding)>();
+        var embedSkipped = 0;
 
         foreach (var draft in drafts)
         {
             var emb = await _llama.EmbedAsync(draft.EmbeddingText, ct);
             if (emb is null || emb.Length == 0)
+            {
+                embedSkipped++;
                 continue;
+            }
 
             prepared.Add((draft, emb));
         }
 
         if (prepared.Count == 0)
-            return 0;
+            return (0, embedSkipped);
 
         await _ingestLock.WaitAsync(ct);
         try
@@ -106,11 +110,11 @@ public sealed class RagService
                 if (count == 0)
                 {
                     await tx.RollbackAsync(ct);
-                    return 0;
+                    return (0, embedSkipped);
                 }
 
                 await tx.CommitAsync(ct);
-                return count;
+                return (count, embedSkipped);
             }
             catch
             {
@@ -243,8 +247,8 @@ public sealed class RagService
         if (!File.Exists(path))
             throw new LocalizedServiceException("Settings.Rag.Error.FileNotFound");
 
-        var chunks = await IngestFileAsync(path, ct);
-        return new RagIngestResult(path, 1, chunks, Array.Empty<string>());
+        var (chunks, embedSkipped, skipped) = await IngestFileDetailedAsync(path, ct);
+        return new RagIngestResult(path, chunks > 0 ? 1 : 0, chunks, skipped);
     }
 
     public async Task<RagIngestResult> IngestPathAsync(string path, CancellationToken ct)
@@ -277,15 +281,18 @@ public sealed class RagService
             try
             {
                 var doc = RagDocumentReader.ReadDocument(content, fileName);
-                var chunks = await IngestTextAsync(doc.Source, doc.Text, ct);
+                var (chunks, embedSkipped) = await IngestTextAsync(doc.Source, doc.Text, ct);
+                var warnings = BuildEmbedWarnings(fileName, embedSkipped);
                 if (chunks <= 0)
                 {
                     skipped.Add(FormatSkipped("Settings.Rag.Error.SkippedEmpty", fileName));
+                    skipped.AddRange(warnings);
                     continue;
                 }
 
                 fileCount++;
                 chunkCount += chunks;
+                skipped.AddRange(warnings);
             }
             catch (Exception ex)
             {
@@ -296,13 +303,25 @@ public sealed class RagService
         return new RagIngestResult("upload", fileCount, chunkCount, skipped);
     }
 
-    private async Task<int> IngestFileAsync(string path, CancellationToken ct)
+    private async Task<(int Chunks, int EmbedSkipped, IReadOnlyList<string> Skipped)> IngestFileDetailedAsync(
+        string path,
+        CancellationToken ct)
     {
         if (!RagDocumentReader.IsSupported(path))
             throw new LocalizedServiceException("Settings.Rag.Error.UnsupportedFormat", Path.GetExtension(path));
 
         var doc = RagDocumentReader.ReadDocument(path);
-        return await IngestTextAsync(doc.Source, doc.Text, ct);
+        var (chunks, embedSkipped) = await IngestTextAsync(doc.Source, doc.Text, ct);
+        return (chunks, embedSkipped, BuildEmbedWarnings(path, embedSkipped));
+    }
+
+    private IReadOnlyList<string> BuildEmbedWarnings(string pathOrName, int embedSkipped)
+    {
+        if (embedSkipped <= 0)
+            return Array.Empty<string>();
+
+        var label = Path.GetFileName(pathOrName);
+        return [FormatSkipped("Settings.Rag.Error.SkippedPartialEmbed", label, embedSkipped)];
     }
 
     private async Task<RagIngestResult> IngestDirectoryAsync(string directory, CancellationToken ct)
@@ -321,15 +340,17 @@ public sealed class RagService
 
             try
             {
-                var chunks = await IngestFileAsync(file, ct);
+                var (chunks, _, warnings) = await IngestFileDetailedAsync(file, ct);
                 if (chunks <= 0)
                 {
                     skipped.Add(FormatSkipped("Settings.Rag.Error.SkippedZeroChunks", file));
+                    skipped.AddRange(warnings);
                     continue;
                 }
 
                 fileCount++;
                 chunkCount += chunks;
+                skipped.AddRange(warnings);
             }
             catch (Exception ex)
             {

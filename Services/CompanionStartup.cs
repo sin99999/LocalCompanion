@@ -5,11 +5,14 @@ namespace LocalCompanion.Services;
 /// <summary>llama-server と初回 DL（GGUF / tools）。Web サーバーは起動しない。</summary>
 public static class CompanionStartup
 {
+    private static readonly object StartupProgressOwner = new();
+
     public static async Task RunAsync(Action<StartupProgressReport> reportProgress, CancellationToken ct = default)
     {
-        StartupProgress.Handler = reportProgress;
+        StartupProgressScope? progressScope = null;
         try
         {
+            progressScope = StartupProgressScope.Acquire(StartupProgressOwner, reportProgress);
             var paths = AppPaths.Current;
             AppBootstrap.RegisterShutdown(paths);
             AppDomain.CurrentDomain.ProcessExit += (_, _) =>
@@ -42,7 +45,7 @@ public static class CompanionStartup
         }
         finally
         {
-            StartupProgress.Handler = null;
+            progressScope?.Dispose();
         }
     }
 

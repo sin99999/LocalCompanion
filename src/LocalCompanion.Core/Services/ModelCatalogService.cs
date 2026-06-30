@@ -225,7 +225,7 @@ public sealed class ModelCatalogService
 
     private void SaveSelection(ModelSelectionDto selection)
     {
-        File.WriteAllText(_selectionPath, JsonSerializer.Serialize(selection, JsonOpts));
+        AtomicFile.WriteAllText(_selectionPath, JsonSerializer.Serialize(selection, JsonOpts));
     }
 
     private static ModelSelectionDto SanitizeSelection(
