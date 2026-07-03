@@ -1,10 +1,12 @@
-# llama.cpp 公式ビルドを tools/llama-cpp に配置（初回セットアップ）
+﻿# llama.cpp 公式ビルドを tools/llama-cpp に配置（初回セットアップ）
 param(
     [ValidateSet("auto", "cuda", "cuda13", "cuda12", "cpu", "vulkan", "hip-radeon", "opencl-adreno")]
     [string]$Variant = "auto"
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $ToolsDir = Join-Path $Root "tools\llama-cpp"
 $Marker = Join-Path $ToolsDir ".installed.json"

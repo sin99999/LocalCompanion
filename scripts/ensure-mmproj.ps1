@@ -1,4 +1,4 @@
-# チャット用 GGUF に対応する vision mmproj が無ければ Hugging Face から取得
+﻿# チャット用 GGUF に対応する vision mmproj が無ければ Hugging Face から取得
 # config/mmproj-families.json のファミリー表 + HF 検索（改造 quant でも公式 mmproj を試行）
 param(
     [Parameter(Mandatory = $true)]
@@ -6,6 +6,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $ModelsDir = Join-Path $Root "models"
 $MarkerPath = Join-Path $ModelsDir ".mmproj-bootstrap.json"

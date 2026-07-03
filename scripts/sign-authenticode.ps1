@@ -6,6 +6,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 $pfxPath = $env:LOCALCOMPANION_SIGN_PFX_PATH
 if ([string]::IsNullOrWhiteSpace($pfxPath)) {

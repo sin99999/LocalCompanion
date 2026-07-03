@@ -2,6 +2,8 @@
 param([switch]$Force)
 
 $ErrorActionPreference = "Continue"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Marker = Join-Path $Root "tools\llama-cpp\.localcompanion-managed"
 $LegacyMarkers = @(

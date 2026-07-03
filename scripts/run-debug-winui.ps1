@@ -1,9 +1,11 @@
-# WinUI 開発版を起動（exe 直ダブルクリックは WASDK 未登録で落ちるため winapp 経由）
+﻿# WinUI 開発版を起動（exe 直ダブルクリックは WASDK 未登録で落ちるため winapp 経由）
 param(
     [switch]$Build
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Out = Join-Path $Root "bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64"
 $Exe = Join-Path $Out "LocalCompanion.exe"

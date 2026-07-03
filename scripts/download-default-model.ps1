@@ -1,7 +1,9 @@
-# 初回のみ: models/ が空のとき既定 GGUF を Hugging Face から取得（LocalCompanion.exe 起動時に自動実行）
+﻿# 初回のみ: models/ が空のとき既定 GGUF を Hugging Face から取得（LocalCompanion.exe 起動時に自動実行）
 # 既定ファイル名は配布用ブートストラップ。差し替えはこのスクリプトを編集するか models/ に手動配置
 # 一度マーカーを書いたら、ユーザーが削除・差し替えしても再 DL しない
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $ModelsDir = Join-Path $Root "models"
 $MarkerPath = Join-Path $ModelsDir ".default-model-bootstrap.json"
