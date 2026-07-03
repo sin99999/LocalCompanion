@@ -3,6 +3,14 @@
 本ファイルは LocalCompanion の利用者向け変更履歴です。
 バージョンは `LocalCompanion.csproj` の `<Version>` と一致させます。
 
+## 1.0.3 - 2026-07-03
+
+Vision 対応モデルの互換性を中心としたパッチです。
+
+### 追加
+
+- Qwythos-9B-Claude-Mythos 系 GGUF 向け mmproj ファミリーを追加（モデル選択時に mmproj を自動取得）
+
 ## 1.0.2 - 2026-07-03
 
 使い勝手と資料活用の向上を中心としたマイナーアップデートです。

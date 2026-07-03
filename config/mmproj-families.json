@@ -57,6 +57,19 @@
         "remotePrefer": ["gemma-4-E2B-it-mmproj.gguf", "mmproj-BF16.gguf", "mmproj-F16.gguf"]
       },
       "hfSearch": ["gemma-4-E2B-it-qat-q4_0-gguf", "gemma-4-E2B-it-GGUF", "gemma-4-e2b-it"]
+    },
+    {
+      "id": "qwythos-9b",
+      "sizeToken": "9B",
+      "matchAny": ["qwythos", "mythos-5", "claude-mythos"],
+      "excludeAny": [],
+      "mmproj": {
+        "localName": "mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf",
+        "url": "https://huggingface.co/cktheghost/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf",
+        "repoId": "cktheghost/Qwythos-9B-Claude-Mythos-5-1M-GGUF",
+        "remotePrefer": ["mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf", "mmproj-Qwythos-9B"]
+      },
+      "hfSearch": ["Qwythos-9B-Claude-Mythos-5-1M-GGUF", "Qwythos-9B"]
     }
   ],
   "genericVisionPatterns": [
