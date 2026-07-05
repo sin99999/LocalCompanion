@@ -1,4 +1,4 @@
-﻿using LocalCompanion;
+using LocalCompanion;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
@@ -438,7 +438,7 @@ public sealed partial class ChatPage : Page
         SetInputAreaDropHighlight(false);
         e.Handled = true;
 
-        if (!ViewModel.ImageAttachEnabled || !ViewModel.IsInputEnabled)
+        if (!ViewModel.IsInputEnabled)
             return;
 
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -448,6 +448,7 @@ public sealed partial class ChatPage : Page
         {
             var items = await e.DataView.GetStorageItemsAsync();
             StorageFile? imageFile = null;
+            StorageFile? textFile = null;
             var hasUnsupported = false;
 
             foreach (var item in items)
@@ -457,8 +458,20 @@ public sealed partial class ChatPage : Page
 
                 if (ChatAttachmentFileRules.IsSupportedImagePath(file.Path))
                 {
+                    if (!ViewModel.ImageAttachEnabled)
+                    {
+                        hasUnsupported = true;
+                        continue;
+                    }
+
                     imageFile = file;
                     break;
+                }
+
+                if (ChatAttachmentFileRules.IsSupportedTextPath(file.Path))
+                {
+                    textFile = file;
+                    continue;
                 }
 
                 hasUnsupported = true;
@@ -467,6 +480,12 @@ public sealed partial class ChatPage : Page
             if (imageFile is not null)
             {
                 await ViewModel.AddImageAttachmentAsync(imageFile);
+                return;
+            }
+
+            if (textFile is not null)
+            {
+                await ViewModel.AddTextAttachmentAsync(textFile);
                 return;
             }
 
@@ -526,11 +545,13 @@ public sealed partial class ChatPage : Page
                 },
             },
             PrimaryButtonText = loc.Get("Chat.Url.Dialog.Load"),
-            SecondaryButtonText = loc.Get("Common.Cancel"),
-            DefaultButton = ContentDialogButton.Secondary,
+            SecondaryButtonText = loc.Get("Chat.Url.Dialog.RegisterRag"),
+            CloseButtonText = loc.Get("Common.Cancel"),
+            DefaultButton = ContentDialogButton.Close,
         };
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        var result = await dialog.ShowAsync();
+        if (result is not (ContentDialogResult.Primary or ContentDialogResult.Secondary))
             return;
 
         var url = urlBox.Text.Trim();
@@ -538,10 +559,18 @@ public sealed partial class ChatPage : Page
             return;
 
         var previousStatus = ViewModel.StatusText;
-        ViewModel.StatusText = loc.Get("Chat.Url.Loading");
         try
         {
-            await ViewModel.AddUrlAttachmentAsync(url);
+            if (result == ContentDialogResult.Primary)
+            {
+                ViewModel.StatusText = loc.Get("Chat.Url.Loading");
+                await ViewModel.AddUrlAttachmentAsync(url);
+            }
+            else
+            {
+                ViewModel.StatusText = loc.Get("Chat.Url.RegisteringRag");
+                await ViewModel.RegisterUrlToRagAsync(url);
+            }
         }
         catch (Exception ex)
         {

@@ -1,10 +1,7 @@
-﻿using System.IO.Compression;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
-using UglyToad.PdfPig;
+using LocalCompanion.Services.DocumentReading;
 
 namespace LocalCompanion.Services;
 
@@ -15,28 +12,34 @@ public static class RagDocumentReader
     public const string FileDialogFilter =
         "Supported files|*.txt;*.md;*.markdown;*.pdf;*.docx;*.html;*.htm;*.json;*.csv;*.xml;*.log;*.yaml;*.yml";
 
-    public static string GetLocalizedFileDialogFilter() =>
-        LocalizationService.Instance.Get("Settings.Rag.Picker.Filter");
-
-    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
+    internal static readonly HashSet<string> TextExtensionSet = new(StringComparer.OrdinalIgnoreCase)
     {
         ".txt", ".md", ".markdown", ".json", ".csv", ".xml", ".html", ".htm",
         ".log", ".yaml", ".yml", ".ini", ".cfg", ".cs", ".js", ".ts", ".py", ".rtf",
+        ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh", ".rb", ".go", ".rs", ".java",
+        ".kt", ".swift", ".php", ".sql", ".mdx", ".rst",
     };
 
-    private static readonly HashSet<string> SupportedExtensions = new(TextExtensions, StringComparer.OrdinalIgnoreCase)
-    {
-        ".pdf", ".docx",
-    };
+    private static RagDocumentReaderRegistry? _registry;
+    private static bool _usePdfLayout;
 
-    public static bool IsSupported(string path)
+    public static string GetLocalizedFileDialogFilter() =>
+        LocalizationService.Instance.Get("Settings.Rag.Picker.Filter");
+
+    public static void Configure(bool usePdfLayoutReader)
     {
-        var ext = Path.GetExtension(path);
-        return !string.IsNullOrEmpty(ext) && SupportedExtensions.Contains(ext);
+        if (_registry is not null && _usePdfLayout == usePdfLayoutReader)
+            return;
+        _usePdfLayout = usePdfLayoutReader;
+        _registry = new RagDocumentReaderRegistry(usePdfLayoutReader);
     }
 
-    public static IReadOnlyList<string> SupportedExtensionList =>
-        SupportedExtensions.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    private static RagDocumentReaderRegistry Registry =>
+        _registry ??= new RagDocumentReaderRegistry(_usePdfLayout);
+
+    public static bool IsSupported(string path) => Registry.IsSupported(path);
+
+    public static IReadOnlyList<string> SupportedExtensionList => Registry.SupportedExtensionList;
 
     public static RagDocument ReadDocument(string path)
     {
@@ -53,115 +56,9 @@ public static class RagDocumentReader
         return new RagDocument(safeName, text);
     }
 
-    public static string ReadText(string path)
-    {
-        var info = new FileInfo(path);
-        if (!info.Exists)
-            throw new LocalizedServiceException("Settings.Rag.Error.FileNotFound");
-        if (info.Length > MaxFileBytes)
-            throw new LocalizedServiceException(
-                "Settings.Rag.Error.FileTooLargeNamed",
-                MaxFileBytes / (1024 * 1024),
-                path);
+    public static string ReadText(string path) => Registry.ReadText(path);
 
-        var ext = Path.GetExtension(path);
-        return ext.ToLowerInvariant() switch
-        {
-            ".pdf" => ReadPdf(path),
-            ".docx" => ReadDocx(path),
-            ".html" or ".htm" => ReadUtf8(path),
-            _ when TextExtensions.Contains(ext) => ReadUtf8(path),
-            _ => throw new LocalizedServiceException("Settings.Rag.Error.UnsupportedFormat", ext),
-        };
-    }
-
-    public static string ReadText(Stream stream, string fileName)
-    {
-        if (stream.CanSeek && stream.Length > MaxFileBytes)
-            throw new LocalizedServiceException(
-                "Settings.Rag.Error.FileTooLargeNamed",
-                MaxFileBytes / (1024 * 1024),
-                fileName);
-
-        var ext = Path.GetExtension(fileName).ToLowerInvariant();
-        return ext switch
-        {
-            ".pdf" => ReadPdf(stream),
-            ".docx" => ReadDocx(stream),
-            ".html" or ".htm" => ReadUtf8(stream),
-            _ when TextExtensions.Contains(ext) => ReadUtf8(stream),
-            _ => throw new LocalizedServiceException("Settings.Rag.Error.UnsupportedFormat", ext),
-        };
-    }
-
-    private static string ReadUtf8(string path) =>
-        File.ReadAllText(path, DetectEncoding(path));
-
-    private static string ReadUtf8(Stream stream)
-    {
-        using var ms = new MemoryStream();
-        stream.CopyTo(ms);
-        var bytes = ms.ToArray();
-        if (bytes.Length > MaxFileBytes)
-            throw new LocalizedServiceException("Settings.Rag.Error.FileTooLarge", MaxFileBytes / (1024 * 1024));
-        return DetectEncoding(bytes).GetString(bytes);
-    }
-
-    private static Encoding DetectEncoding(string path)
-    {
-        var bytes = File.ReadAllBytes(path);
-        return DetectEncoding(bytes);
-    }
-
-    private static Encoding DetectEncoding(byte[] bytes)
-    {
-        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
-            return Encoding.UTF8;
-        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
-            return Encoding.Unicode;
-        return Encoding.UTF8;
-    }
-
-    private static string ReadPdf(string path)
-    {
-        using var doc = PdfDocument.Open(path);
-        return ExtractPdfText(doc);
-    }
-
-    private static string ReadPdf(Stream stream)
-    {
-        using var doc = PdfDocument.Open(stream);
-        return ExtractPdfText(doc);
-    }
-
-    private static string ExtractPdfText(PdfDocument doc)
-    {
-        var sb = new StringBuilder();
-        foreach (var page in doc.GetPages())
-        {
-            sb.AppendLine($"--- ページ {page.Number} ---");
-            sb.AppendLine(page.Text);
-        }
-        return sb.ToString();
-    }
-
-    private static string ReadDocx(string path)
-    {
-        using var stream = File.OpenRead(path);
-        return ReadDocx(stream);
-    }
-
-    private static string ReadDocx(Stream stream)
-    {
-        using var zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
-        var entry = zip.GetEntry("word/document.xml")
-            ?? throw new LocalizedServiceException("Settings.Rag.Error.WordBodyMissing");
-        using var xmlStream = entry.Open();
-        var doc = XDocument.Load(xmlStream);
-        var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
-        var parts = doc.Descendants(ns + "t").Select(x => x.Value).Where(v => v.Length > 0);
-        return string.Join("\n", parts);
-    }
+    public static string ReadText(Stream stream, string fileName) => Registry.ReadText(stream, fileName);
 
     public static string ExtractPlainTextFromHtml(string html)
     {

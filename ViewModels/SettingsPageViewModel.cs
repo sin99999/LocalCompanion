@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -627,7 +627,7 @@ public partial class SettingsPageViewModel : ObservableObject
         try
         {
             var result = await _rag.IngestPathAsync(path, ct);
-            SetRagStatus("Settings.Rag.IngestDone", result.Files, result.Chunks);
+            ApplyIngestResult(result);
             Refresh();
         }
         catch (Exception ex)

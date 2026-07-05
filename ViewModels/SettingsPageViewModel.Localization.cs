@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 
@@ -241,6 +241,8 @@ public partial class SettingsPageViewModel
         UiRagLlmStructurer = _loc.Get("Settings.Rag.LlmStructurer");
         UiRagLlmStructurerHint = _loc.Get("Settings.Rag.LlmStructurer.Hint");
         UiRagSaveCache = _loc.Get("Settings.Rag.SaveStructurerCache");
+        UiRagPdfLayoutReader = _loc.Get("Settings.Rag.PdfLayoutReader");
+        UiRagPdfLayoutReaderHint = _loc.Get("Settings.Rag.PdfLayoutReader.Hint");
         UiRagIngestUrl = _loc.Get("Settings.Rag.IngestUrl");
         UiRagIngestUrlButton = _loc.Get("Settings.Rag.IngestUrlButton");
         OnPropertyChanged(nameof(UiRagHtmlMarkdown));
@@ -248,6 +250,8 @@ public partial class SettingsPageViewModel
         OnPropertyChanged(nameof(UiRagLlmStructurer));
         OnPropertyChanged(nameof(UiRagLlmStructurerHint));
         OnPropertyChanged(nameof(UiRagSaveCache));
+        OnPropertyChanged(nameof(UiRagPdfLayoutReader));
+        OnPropertyChanged(nameof(UiRagPdfLayoutReaderHint));
         OnPropertyChanged(nameof(UiRagIngestUrl));
         OnPropertyChanged(nameof(UiRagIngestUrlButton));
         UiVoicevoxEnabled = _loc.Get("Settings.Voicevox.Enabled");

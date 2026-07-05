@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Models;
+namespace LocalCompanion.Models;
 
 public enum RagArticleBoundaryIntent
 {
@@ -13,7 +13,9 @@ public enum RagQueryIntent
     Boundary,
     Penalty,
     Definition,
+    Faq,
     Advisory,
+    SourceCatalog,
 }
 
 public enum RagResponseMode

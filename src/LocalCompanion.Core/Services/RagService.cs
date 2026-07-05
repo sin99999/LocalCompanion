@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
@@ -38,21 +38,23 @@ public sealed class RagService
         _opt = opt.Value;
     }
 
-    public async Task<(int ChunkCount, int EmbedSkipped)> IngestTextAsync(string source, string text, CancellationToken ct)
+    public async Task<(int ChunkCount, int EmbedSkipped, RagIngestStats Stats)> IngestTextAsync(string source, string text, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(text))
-            return (0, 0);
+            return (0, 0, RagIngestStats.Empty);
 
         if (!await _llama.EmbeddingsSupportedAsync(ct))
             throw new LocalizedServiceException("Settings.Rag.Error.EmbeddingsUnavailable");
 
         var options = LoadIngestOptions();
+        RagDocumentReader.Configure(options.UsePdfLayoutReader);
         text = RagIngestPreprocessor.Preprocess(source, text, options);
         text = RagDocumentNormalizer.Normalize(text);
         var docKind = RagDocumentProfileDetector.Detect(source, text);
         text = await _structurer.StructureAsync(source, text, docKind, options, ct);
         text = RagDocumentNormalizer.Normalize(text);
         var drafts = RagStructuralChunker.CreateChunks(text, source, _opt.ChunkSize, _opt.ChunkOverlap, docKind);
+        var stats = BuildIngestStats(drafts, docKind, 0);
         var prepared = new List<(RagChunkDraft Draft, float[] Embedding)>();
         var embedSkipped = 0;
 
@@ -69,7 +71,7 @@ public sealed class RagService
         }
 
         if (prepared.Count == 0)
-            return (0, embedSkipped);
+            return (0, embedSkipped, stats with { EmbedSkipped = embedSkipped });
 
         await _ingestLock.WaitAsync(ct);
         try
@@ -147,11 +149,11 @@ public sealed class RagService
                 if (count == 0)
                 {
                     await tx.RollbackAsync(ct);
-                    return (0, embedSkipped);
+                    return (0, embedSkipped, stats with { EmbedSkipped = embedSkipped });
                 }
 
                 await tx.CommitAsync(ct);
-                return (count, embedSkipped);
+                return (count, embedSkipped, stats with { EmbedSkipped = embedSkipped, TotalChunks = count });
             }
             catch
             {
@@ -260,37 +262,18 @@ public sealed class RagService
     {
         using var conn = _db.Open();
         conn.Open();
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT c.source, COUNT(*), MIN(c.created_at), COALESCE(p.enabled, 1)
-            FROM rag_chunks c
-            LEFT JOIN rag_source_prefs p ON p.source = c.source
-            GROUP BY c.source
-            ORDER BY MIN(c.created_at) DESC
-            """;
-        var list = new List<RagSourceInfo>();
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
-        {
-            var source = reader.GetString(0);
-            var chunks = reader.GetInt32(1);
-            var createdAt = reader.IsDBNull(2) ? null : reader.GetString(2);
-            var exists = File.Exists(source);
-            var enabled = !reader.IsDBNull(3) && reader.GetInt32(3) != 0;
-            list.Add(new RagSourceInfo(source, chunks, createdAt, exists, enabled));
-        }
-        return list;
+        return ListSources(conn);
     }
 
     public async Task<RagIngestResult> IngestUrlAsync(string url, CancellationToken ct)
     {
         var (displayName, text) = await ChatUrlContentFetcher.FetchAsync(url, ct);
         var source = $"url:{url.Trim()}";
-        var (chunks, embedSkipped) = await IngestTextAsync(source, text, ct);
+        var (chunks, embedSkipped, stats) = await IngestTextAsync(source, text, ct);
         var skipped = BuildEmbedWarnings(displayName, embedSkipped);
         if (chunks <= 0)
             skipped = [.. skipped, FormatSkipped("Settings.Rag.Error.SkippedEmpty", displayName)];
-        return new RagIngestResult(source, chunks > 0 ? 1 : 0, chunks, skipped);
+        return new RagIngestResult(source, chunks > 0 ? 1 : 0, chunks, skipped, stats);
     }
 
     public async Task<RagIngestResult> IngestSingleFileAsync(string path, CancellationToken ct)
@@ -298,8 +281,8 @@ public sealed class RagService
         if (!File.Exists(path))
             throw new LocalizedServiceException("Settings.Rag.Error.FileNotFound");
 
-        var (chunks, embedSkipped, skipped) = await IngestFileDetailedAsync(path, ct);
-        return new RagIngestResult(path, chunks > 0 ? 1 : 0, chunks, skipped);
+        var (chunks, _, skipped, stats) = await IngestFileDetailedAsync(path, ct);
+        return new RagIngestResult(path, chunks > 0 ? 1 : 0, chunks, skipped, stats);
     }
 
     public async Task<RagIngestResult> IngestPathAsync(string path, CancellationToken ct)
@@ -320,6 +303,7 @@ public sealed class RagService
         var fileCount = 0;
         var chunkCount = 0;
         var skipped = new List<string>();
+        RagIngestStats? lastStats = null;
 
         foreach (var (fileName, content) in files)
         {
@@ -332,8 +316,9 @@ public sealed class RagService
             try
             {
                 var doc = RagDocumentReader.ReadDocument(content, fileName);
-                var (chunks, embedSkipped) = await IngestTextAsync(doc.Source, doc.Text, ct);
+                var (chunks, embedSkipped, stats) = await IngestTextAsync(doc.Source, doc.Text, ct);
                 var warnings = BuildEmbedWarnings(fileName, embedSkipped);
+                warnings = [.. warnings, .. BuildLegalIngestWarnings(fileName, stats)];
                 if (chunks <= 0)
                 {
                     skipped.Add(FormatSkipped("Settings.Rag.Error.SkippedEmpty", fileName));
@@ -344,6 +329,7 @@ public sealed class RagService
                 fileCount++;
                 chunkCount += chunks;
                 skipped.AddRange(warnings);
+                lastStats = stats;
             }
             catch (Exception ex)
             {
@@ -351,10 +337,10 @@ public sealed class RagService
             }
         }
 
-        return new RagIngestResult("upload", fileCount, chunkCount, skipped);
+        return new RagIngestResult("upload", fileCount, chunkCount, skipped, lastStats);
     }
 
-    private async Task<(int Chunks, int EmbedSkipped, IReadOnlyList<string> Skipped)> IngestFileDetailedAsync(
+    private async Task<(int Chunks, int EmbedSkipped, IReadOnlyList<string> Skipped, RagIngestStats Stats)> IngestFileDetailedAsync(
         string path,
         CancellationToken ct)
     {
@@ -362,8 +348,22 @@ public sealed class RagService
             throw new LocalizedServiceException("Settings.Rag.Error.UnsupportedFormat", Path.GetExtension(path));
 
         var doc = RagDocumentReader.ReadDocument(path);
-        var (chunks, embedSkipped) = await IngestTextAsync(doc.Source, doc.Text, ct);
-        return (chunks, embedSkipped, BuildEmbedWarnings(path, embedSkipped));
+        var (chunks, embedSkipped, stats) = await IngestTextAsync(doc.Source, doc.Text, ct);
+        var skipped = BuildEmbedWarnings(path, embedSkipped);
+        skipped = [.. skipped, .. BuildLegalIngestWarnings(path, stats)];
+        return (chunks, embedSkipped, skipped, stats);
+    }
+
+    private IReadOnlyList<string> BuildLegalIngestWarnings(string pathOrName, RagIngestStats stats)
+    {
+        if (!string.Equals(stats.DocKind, "Legal", StringComparison.OrdinalIgnoreCase)
+            || stats.ArticleChunks > 0
+            || stats.TotalChunks <= 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        return [FormatSkipped("Settings.Rag.Error.SkippedNoArticles", Path.GetFileName(pathOrName))];
     }
 
     private IReadOnlyList<string> BuildEmbedWarnings(string pathOrName, int embedSkipped)
@@ -380,6 +380,7 @@ public sealed class RagService
         var fileCount = 0;
         var chunkCount = 0;
         var skipped = new List<string>();
+        RagIngestStats? lastDirStats = null;
 
         foreach (var file in EnumerateIngestFiles(directory))
         {
@@ -391,7 +392,7 @@ public sealed class RagService
 
             try
             {
-                var (chunks, _, warnings) = await IngestFileDetailedAsync(file, ct);
+                var (chunks, _, warnings, stats) = await IngestFileDetailedAsync(file, ct);
                 if (chunks <= 0)
                 {
                     skipped.Add(FormatSkipped("Settings.Rag.Error.SkippedZeroChunks", file));
@@ -402,6 +403,7 @@ public sealed class RagService
                 fileCount++;
                 chunkCount += chunks;
                 skipped.AddRange(warnings);
+                lastDirStats = stats;
             }
             catch (Exception ex)
             {
@@ -409,7 +411,7 @@ public sealed class RagService
             }
         }
 
-        return new RagIngestResult(directory, fileCount, chunkCount, skipped);
+        return new RagIngestResult(directory, fileCount, chunkCount, skipped, lastDirStats);
     }
 
     public int GetChunkCount()
@@ -449,6 +451,8 @@ public sealed class RagService
         if (enabledSources.Count == 0)
             return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
 
+        plan = RagSourceHintResolver.EnrichPlan(plan, enabledSources);
+
         var sources = string.IsNullOrWhiteSpace(plan.SourceHint)
             ? enabledSources
             : FilterSourcesByHint(enabledSources, plan.SourceHint);
@@ -461,6 +465,12 @@ public sealed class RagService
                 return new RagSearchResult(CollapseParentHits(advisoryHits).Take(topK + 2).ToList(), plan);
         }
 
+        if (plan.Intent == RagQueryIntent.SourceCatalog)
+        {
+            var catalogHits = BuildSourceCatalogHits(ListSources(conn));
+            return new RagSearchResult(catalogHits, plan);
+        }
+
         if (plan.Intent != RagQueryIntent.General && plan.Intent != RagQueryIntent.Advisory)
         {
             var structured = CollapseParentHits(RagStructuredSearch.Execute(conn, plan, sources, topK));
@@ -468,9 +478,67 @@ public sealed class RagService
                 return new RagSearchResult(structured.Take(topK).ToList(), plan);
         }
 
-        var hybridHits = await HybridSearchAsync(conn, plan.EffectiveQuery, enabledSources, topK, ct);
+        var hybridSources = sources.Count > 0 && sources.Count < enabledSources.Count
+            ? sources
+            : enabledSources;
+        var hybridHits = await HybridSearchAsync(conn, plan.EffectiveQuery, hybridSources, topK, ct);
         return new RagSearchResult(CollapseParentHits(hybridHits).Take(topK).ToList(), plan);
     }
+
+    private static IReadOnlyList<RagSourceInfo> ListSources(SqliteConnection conn)
+    {
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT c.source, COUNT(*), MIN(c.created_at), COALESCE(p.enabled, 1)
+            FROM rag_chunks c
+            LEFT JOIN rag_source_prefs p ON p.source = c.source
+            GROUP BY c.source
+            ORDER BY MIN(c.created_at) DESC
+            """;
+        var list = new List<RagSourceInfo>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            var source = reader.GetString(0);
+            var chunks = reader.GetInt32(1);
+            var createdAt = reader.IsDBNull(2) ? null : reader.GetString(2);
+            var exists = File.Exists(source);
+            var enabled = !reader.IsDBNull(3) && reader.GetInt32(3) != 0;
+            list.Add(new RagSourceInfo(source, chunks, createdAt, exists, enabled));
+        }
+
+        return list;
+    }
+
+    private static IReadOnlyList<RagSearchHit> BuildSourceCatalogHits(IReadOnlyList<RagSourceInfo> sources)
+    {
+        var hits = new List<RagSearchHit>(sources.Count);
+        foreach (var source in sources)
+        {
+            var label = FormatSourceDisplayName(source.Source);
+            var status = source.Enabled ? "" : "（検索オフ）";
+            var line = $"- {label}: {source.Chunks} チャンク{status}";
+            hits.Add(new RagSearchHit(
+                line,
+                source.Source,
+                label,
+                0,
+                "__catalog__",
+                "",
+                "",
+                "",
+                ""));
+        }
+
+        return hits;
+    }
+
+    private static string FormatSourceDisplayName(string source) =>
+        RagSourceLabel.Format(source) is var label && !string.IsNullOrWhiteSpace(label)
+            ? (label.Contains('/') || label.Contains('\\')
+                ? Path.GetFileName(label.TrimEnd('/', '\\'))
+                : label)
+            : source;
 
     private async Task<IReadOnlyList<RagSearchHit>> HybridSearchAsync(
         SqliteConnection conn,
@@ -630,9 +698,25 @@ public sealed class RagService
             return enabledSources;
 
         var filtered = enabledSources
-            .Where(s => Path.GetFileName(s).Contains(sourceHint, StringComparison.OrdinalIgnoreCase))
+            .Where(s => SourceMatchesHint(s, sourceHint))
             .ToList();
         return filtered.Count > 0 ? filtered : enabledSources;
+    }
+
+    private static bool SourceMatchesHint(string source, string sourceHint)
+    {
+        if (string.IsNullOrWhiteSpace(sourceHint))
+            return true;
+
+        if (source.Contains(sourceHint, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var fileName = Path.GetFileName(source);
+        if (fileName.Contains(sourceHint, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var label = RagSourceLabel.Format(source);
+        return label.Contains(sourceHint, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<IReadOnlyList<RagSearchHit>> LegacySearchAsync(
@@ -684,7 +768,12 @@ public sealed class RagService
     private static string FormatSkipped(string key, params object[] args) =>
         LocalizationService.Instance.Format(key, args);
 
-    public sealed record RagIngestResult(string Path, int Files, int Chunks, IReadOnlyList<string> Skipped);
+    public sealed record RagIngestResult(
+        string Path,
+        int Files,
+        int Chunks,
+        IReadOnlyList<string> Skipped,
+        RagIngestStats? Stats = null);
 
     public sealed record RagSourceInfo(string Source, int Chunks, string? CreatedAt, bool FileExists, bool Enabled);
 
@@ -733,12 +822,40 @@ public sealed class RagService
         return (float)(dot / (Math.Sqrt(na) * Math.Sqrt(nb)));
     }
 
+    private static RagIngestStats BuildIngestStats(
+        IReadOnlyList<RagChunkDraft> drafts,
+        RagDocumentKind docKind,
+        int embedSkipped)
+    {
+        var definition = 0;
+        var faq = 0;
+        var article = 0;
+        foreach (var draft in drafts)
+        {
+            if (draft.ChunkKind is "definition" or "glossary")
+                definition++;
+            else if (draft.ChunkKind == "faq")
+                faq++;
+            if (draft.ArticleSortKey > 0)
+                article++;
+        }
+
+        return new RagIngestStats(
+            docKind.ToString(),
+            drafts.Count,
+            definition,
+            faq,
+            article,
+            embedSkipped);
+    }
+
     private RagIngestOptions LoadIngestOptions()
     {
         var s = _settings.Load();
         return new RagIngestOptions(
             s.RagUseHtmlMarkdown,
             s.RagUseLlmStructurer,
-            s.RagSaveStructurerCache);
+            s.RagSaveStructurerCache,
+            s.RagUsePdfLayoutReader);
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.RegularExpressions;
 using LocalCompanion.Models;
 
@@ -113,7 +113,7 @@ internal static class RagStructuralChunker
             || RagArticleQueryParser.TryParseArticleSortKey(section.HeaderText, out _);
         if (useLegal)
         {
-            (articleMain, articleSub, articleSortKey) = LegalFieldExtractor.ParseArticle(section.HeaderText);
+            (articleMain, articleSub, articleSortKey) = LegalFieldExtractor.ParseArticle(section.HeaderText, body);
             penaltyLead = LegalFieldExtractor.ExtractPenaltyLead(section.HeaderText, body, parentText);
             chunkKind = LegalFieldExtractor.ResolveChunkKind(section.HeaderText, parentText);
         }
@@ -206,6 +206,9 @@ internal static class RagStructuralChunker
         var lines = text.Split('\n');
         var sections = new List<SectionBlock>();
         var currentPage = 0;
+        var lastChapter = "";
+        var lastSection = "";
+        var lastSubsection = "";
         SectionBlock? current = null;
         var body = new StringBuilder();
 
@@ -232,16 +235,45 @@ internal static class RagStructuralChunker
             if (TryParseHeader(line, out var header))
             {
                 Flush();
-                current = new SectionBlock(
-                    HeaderText: header.Text,
-                    HeaderLevel: header.Level,
-                    Page: currentPage,
-                    Chapter: header.Chapter,
-                    Section: header.Section,
-                    Subsection: header.Subsection,
-                    Body: "");
-                if (!string.IsNullOrWhiteSpace(line))
-                    body.AppendLine(line);
+                if (line.TrimStart().StartsWith('#'))
+                {
+                    if (header.Level <= 2)
+                    {
+                        lastChapter = header.Text;
+                        lastSection = "";
+                        lastSubsection = "";
+                    }
+                    else if (header.Level == 3)
+                    {
+                        lastSection = header.Text;
+                        lastSubsection = "";
+                    }
+                    else if (header.Level >= 4)
+                    {
+                        lastSubsection = header.Text;
+                    }
+
+                    current = new SectionBlock(
+                        HeaderText: header.Text,
+                        HeaderLevel: header.Level,
+                        Page: currentPage,
+                        Chapter: lastChapter,
+                        Section: lastSection,
+                        Subsection: lastSubsection,
+                        Body: "");
+                }
+                else
+                {
+                    current = new SectionBlock(
+                        HeaderText: header.Text,
+                        HeaderLevel: header.Level,
+                        Page: currentPage,
+                        Chapter: header.Chapter,
+                        Section: header.Section,
+                        Subsection: header.Subsection,
+                        Body: "");
+                }
+
                 continue;
             }
 

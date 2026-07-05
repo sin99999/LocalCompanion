@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 
 namespace LocalCompanion.Services;
 
@@ -13,7 +13,19 @@ internal static class RagSourceHintCatalog
         (new Regex(@"税法|所得税|法人税|消費税|節税|雑所得|法人化", RegexOptions.Compiled), "税法"),
         (new Regex(@"民法", RegexOptions.Compiled), "民法"),
         (new Regex(@"会社法", RegexOptions.Compiled), "会社法"),
+        (new Regex(@"\bc(?:\+\+|pp)\b|cppreference", RegexOptions.IgnoreCase | RegexOptions.Compiled), "cpp"),
+        (new Regex(@"\bpython\b|\bpydocs\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "python"),
+        (new Regex(@"\bruby\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "ruby"),
+        (new Regex(@"\bjavascript\b|\btypescript\b|\bnodejs\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "javascript"),
+        (new Regex(@"金融|ファイナンス|finance", RegexOptions.IgnoreCase | RegexOptions.Compiled), "金融"),
     ];
+
+    private static readonly HashSet<string> LegalHints = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "労働基準法", "刑法", "就業規則", "税法", "民法", "会社法",
+    };
+
+    public static bool IsLegalHint(string hint) => LegalHints.Contains(hint);
 
     public static IReadOnlyList<string> ExtractAllHints(string query)
     {

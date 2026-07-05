@@ -1,6 +1,7 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
+using LocalCompanion.Services;
 
 namespace LocalCompanion.ViewModels;
 
@@ -18,6 +19,12 @@ public partial class SettingsPageViewModel
     public partial bool RagSaveStructurerCache { get; set; } = true;
 
     [ObservableProperty]
+    public partial bool RagUsePdfLayoutReader { get; set; }
+
+    [ObservableProperty]
+    public partial string RagIngestReportText { get; set; } = "";
+
+    [ObservableProperty]
     public partial string RagIngestUrl { get; set; } = "";
 
     public string UiRagHtmlMarkdown { get; private set; } = "";
@@ -25,12 +32,15 @@ public partial class SettingsPageViewModel
     public string UiRagLlmStructurer { get; private set; } = "";
     public string UiRagLlmStructurerHint { get; private set; } = "";
     public string UiRagSaveCache { get; private set; } = "";
+    public string UiRagPdfLayoutReader { get; private set; } = "";
+    public string UiRagPdfLayoutReaderHint { get; private set; } = "";
     public string UiRagIngestUrl { get; private set; } = "";
     public string UiRagIngestUrlButton { get; private set; } = "";
 
     partial void OnRagUseHtmlMarkdownChanged(bool value) => SaveRagIngestOptions();
     partial void OnRagUseLlmStructurerChanged(bool value) => SaveRagIngestOptions();
     partial void OnRagSaveStructurerCacheChanged(bool value) => SaveRagIngestOptions();
+    partial void OnRagUsePdfLayoutReaderChanged(bool value) => SaveRagIngestOptions();
 
     private void LoadRagIngestOptions()
     {
@@ -39,6 +49,7 @@ public partial class SettingsPageViewModel
         RagUseHtmlMarkdown = s.RagUseHtmlMarkdown;
         RagUseLlmStructurer = s.RagUseLlmStructurer;
         RagSaveStructurerCache = s.RagSaveStructurerCache;
+        RagUsePdfLayoutReader = s.RagUsePdfLayoutReader;
         _suppressRagOptionSave = false;
     }
 
@@ -56,7 +67,31 @@ public partial class SettingsPageViewModel
             RagUseHtmlMarkdown = RagUseHtmlMarkdown,
             RagUseLlmStructurer = RagUseLlmStructurer,
             RagSaveStructurerCache = RagSaveStructurerCache,
+            RagUsePdfLayoutReader = RagUsePdfLayoutReader,
         });
+    }
+
+    internal void ApplyIngestResult(RagService.RagIngestResult result)
+    {
+        SetRagStatus("Settings.Rag.IngestDone", result.Files, result.Chunks);
+        if (result.Stats is { } stats)
+        {
+            RagIngestReportText = _loc.Format(
+                "Settings.Rag.IngestReport",
+                stats.DocKind,
+                stats.DefinitionChunks,
+                stats.FaqChunks,
+                stats.ArticleChunks);
+        }
+        else
+        {
+            RagIngestReportText = "";
+        }
+
+        if (result.Skipped.Count > 0)
+            RagIngestReportText = string.IsNullOrWhiteSpace(RagIngestReportText)
+                ? string.Join("\n", result.Skipped)
+                : RagIngestReportText + "\n" + string.Join("\n", result.Skipped);
     }
 
     [RelayCommand]
@@ -71,7 +106,7 @@ public partial class SettingsPageViewModel
         try
         {
             var result = await _rag.IngestUrlAsync(RagIngestUrl.Trim(), ct);
-            SetRagStatus("Settings.Rag.IngestDone", result.Files, result.Chunks);
+            ApplyIngestResult(result);
             RagIngestUrl = "";
             Refresh();
         }

@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Localization;
@@ -64,6 +64,17 @@ public partial class ChatPageViewModel
     {
         var (displayName, text) = await ChatUrlContentFetcher.FetchAsync(url, ct);
         AddTextAttachmentContent(displayName, text);
+    }
+
+    public async Task RegisterUrlToRagAsync(string url, CancellationToken ct = default)
+    {
+        var result = await _rag.IngestUrlAsync(url.Trim(), ct);
+        if (result.Chunks <= 0)
+            throw new InvalidOperationException(
+                LocalizationService.Instance.Format("Settings.Rag.Error.SkippedEmpty", url));
+
+        var loc = LocalizationService.Instance;
+        StatusText = loc.Format("Chat.Url.RegisterRagDone", result.Chunks);
     }
 
     private void AddTextAttachmentContent(string fileName, string text)

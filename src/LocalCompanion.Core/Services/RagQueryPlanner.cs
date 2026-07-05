@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Models;
+using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
 
@@ -25,7 +25,8 @@ internal static class RagQueryPlanner
                 Confidence: 0.92);
         }
 
-        if (RagArticleQueryParser.TryGetArticleNumber(effective, out var articleNumber))
+        if (RagArticleQueryParser.TryGetArticleNumber(effective, out var articleNumber)
+            && RagLegalQueryContext.LooksLikeLegalArticleQuery(effective, sourceHint))
         {
             var wantsVerbatim = ContainsVerbatimCue(effective);
             var wantsPenalty = effective.Contains('罰', StringComparison.Ordinal);
@@ -67,6 +68,34 @@ internal static class RagQueryPlanner
                 SourceHints: sourceHints,
                 ResponseMode: RagResponseMode.Verbatim,
                 Confidence: 0.85);
+        }
+
+        if (RagFaqQueryParser.TryGetQuestion(effective, out var faqKey))
+        {
+            return new RagQueryPlan(
+                RagQueryIntent.Faq,
+                effective,
+                ArticleSortKey: null,
+                Boundary: null,
+                TopicKeyword: faqKey,
+                SourceHint: sourceHint,
+                SourceHints: sourceHints,
+                ResponseMode: RagResponseMode.Verbatim,
+                Confidence: 0.84);
+        }
+
+        if (RagSourceCatalogQueryParser.TryDetect(effective))
+        {
+            return new RagQueryPlan(
+                RagQueryIntent.SourceCatalog,
+                effective,
+                ArticleSortKey: null,
+                Boundary: null,
+                TopicKeyword: null,
+                SourceHint: sourceHint,
+                SourceHints: sourceHints,
+                ResponseMode: RagResponseMode.Verbatim,
+                Confidence: 0.95);
         }
 
         if (RagAdvisoryQueryParser.TryDetect(effective, out var advisoryHints))

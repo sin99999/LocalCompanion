@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Services;
+using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -55,6 +55,7 @@ public sealed class RagArticleQueryParserTests
     [InlineData("第134条", 13400L)]
     [InlineData("第96条の2（監督上の行政措置）", 9602L)]
     [InlineData("第90条（作成の手続）", 9000L)]
+    [InlineData("#### 第8条（他の法令の罪に対する適用）", 800L)]
     public void TryParseArticleSortKey_ParsesHeaderText(string header, long expected)
     {
         Assert.True(RagArticleQueryParser.TryParseArticleSortKey(header, out var key));

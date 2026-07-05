@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services;
+namespace LocalCompanion.Services;
 
 /// <summary>チャット用システムプロンプトの日英文言。</summary>
 internal static class ChatSystemPromptTexts
@@ -156,6 +156,25 @@ internal static class ChatSystemPromptTexts
               - When a passage includes "[Penalty text from materials (quote required)]": quote that line verbatim at the start of your answer, then you may add a brief explanation
               - Use only penalty numbers (years, amounts) that appear in the quoted penalty line (e.g. do not replace "2.5 million yen" in the materials with "5 million yen")
               - Answer only the offense named in the question; do not add penalties for related offenses not in the materials (e.g. do not add acceptance-of-bribes penalties when only offering bribes was asked)
+              """.Trim();
+
+    internal static string RagCitationFirstInstruction(bool japanese) =>
+        japanese
+            ? """
+              【RAG・引用優先（必須）】
+              直後の「【参考資料（RAG・資料DB検索）】」を根拠に答える。
+              - 回答の冒頭で、資料の該当箇所を短く引用する（見出し・条文・ページを明示）
+              - 引用のあとに、平易な説明を付けてよい
+              - 資料にない条文番号・数値・罰則を一般知識から補わない
+              - 添付テキストがある場合は、添付と RAG の両方を参照し、矛盾するときは RAG 登録資料を優先する
+              """.Trim()
+            : """
+              [RAG — citation first — required]
+              Use the "[Reference materials (RAG)]" section below as grounds.
+              - Begin with a short quote from the materials (heading, article, page)
+              - You may add a plain explanation after the quote
+              - Do not supplement with general knowledge for numbers or penalties not in the materials
+              - If an attachment is present, use both attachment and RAG; prefer registered RAG sources on conflict
               """.Trim();
 
     internal static string RagPenaltyScopeInstruction(bool japanese) =>

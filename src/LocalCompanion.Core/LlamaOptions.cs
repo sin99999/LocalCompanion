@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion;
+namespace LocalCompanion;
 
 public sealed class LlamaOptions
 {
@@ -34,6 +34,8 @@ public sealed class LlamaOptions
     public double RagWeightVec { get; set; } = 0.6;
     /// <summary>チャット添付テキストの最大文字数（超えた分は省略）</summary>
     public int MaxAttachTextChars { get; set; } = 8000;
+    /// <summary>この文字数以下のテキスト添付では RAG 検索も併用する。</summary>
+    public int RagLightAttachMaxChars { get; set; } = 3000;
     /// <summary>AI返答の最大文字数（表示・読み上げの上限）</summary>
     public int MaxReplyChars { get; set; } = 10_000;
     /// <summary>長文返答用の出力トークン上限（MaxReplyChars に合わせて調整）</summary>

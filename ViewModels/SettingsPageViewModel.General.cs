@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
@@ -116,5 +116,6 @@ public partial class SettingsPageViewModel
         RagUseHtmlMarkdown = _appearance.Current.RagUseHtmlMarkdown,
         RagUseLlmStructurer = _appearance.Current.RagUseLlmStructurer,
         RagSaveStructurerCache = _appearance.Current.RagSaveStructurerCache,
+        RagUsePdfLayoutReader = _appearance.Current.RagUsePdfLayoutReader,
     };
 }

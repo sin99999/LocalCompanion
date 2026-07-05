@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Models;
+namespace LocalCompanion.Models;
 
 /// <summary>Models から RagArticleQueryParser を参照しないための薄いヘルパー。</summary>
 internal static class RagArticleSortKeyHelper
@@ -13,7 +13,7 @@ internal static class RagArticleSortKeyHelper
         if (string.IsNullOrWhiteSpace(headerText))
             return false;
 
-        var match = HeaderArticlePattern.Match(headerText.Trim());
+        var match = HeaderArticlePattern.Match(StripMarkdownHeadingPrefix(headerText));
         if (!match.Success)
             return false;
 
@@ -31,6 +31,19 @@ internal static class RagArticleSortKeyHelper
 
         sortKey = main * 100L + sub;
         return true;
+    }
+
+    private static string StripMarkdownHeadingPrefix(string text)
+    {
+        var trimmed = text.Trim();
+        if (!trimmed.StartsWith('#'))
+            return trimmed;
+
+        var level = 0;
+        while (level < trimmed.Length && trimmed[level] == '#')
+            level++;
+
+        return level is >= 1 and <= 6 ? trimmed[level..].Trim() : trimmed;
     }
 
     private static string NormalizeDigits(string value) =>

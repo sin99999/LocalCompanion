@@ -1,4 +1,4 @@
-﻿# Universal RAG Architecture（LocalCompanion）
+# Universal RAG Architecture（LocalCompanion）
 
 しんちゃんの理解①〜④を前提に、**「どんなファイルでも高精度 RAG」** へ向けた全体設計です。
 
@@ -40,35 +40,35 @@
 - `RagDefinitionQueryParser`: 「Xとは」「Xの意味」→ Definition 意図
 - `RagStructuredSearch` + `RagVerbatimResponder`: 定義の高信頼 VERBATIM
 
-### Phase 2 — 読み取り品質（**1.0.4 で一部実装済み・V2 向けに継続**）
+### Phase 2 — 読み取り品質（**1.0.5 で拡張・V2 向け継続**）
 
 - ✅ `RagHtmlStructuredExtractor` — HTML 見出し → `#` Markdown 風
 - ✅ `RagDocumentStructurer` — ローカル LLM ウィンドウ分割整形（Settings トグル・デフォルト OFF）
 - ✅ `RagStructurerCache` — `%LocalAppData%\LocalCompanionLlama\rag-cache\`
 - ✅ Settings → URL を RAG 登録
-- Reader レジストリ（`IDocumentReader`）— 未実装
-- PDF レイアウト/OCR — 未実装
+- ✅ `IDocumentReader` レジストリ + `PdfLayoutDocumentReader`（Settings トグル）
+- ✅ Shift_JIS テキスト検出
+- OCR — 未実装
 
 ### Phase 3 — 検索・応答の汎用化（一部実装済み）
 
 - **Advisory 意図** + **PersonaSynthesis** — 就業規則×税法など複数資料の相談（キャラ口調維持）
 - **RagPersonaReferenceInstruction** — 遊び会話中の軽い条文参照（キャラ選択時・非フォーマル質問）
 - キャラ選択時は VERBATIM バイパスを抑制（「贈賄の罰則は？」等フォーマル質問のみ機械引用）
-- FAQ 意図（Q/A ブロック）— 未実装
-- `CitationFirst` の実装 — 未実装
-- 添付テキストのみの短いファイル → RAG と併用 — 未実装
+- ✅ **FAQ 意図** + VERBATIM（Q/A ブロック ingest + `RagFaqQueryParser`）
+- ✅ **`CitationFirst`** — 条文質問で引用優先プロンプト
+- ✅ 短いテキスト添付 + RAG 併用（`RagLightAttachMaxChars`）
 
-### Phase 4 — 入口の統一
+### Phase 4 — 入口の統一（一部実装済み）
 
-- チャット URL → 「RAG に登録」ボタン
-- ドラッグ＆ドロップ → `IngestUploadedFilesAsync` 接続
-- 再 ingest 差分（同一 source の更新検知）
+- ✅ チャット URL → 「RAG に登録」ボタン
+- ✅ ドラッグ＆ドロップ → テキストファイル添付
+- 再 ingest 差分（同一 source の更新検知）— 未実装
 
-### Phase 5 — 品質保証
+### Phase 5 — 品質保証（一部実装済み）
 
-- コーパス別ゴールデンクエリ（法律 / 用語集 / README）
-- ingest レポート（チャンク数、検出 doc_kind、definition 件数）
-- ユーザー向け「精度を上げるコツ」（2次 .md 化の理由を製品文案で説明）
+- コーパス別ゴールデンクエリ（法律 / 用語集 / README）— テスト拡充中
+- ✅ ingest レポート（チャンク数、doc_kind、definition/faq/article 件数）
 
 ## なぜ .md 化が効くか（②の技術的理由）
 

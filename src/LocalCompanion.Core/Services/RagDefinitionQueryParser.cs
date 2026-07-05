@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 
 namespace LocalCompanion.Services;
 
@@ -10,6 +10,10 @@ internal static class RagDefinitionQueryParser
     private static readonly Regex Definition = new(@"^(.+?)の定義(?:は|を)?[？?]?$", RegexOptions.Compiled);
     private static readonly Regex WhatIs = new(@"^what\s+is\s+(.+?)\??$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Teaches = new(@"^(.+?)って何[？?]?$", RegexOptions.Compiled);
+    private static readonly Regex UsageJa = new(@"^(.+?)の使い方[？?]?$", RegexOptions.Compiled);
+    private static readonly Regex HowToUse = new(@"^how\s+to\s+use\s+(.+?)\??$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex CommandEn = new(@"^(.+?)\s+command\??$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex CommandJa = new(@"^(.+?)コマンド(?:は|を)?[？?]?$", RegexOptions.Compiled);
 
     public static bool TryGetTerm(string query, out string term)
     {
@@ -18,7 +22,7 @@ internal static class RagDefinitionQueryParser
         if (q.Length < 3)
             return false;
 
-        foreach (var pattern in new[] { ToHa, Meaning, Definition, Teaches, WhatIs })
+        foreach (var pattern in new[] { ToHa, Meaning, Definition, Teaches, WhatIs, UsageJa, HowToUse, CommandEn, CommandJa })
         {
             var match = pattern.Match(q);
             if (!match.Success)

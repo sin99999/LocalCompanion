@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Models;
+using LocalCompanion.Models;
 using Microsoft.Data.Sqlite;
 
 namespace LocalCompanion.Services;
@@ -24,12 +24,27 @@ internal static class RagStructuredSearch
             RagQueryIntent.Penalty when !string.IsNullOrWhiteSpace(plan.TopicKeyword) =>
                 LoadByPenaltyTopic(conn, sources, plan.TopicKeyword!, topK),
             RagQueryIntent.Definition when !string.IsNullOrWhiteSpace(plan.TopicKeyword) =>
-                LoadByEntryKey(conn, sources, plan.TopicKeyword!, topK),
+                LoadByEntryKey(conn, sources, plan.TopicKeyword!, topK, faqPreferred: false),
+            RagQueryIntent.Faq when !string.IsNullOrWhiteSpace(plan.TopicKeyword) =>
+                LoadByEntryKey(conn, sources, plan.TopicKeyword!, topK, faqPreferred: true),
             _ => Array.Empty<RagSearchHit>(),
         };
     }
 
     private static IReadOnlyList<RagSearchHit> LoadByArticleSortKey(
+        SqliteConnection conn,
+        IReadOnlyList<string> sources,
+        long sortKey,
+        int topK)
+    {
+        var hits = QueryByArticleSortKey(conn, sources, sortKey, topK);
+        if (hits.Count > 0)
+            return hits;
+
+        return LoadByArticleHeaderPrefix(conn, sources, sortKey, topK);
+    }
+
+    private static IReadOnlyList<RagSearchHit> QueryByArticleSortKey(
         SqliteConnection conn,
         IReadOnlyList<string> sources,
         long sortKey,
@@ -47,6 +62,47 @@ internal static class RagStructuredSearch
             LIMIT $limit
             """;
         cmd.Parameters.AddWithValue("$key", sortKey);
+        cmd.Parameters.AddWithValue("$limit", limit);
+        return ReadHits(cmd);
+    }
+
+    internal static IReadOnlyList<RagSearchHit> LoadByArticleHeaderPrefix(
+        SqliteConnection conn,
+        IReadOnlyList<string> sources,
+        long sortKey,
+        int topK)
+    {
+        var articleNumber = (int)(sortKey / 100);
+        if (articleNumber <= 0)
+            return Array.Empty<RagSearchHit>();
+
+        var prefixes = RagArticleQueryParser.BuildHeaderPrefixes(articleNumber);
+        var cmd = conn.CreateCommand();
+        var inClause = RagSqlBuilder.InClause(cmd, sources, "src");
+        var matchParts = new List<string>();
+        for (var i = 0; i < prefixes.Count; i++)
+        {
+            var headerParam = $"$hp{i}";
+            var textParam = $"$tp{i}";
+            matchParts.Add($"(header_text LIKE {headerParam} OR text LIKE {textParam})");
+            cmd.Parameters.AddWithValue(headerParam, prefixes[i] + "%");
+            cmd.Parameters.AddWithValue(textParam, "%" + prefixes[i] + "%");
+        }
+
+        var limit = Math.Clamp(Math.Max(topK, 4), 1, 16);
+        cmd.CommandText = $"""
+            SELECT text, source, header_text, page, chunk_id, parent_text, penalty_lead, definition_lead
+            FROM rag_chunks
+            WHERE source IN ({inClause})
+              AND ({string.Join(" OR ", matchParts)})
+            ORDER BY
+              CASE WHEN header_text LIKE $pref0 THEN 0
+                   WHEN header_text != '' THEN 1
+                   ELSE 2 END,
+              id ASC
+            LIMIT $limit
+            """;
+        cmd.Parameters.AddWithValue("$pref0", prefixes[0] + "%");
         cmd.Parameters.AddWithValue("$limit", limit);
         return ReadHits(cmd);
     }
@@ -99,7 +155,8 @@ internal static class RagStructuredSearch
         SqliteConnection conn,
         IReadOnlyList<string> sources,
         string normalizedKey,
-        int topK)
+        int topK,
+        bool faqPreferred)
     {
         if (string.IsNullOrWhiteSpace(normalizedKey))
             return Array.Empty<RagSearchHit>();
@@ -117,10 +174,13 @@ internal static class RagStructuredSearch
                 OR (definition_lead != '' AND text LIKE $like)
               )
             ORDER BY
-              CASE WHEN entry_key = $key AND definition_lead != '' THEN 0
-                   WHEN entry_key = $key THEN 1
-                   WHEN chunk_kind IN ('definition', 'glossary') THEN 2
-                   ELSE 3 END,
+              CASE WHEN entry_key = $key AND chunk_kind = 'faq' AND definition_lead != '' THEN 0
+                   WHEN entry_key = $key AND chunk_kind IN ('definition', 'glossary') AND definition_lead != '' THEN 1
+                   WHEN entry_key = $key AND definition_lead != '' THEN 2
+                   WHEN entry_key = $key THEN 3
+                   WHEN chunk_kind = 'faq' THEN 4
+                   WHEN chunk_kind IN ('definition', 'glossary') THEN 5
+                   ELSE 6 END,
               id ASC
             LIMIT $limit
             """;

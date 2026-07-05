@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services;
+namespace LocalCompanion.Services;
 
 public static class ChatAttachmentFileRules
 {
@@ -9,6 +9,15 @@ public static class ChatAttachmentFileRules
 
     public static IReadOnlyList<string> ImageExtensionList { get; } =
         ImageExtensions.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToList();
+
+    public static bool IsSupportedTextPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var ext = Path.GetExtension(path);
+        return RagDocumentReader.TextExtensionSet.Contains(ext);
+    }
 
     public static bool IsSupportedImagePath(string? path)
     {

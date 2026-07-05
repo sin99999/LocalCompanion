@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Data;
+using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.Services.LlamaNative;
@@ -425,7 +425,10 @@ public sealed class ChatService
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
         var hasImage = req.ImagesBase64 is { Length: > 0 };
         var hasFile = !string.IsNullOrWhiteSpace(req.AttachedText);
-        var heavyRequest = hasImage || hasFile;
+        var heavyRequest = IsHeavyRequest(hasImage, hasFile, req.AttachedText, _opt.RagLightAttachMaxChars);
+        var allowRagWithAttach = req.UseRag && req.Message.Length >= 4 && !hasImage
+            && (!hasFile || (req.AttachedText?.Length ?? 0) <= _opt.RagLightAttachMaxChars)
+            && _rag.GetChunkCount() > 0;
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(req.Message);
@@ -434,16 +437,12 @@ public sealed class ChatService
         var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
-        if (req.UseRag && req.Message.Length >= 4 && !heavyRequest && _rag.GetChunkCount() > 0)
+        if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
             var ragResult = await TrySearchRagWithPlanAsync(req.Message, previousUser, ct);
-            if (ragResult is not null
-                && ragResult.Plan.ResponseMode == RagResponseMode.Verbatim
-                && (!isCharacter || RagFormalLegalCue.IsFormalLegalQuery(req.Message))
-                && RagVerbatimResponder.TryFormat(ragResult.Plan, ragResult.Hits, japaneseReply, out var verbatimReply))
+            if (TryResolveVerbatimReply(ragResult, isCharacter, req.Message, japaneseReply, out var verbatimReply, out ragSources))
             {
-                ragSources = ragResult.Hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
                 if (historyMode.Save
                     && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                     && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
@@ -455,8 +454,8 @@ public sealed class ChatService
 
                 return new ChatResponseDto(
                     verbatimReply,
-                    ragSources.Length > 0,
-                    ragSources,
+                    ragSources is { Length: > 0 },
+                    ragSources ?? Array.Empty<string>(),
                     profile.Name,
                     req.UseReasoning,
                     historyMode.Load,
@@ -568,7 +567,10 @@ public sealed class ChatService
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
         var hasImage = req.ImagesBase64 is { Length: > 0 };
         var hasFile = !string.IsNullOrWhiteSpace(req.AttachedText);
-        var heavyRequest = hasImage || hasFile;
+        var heavyRequest = IsHeavyRequest(hasImage, hasFile, req.AttachedText, _opt.RagLightAttachMaxChars);
+        var allowRagWithAttach = req.UseRag && req.Message.Length >= 4 && !hasImage
+            && (!hasFile || (req.AttachedText?.Length ?? 0) <= _opt.RagLightAttachMaxChars)
+            && _rag.GetChunkCount() > 0;
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(req.Message);
@@ -578,17 +580,13 @@ public sealed class ChatService
 
         string[]? ragSources = null;
         string? verbatimReply = null;
-        if (req.UseRag && req.Message.Length >= 4 && !heavyRequest && _rag.GetChunkCount() > 0)
+        if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
             var ragResult = await TrySearchRagWithPlanAsync(req.Message, previousUser, ct);
-            if (ragResult is not null
-                && ragResult.Plan.ResponseMode == RagResponseMode.Verbatim
-                && (!isCharacter || RagFormalLegalCue.IsFormalLegalQuery(req.Message))
-                && RagVerbatimResponder.TryFormat(ragResult.Plan, ragResult.Hits, japaneseReply, out var formatted))
+            if (TryResolveVerbatimReply(ragResult, isCharacter, req.Message, japaneseReply, out verbatimReply, out ragSources))
             {
-                verbatimReply = formatted;
-                ragSources = ragResult.Hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
+                // handled below
             }
             else if (ragResult is not null)
             {
@@ -1117,6 +1115,12 @@ public sealed class ChatService
             if (plan.Intent == RagQueryIntent.Advisory)
                 systemParts.Add(ChatSystemPromptTexts.RagAdvisoryInstruction(japanese));
         }
+        else if (plan.ResponseMode == RagResponseMode.CitationFirst)
+        {
+            systemParts.Add(ChatSystemPromptTexts.RagCitationFirstInstruction(japanese));
+            if (hits.Any(static h => RagPenaltyTextHelper.ExtractLeadingPenaltySentence(h.PromptText) is not null))
+                systemParts.Add(ChatSystemPromptTexts.RagPenaltyScopeInstruction(japanese));
+        }
         else
         {
             systemParts.Add(ChatSystemPromptTexts.RagPriorityInstruction(japanese));
@@ -1127,6 +1131,15 @@ public sealed class ChatService
         var ragHeader = ChatSystemPromptTexts.RagHitsHeader(japanese);
         systemParts.Add(ragHeader + "\n" + FormatRagHitsForPrompt(hits, plan));
         return ragSources;
+    }
+
+    private static bool IsHeavyRequest(bool hasImage, bool hasFile, string? attachedText, int lightAttachMaxChars)
+    {
+        if (hasImage)
+            return true;
+        if (!hasFile)
+            return false;
+        return (attachedText?.Length ?? 0) > lightAttachMaxChars;
     }
 
     private static string FormatRagHitsForPrompt(IReadOnlyList<RagSearchHit> hits, RagQueryPlan plan)
@@ -1169,6 +1182,42 @@ public sealed class ChatService
         }
 
         return null;
+    }
+
+    private static bool TryResolveVerbatimReply(
+        RagSearchResult? ragResult,
+        bool isCharacter,
+        string userMessage,
+        bool japanese,
+        out string reply,
+        out string[]? sources)
+    {
+        reply = "";
+        sources = null;
+        if (ragResult is null)
+            return false;
+
+        var allowCharacterVerbatim = !isCharacter
+            || ragResult.Plan.Intent == RagQueryIntent.SourceCatalog
+            || RagFormalLegalCue.IsFormalLegalQuery(userMessage);
+        if (!allowCharacterVerbatim)
+            return false;
+
+        if (ragResult.Plan.ResponseMode == RagResponseMode.Verbatim
+            && RagVerbatimResponder.TryFormat(ragResult.Plan, ragResult.Hits, japanese, out reply))
+        {
+            sources = ragResult.Hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
+            return true;
+        }
+
+        if (RagVerbatimGuard.ShouldBlockLlm(ragResult.Plan))
+        {
+            reply = RagVerbatimGuard.BuildMissReply(ragResult.Plan, japanese);
+            sources = Array.Empty<string>();
+            return true;
+        }
+
+        return false;
     }
 
     private async Task<RagSearchResult?> TrySearchRagWithPlanAsync(

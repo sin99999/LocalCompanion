@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Models;
 
@@ -71,6 +71,7 @@ public sealed class AppSettingsStore
             RagUseHtmlMarkdown = dto.RagUseHtmlMarkdown,
             RagUseLlmStructurer = dto.RagUseLlmStructurer,
             RagSaveStructurerCache = dto.RagSaveStructurerCache,
+            RagUsePdfLayoutReader = dto.RagUsePdfLayoutReader,
         };
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 
 using LocalCompanion.Models;
 
@@ -71,7 +71,7 @@ internal static class RagArticleQueryParser
         if (string.IsNullOrWhiteSpace(headerText))
             return false;
 
-        var match = HeaderArticlePattern.Match(headerText.Trim());
+        var match = HeaderArticlePattern.Match(StripMarkdownHeadingPrefix(headerText));
         if (!match.Success)
             return false;
 
@@ -124,6 +124,20 @@ internal static class RagArticleQueryParser
             || query.Contains("の末尾", StringComparison.Ordinal)
             || query.Contains("の終わり", StringComparison.Ordinal)
             || query.Contains("の中で", StringComparison.Ordinal);
+    }
+
+    /// <summary>DB や本文先頭行に残った <c>#### 第N条</c> 形式を正規化する。</summary>
+    internal static string StripMarkdownHeadingPrefix(string text)
+    {
+        var trimmed = text.Trim();
+        if (!trimmed.StartsWith('#'))
+            return trimmed;
+
+        var level = 0;
+        while (level < trimmed.Length && trimmed[level] == '#')
+            level++;
+
+        return level is >= 1 and <= 6 ? trimmed[level..].Trim() : trimmed;
     }
 
     private static string NormalizeDigits(string value) =>

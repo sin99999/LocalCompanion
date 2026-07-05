@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Models;
+using LocalCompanion.Models;
 using Microsoft.UI.Xaml;
 
 namespace LocalCompanion.Services;
@@ -45,6 +45,7 @@ public sealed class AppAppearanceService
             RagUseHtmlMarkdown = Current.RagUseHtmlMarkdown,
             RagUseLlmStructurer = Current.RagUseLlmStructurer,
             RagSaveStructurerCache = Current.RagSaveStructurerCache,
+            RagUsePdfLayoutReader = Current.RagUsePdfLayoutReader,
         });
     }
 

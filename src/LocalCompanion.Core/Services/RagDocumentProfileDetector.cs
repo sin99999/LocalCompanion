@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
@@ -14,8 +14,23 @@ internal static class RagDocumentProfileDetector
         var fileName = Path.GetFileName(source);
         var lowerName = fileName.ToLowerInvariant();
 
-        if (ContainsAny(lowerName, "用語集", "glossary", "terms", "dictionary", "辞典"))
+        if (ContainsAny(lowerName, "用語集", "glossary", "terms", "dictionary", "辞典", "金融用語", "finance-glossary"))
             return RagDocumentKind.Glossary;
+
+        if (ContainsAny(lowerName,
+                "cpp", "c++", "python", "ruby", "javascript", "typescript", "nodejs",
+                "golang", "go-", "rust", "java", "kotlin", "swift", "php", "csharp",
+                "reference", "api-doc", "apidoc", "readme", "cheatsheet", "handbook",
+                "programming", "developer"))
+            return RagDocumentKind.General;
+
+        if (ContainsAny(lowerName, "金融", "finance", "economic", "invest", "証券", "銀行", "fintech")
+            && !ContainsAny(lowerName, "法律", "legal", "law"))
+        {
+            return IsGlossaryShape(text.Length > 12000 ? text[..12000] : text)
+                ? RagDocumentKind.Glossary
+                : RagDocumentKind.General;
+        }
 
         if (ContainsAny(lowerName, "刑法", "労基", "労働基準", "民法", "憲法", "法律", "law", "legal"))
             return RagDocumentKind.Legal;

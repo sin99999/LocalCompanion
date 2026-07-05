@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
@@ -33,7 +33,13 @@ internal static class RagGenericFieldExtractor
         var definitionLead = "";
         var chunkKind = ResolveBaseKind(headerText, parentText);
 
-        if (TryExtractInlineDefinition(headerText, body, out var inlineTerm, out var inlineDef))
+        if (TryParseFaqPair(headerText, body, out var faqQ, out var faqA))
+        {
+            entryKey = RagEntryKeyNormalizer.Normalize(faqQ);
+            definitionLead = faqA;
+            chunkKind = "faq";
+        }
+        else if (TryExtractInlineDefinition(headerText, body, out var inlineTerm, out var inlineDef))
         {
             entryKey = RagEntryKeyNormalizer.Normalize(inlineTerm);
             definitionLead = inlineDef;
@@ -47,10 +53,44 @@ internal static class RagGenericFieldExtractor
                 chunkKind = docKind == RagDocumentKind.Glossary ? "glossary" : "definition";
         }
 
-        if (IsFaqBlock(headerText, body))
+        if (IsFaqBlock(headerText, body) && chunkKind != "faq")
             chunkKind = "faq";
 
         return (entryKey, definitionLead, chunkKind, sectionPath);
+    }
+
+    internal static bool TryParseFaqPair(string headerText, string body, out string question, out string answer)
+    {
+        question = "";
+        answer = "";
+
+        var qMatch = FaqQuestionHeader.Match(headerText);
+        if (qMatch.Success)
+            question = qMatch.Groups[1].Value.Trim();
+        else if (!string.IsNullOrWhiteSpace(headerText) && (headerText.EndsWith('？') || headerText.EndsWith('?')))
+            question = headerText.Trim().TrimEnd('？', '?');
+
+        if (string.IsNullOrWhiteSpace(question))
+            return false;
+
+        var lines = body.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("A:", StringComparison.OrdinalIgnoreCase)
+                || line.StartsWith("A：", StringComparison.Ordinal)
+                || line.StartsWith("回答：", StringComparison.Ordinal)
+                || line.StartsWith("A.", StringComparison.OrdinalIgnoreCase))
+            {
+                var idx = line.IndexOf(':') >= 0 ? line.IndexOf(':') : line.IndexOf('：');
+                answer = idx >= 0 ? line[(idx + 1)..].Trim() : line;
+                break;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(answer))
+            answer = ExtractDefinitionLead(headerText, body);
+
+        return !string.IsNullOrWhiteSpace(answer) && answer.Length >= 4;
     }
 
     public static (string EntryKey, string DefinitionLead, string ChunkKind) EnrichFallback(

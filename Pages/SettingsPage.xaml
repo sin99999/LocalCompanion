@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 
 <Page
 
@@ -635,6 +635,9 @@
 
                         <ToggleSwitch Header="{x:Bind ViewModel.UiRagSaveCache, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagSaveStructurerCache, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
 
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagPdfLayoutReader, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUsePdfLayoutReader, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagPdfLayoutReaderHint, Mode=OneWay}" />
+
                         <TextBlock Style="{StaticResource SettingsSectionLabelStyle}">
 
                             <Run Text="{x:Bind ViewModel.UiRagChunkCountPrefix, Mode=OneWay}" />
@@ -726,6 +729,8 @@
                         </ListView>
 
                         <TextBlock Style="{StaticResource SettingsSectionLabelStyle}" Text="{x:Bind ViewModel.RagStatusText, Mode=OneWay}" TextWrapping="Wrap" />
+
+                        <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.RagIngestReportText, Mode=OneWay}" TextWrapping="Wrap" />
 
                     </StackPanel>
 

@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
@@ -118,7 +118,7 @@ public sealed class RagDatabase
     private void EnsureRagStructuredBackfill(SqliteConnection conn)
     {
         var check = conn.CreateCommand();
-        check.CommandText = "SELECT value FROM app_metadata WHERE key = 'rag_structured_backfilled' LIMIT 1";
+        check.CommandText = "SELECT value FROM app_metadata WHERE key = 'rag_structured_backfill_v2' LIMIT 1";
         if (check.ExecuteScalar()?.ToString() == "1")
             return;
 
@@ -136,7 +136,7 @@ public sealed class RagDatabase
                 var header = reader.IsDBNull(1) ? "" : reader.GetString(1);
                 var text = reader.IsDBNull(2) ? "" : reader.GetString(2);
                 var parent = reader.IsDBNull(3) ? "" : reader.GetString(3);
-                var (main, sub, sortKey) = LegalFieldExtractor.ParseArticle(header);
+                var (main, sub, sortKey) = LegalFieldExtractor.ParseArticle(header, text);
                 var penalty = LegalFieldExtractor.ExtractPenaltyLead(header, text, parent);
                 var kind = LegalFieldExtractor.ResolveChunkKind(header, parent);
 
@@ -159,7 +159,7 @@ public sealed class RagDatabase
 
         var flag = conn.CreateCommand();
         flag.CommandText = """
-            INSERT INTO app_metadata (key, value) VALUES ('rag_structured_backfilled', '1')
+            INSERT INTO app_metadata (key, value) VALUES ('rag_structured_backfill_v2', '1')
             ON CONFLICT(key) DO UPDATE SET value = excluded.value
             """;
         flag.ExecuteNonQuery();

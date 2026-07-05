@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -12,6 +12,7 @@ public partial class ChatPageViewModel : ObservableObject
     private const int MaxInputHistory = 100;
 
     private readonly ChatService _chat;
+    private readonly RagService _rag;
     private readonly CharacterPresetService _characters;
     private readonly RuntimeHealthService _health;
     private readonly VoicevoxSpeechService _voicevoxSpeech;
@@ -33,12 +34,14 @@ public partial class ChatPageViewModel : ObservableObject
 
     public ChatPageViewModel(
         ChatService chat,
+        RagService rag,
         CharacterPresetService characters,
         RuntimeHealthService health,
         VoicevoxSpeechService voicevoxSpeech,
         AppAppearanceService appearance)
     {
         _chat = chat;
+        _rag = rag;
         _characters = characters;
         _health = health;
         _voicevoxSpeech = voicevoxSpeech;

@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Models;
+namespace LocalCompanion.Models;
 
 public sealed class AppSettingsDto
 {
@@ -25,6 +25,9 @@ public sealed class AppSettingsDto
 
     /// <summary>AI 構造化結果をユーザーデータ配下 rag-cache に保存する。</summary>
     public bool RagSaveStructurerCache { get; set; } = true;
+
+    /// <summary>PDF 取込時にレイアウト解析（見出し・ヘッダ除去）を使う。</summary>
+    public bool RagUsePdfLayoutReader { get; set; }
 
     public static AppSettingsDto CreateDefault() => new();
 }

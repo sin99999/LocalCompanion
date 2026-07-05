@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services;
+namespace LocalCompanion.Services;
 
 /// <summary>取込前の形式別前処理（HTML 構造化など）。</summary>
 internal static class RagIngestPreprocessor
@@ -19,4 +19,5 @@ internal static class RagIngestPreprocessor
 public sealed record RagIngestOptions(
     bool UseHtmlMarkdown = true,
     bool UseLlmStructurer = false,
-    bool SaveStructurerCache = false);
+    bool SaveStructurerCache = false,
+    bool UsePdfLayoutReader = false);
