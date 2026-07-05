@@ -429,13 +429,47 @@ public sealed class ChatService
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(req.Message);
+        var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var systemParts = BuildSystemParts(profile, runtime, req.Message, japaneseReply);
+        var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
         if (req.UseRag && req.Message.Length >= 4 && !heavyRequest && _rag.GetChunkCount() > 0)
         {
-            var hits = await TrySearchRagAsync(req.Message, ct);
-            ragSources = TryAppendRagHits(systemParts, hits, japaneseReply);
+            var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
+            var ragResult = await TrySearchRagWithPlanAsync(req.Message, previousUser, ct);
+            if (ragResult is not null
+                && ragResult.Plan.ResponseMode == RagResponseMode.Verbatim
+                && (!isCharacter || RagFormalLegalCue.IsFormalLegalQuery(req.Message))
+                && RagVerbatimResponder.TryFormat(ragResult.Plan, ragResult.Hits, japaneseReply, out var verbatimReply))
+            {
+                ragSources = ragResult.Hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
+                if (historyMode.Save
+                    && !string.IsNullOrWhiteSpace(historyMode.SessionId)
+                    && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
+                {
+                    SaveMessage(historyMode.SessionId, historyMode.PresetKey, "user", SummarizeForHistory(req));
+                    SaveMessage(historyMode.SessionId, historyMode.PresetKey, "assistant", TruncateContent(verbatimReply, HistorySaveMaxChars));
+                    TouchSession(historyMode.SessionId, req.Message);
+                }
+
+                return new ChatResponseDto(
+                    verbatimReply,
+                    ragSources.Length > 0,
+                    ragSources,
+                    profile.Name,
+                    req.UseReasoning,
+                    historyMode.Load,
+                    hasFile,
+                    modelFileName,
+                    runtime.SelectedModelFileName,
+                    runtime.LoadedModelFileName,
+                    runtime.ModelMismatch,
+                    runtime.StatusMessage);
+            }
+
+            if (ragResult is not null)
+                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, req.Message, japaneseReply);
         }
         else if (!req.UseRag)
         {
@@ -444,7 +478,6 @@ public sealed class ChatService
 
         var userContent = BuildUserContent(req, _opt.MaxAttachTextChars);
         var systemText = string.Join("\n\n", systemParts);
-        var historyMode = ResolveHistory(req);
 
         var attempts = BuildAttempts(heavyRequest, effectiveContext);
         string? reply = null;
@@ -539,22 +572,58 @@ public sealed class ChatService
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(req.Message);
+        var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var systemParts = BuildSystemParts(profile, runtime, req.Message, japaneseReply);
+        var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
+        string? verbatimReply = null;
         if (req.UseRag && req.Message.Length >= 4 && !heavyRequest && _rag.GetChunkCount() > 0)
         {
-            var hits = await TrySearchRagAsync(req.Message, ct);
-            ragSources = TryAppendRagHits(systemParts, hits, japaneseReply);
+            var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
+            var ragResult = await TrySearchRagWithPlanAsync(req.Message, previousUser, ct);
+            if (ragResult is not null
+                && ragResult.Plan.ResponseMode == RagResponseMode.Verbatim
+                && (!isCharacter || RagFormalLegalCue.IsFormalLegalQuery(req.Message))
+                && RagVerbatimResponder.TryFormat(ragResult.Plan, ragResult.Hits, japaneseReply, out var formatted))
+            {
+                verbatimReply = formatted;
+                ragSources = ragResult.Hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
+            }
+            else if (ragResult is not null)
+            {
+                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, req.Message, japaneseReply);
+            }
         }
         else if (!req.UseRag)
         {
             systemParts.Add(ChatSystemPromptTexts.RagDisabledNote(japaneseReply));
         }
 
+        if (!string.IsNullOrWhiteSpace(verbatimReply))
+        {
+            if (historyMode.Save
+                && !string.IsNullOrWhiteSpace(historyMode.SessionId)
+                && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
+            {
+                SaveMessage(historyMode.SessionId, historyMode.PresetKey, "user", SummarizeForHistory(req));
+                SaveMessage(historyMode.SessionId, historyMode.PresetKey, "assistant", TruncateContent(verbatimReply, HistorySaveMaxChars));
+                TouchSession(historyMode.SessionId, req.Message);
+            }
+
+            yield return new ChatStreamChunkDto("content", verbatimReply);
+            var verbatimMeta = formatMetaForStream(ragSources is { Length: > 0 }, req.UseReasoning, historyMode.Load, hasFile, modelFileName, runtime);
+            yield return new ChatStreamChunkDto(
+                "done",
+                verbatimReply,
+                Meta: verbatimMeta,
+                CharacterName: profile.Name,
+                Done: true);
+            yield break;
+        }
+
         var userContent = BuildUserContent(req, _opt.MaxAttachTextChars);
         var systemText = string.Join("\n\n", systemParts);
-        var historyMode = ResolveHistory(req);
         var attempts = BuildAttempts(heavyRequest, effectiveContext);
 
         var replyBuilder = new StringBuilder();
@@ -1028,16 +1097,101 @@ public sealed class ChatService
     private static string[]? TryAppendRagHits(
         List<string> systemParts,
         IReadOnlyList<RagSearchHit> hits,
+        RagQueryPlan plan,
+        bool isCharacter,
+        string userMessage,
         bool japanese)
     {
         if (hits.Count == 0)
             return null;
 
         var ragSources = hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
-        systemParts.Add(ChatSystemPromptTexts.RagPriorityInstruction(japanese));
+        var usePersonaMode = isCharacter && (
+            plan.ResponseMode == RagResponseMode.PersonaSynthesis
+            || plan.Intent == RagQueryIntent.Advisory
+            || !RagFormalLegalCue.IsFormalLegalQuery(userMessage));
+
+        if (usePersonaMode)
+        {
+            systemParts.Add(ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese));
+            if (plan.Intent == RagQueryIntent.Advisory)
+                systemParts.Add(ChatSystemPromptTexts.RagAdvisoryInstruction(japanese));
+        }
+        else
+        {
+            systemParts.Add(ChatSystemPromptTexts.RagPriorityInstruction(japanese));
+            if (hits.Any(static h => RagPenaltyTextHelper.ExtractLeadingPenaltySentence(h.PromptText) is not null))
+                systemParts.Add(ChatSystemPromptTexts.RagPenaltyScopeInstruction(japanese));
+        }
+
         var ragHeader = ChatSystemPromptTexts.RagHitsHeader(japanese);
-        systemParts.Add(ragHeader + "\n" + string.Join("\n\n", hits.Select((h, i) => h.FormatForPrompt(i))));
+        systemParts.Add(ragHeader + "\n" + FormatRagHitsForPrompt(hits, plan));
         return ragSources;
+    }
+
+    private static string FormatRagHitsForPrompt(IReadOnlyList<RagSearchHit> hits, RagQueryPlan plan)
+    {
+        if (plan.Intent != RagQueryIntent.Advisory)
+            return string.Join("\n\n", hits.Select((h, i) => h.FormatForPrompt(i)));
+
+        var parts = new List<string>();
+        foreach (var group in hits.GroupBy(static h => h.SourceFileName))
+        {
+            parts.Add($"■ {group.Key}");
+            var index = 0;
+            foreach (var hit in group)
+                parts.Add(hit.FormatForPrompt(index++));
+        }
+
+        return string.Join("\n\n", parts);
+    }
+
+    private string BuildRagSearchQuery(string currentMessage, HistoryMode historyMode)
+    {
+        var previousUser = historyMode.Load
+            ? GetPreviousUserMessage(historyMode.SessionId)
+            : null;
+        return RagSearchQueryComposer.Compose(currentMessage, previousUser);
+    }
+
+    private string? GetPreviousUserMessage(string? sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return null;
+
+        foreach (var (role, content) in LoadRecentSessionRows(sessionId, 24))
+        {
+            if (string.Equals(role, "user", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(content))
+            {
+                return content;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<RagSearchResult?> TrySearchRagWithPlanAsync(
+        string currentMessage,
+        string? previousUserMessage,
+        CancellationToken ct)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(12));
+            return await _rag.SearchWithPlanAsync(currentMessage, previousUserMessage, _opt.RagTopK, timeout.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            StartupLog.Write("RAG search timed out.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "RAG search failed");
+            return null;
+        }
     }
 
     private async Task<IReadOnlyList<RagSearchHit>> TrySearchRagAsync(string message, CancellationToken ct)

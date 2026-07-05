@@ -69,7 +69,7 @@ public static class RagDocumentReader
         {
             ".pdf" => ReadPdf(path),
             ".docx" => ReadDocx(path),
-            ".html" or ".htm" => StripHtml(ReadUtf8(path)),
+            ".html" or ".htm" => ReadUtf8(path),
             _ when TextExtensions.Contains(ext) => ReadUtf8(path),
             _ => throw new LocalizedServiceException("Settings.Rag.Error.UnsupportedFormat", ext),
         };
@@ -88,7 +88,7 @@ public static class RagDocumentReader
         {
             ".pdf" => ReadPdf(stream),
             ".docx" => ReadDocx(stream),
-            ".html" or ".htm" => StripHtml(ReadUtf8(stream)),
+            ".html" or ".htm" => ReadUtf8(stream),
             _ when TextExtensions.Contains(ext) => ReadUtf8(stream),
             _ => throw new LocalizedServiceException("Settings.Rag.Error.UnsupportedFormat", ext),
         };

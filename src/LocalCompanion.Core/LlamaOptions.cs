@@ -1,4 +1,4 @@
-namespace LocalCompanion;
+﻿namespace LocalCompanion;
 
 public sealed class LlamaOptions
 {
@@ -24,10 +24,20 @@ public sealed class LlamaOptions
     public int ChunkSize { get; set; } = 900;
     public int ChunkOverlap { get; set; } = 128;
     public int RagTopK { get; set; } = 5;
+    /// <summary>ハイブリッド検索で各レーン（FTS / ベクトル）から集める候補数。</summary>
+    public int RagSearchPoolSize { get; set; } = 50;
+    /// <summary>Reciprocal Rank Fusion の k（通常 60）。</summary>
+    public int RagRrfK { get; set; } = 60;
+    /// <summary>RRF における FTS 重み（条文・キーワード向け）。</summary>
+    public double RagWeightFts { get; set; } = 0.4;
+    /// <summary>RRF におけるベクトル重み（言い換え質問向け）。</summary>
+    public double RagWeightVec { get; set; } = 0.6;
     /// <summary>チャット添付テキストの最大文字数（超えた分は省略）</summary>
     public int MaxAttachTextChars { get; set; } = 8000;
     /// <summary>AI返答の最大文字数（表示・読み上げの上限）</summary>
     public int MaxReplyChars { get; set; } = 10_000;
     /// <summary>長文返答用の出力トークン上限（MaxReplyChars に合わせて調整）</summary>
     public int MaxReplyOutputTokens { get; set; } = 6144;
+    /// <summary>AI 構造化取込の1ウィンドウあたり最大文字数。</summary>
+    public int RagStructurerWindowChars { get; set; } = 3500;
 }

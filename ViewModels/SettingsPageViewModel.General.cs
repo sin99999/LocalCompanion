@@ -113,5 +113,8 @@ public partial class SettingsPageViewModel
         ChatFontFamily = SelectedChatFontFamily ?? AppSettingsDto.DefaultChatFontFamily,
         ChatFontSize = GeneralChatFontSize,
         UserDisplayName = UserDisplayName,
+        RagUseHtmlMarkdown = _appearance.Current.RagUseHtmlMarkdown,
+        RagUseLlmStructurer = _appearance.Current.RagUseLlmStructurer,
+        RagSaveStructurerCache = _appearance.Current.RagSaveStructurerCache,
     };
 }

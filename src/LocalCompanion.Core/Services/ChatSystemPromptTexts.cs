@@ -137,7 +137,12 @@ internal static class ChatSystemPromptTexts
               直後に続く「【参考資料（RAG・資料DB検索）】」は、登録資料から今回の質問に関連する断片です。
               - 質問が参考資料の内容に関係する場合：一般知識や推測より参考資料を優先し、根拠として資料名・見出し・ページ等を示しながら答える
               - 参考資料と一般知識が食い違う場合：参考資料の記述を優先する（資料が古い・不全な可能性があるときはその旨を短く添えてよい）
-              - 質問が参考資料と無関係、または資料に該当がない場合：資料を無視し、普段どおり自然に会話する。資料に書いていないことを資料由来と言わない
+              - 質問が参考資料と無関係、または資料に該当がない場合：資料を無視し、普段どおり自然に会話する。資料に写っていない条文番号や罰則条項を推測で答えない
+              - 参考資料に条文番号が明示されていない場合：「第○条」と番号だけを一般知識で断定しない
+              - 刑期・罰金・金額・年数・日数など数値が資料に書いてある場合：その数字・単位を資料どおり用い、一般知識の数値で置き換えない
+              - 参考資料に「【資料記載の罰則文言（引用必須）】」がある場合：その行を改変せず回答の最初に引用し、その後に短い説明を付けてよい
+              - 罰則の数字（年数・金額）は、引用した罰則文言に含まれるものだけを使う（例：資料が「二百五十万円」なら「500万円」に置き換えない）
+              - 質問で指定された罪名だけ答える。資料にない関連罪名（贈賄のみ聞かれたのに受賄など）の罰則を一般知識から補わない
               """.Trim()
             : """
               [RAG priority — required]
@@ -145,10 +150,71 @@ internal static class ChatSystemPromptTexts
               - When the question relates to those passages: prioritize them over general knowledge or guesses; cite file name, heading, page, etc. as grounds
               - When passages conflict with general knowledge: follow the reference materials (you may briefly note they may be outdated or incomplete)
               - When the question is unrelated or not covered: ignore the materials and reply naturally; do not attribute unstated facts to the documents
+              - Do not guess article numbers or penalty provisions not present in the materials
+              - When article numbers are not stated in the materials: do not assert "Article N" from general knowledge alone
+              - When the materials state numeric values (prison terms, fines, amounts, years, days, etc.): use those numbers and units as written; do not replace them with figures from general knowledge
+              - When a passage includes "[Penalty text from materials (quote required)]": quote that line verbatim at the start of your answer, then you may add a brief explanation
+              - Use only penalty numbers (years, amounts) that appear in the quoted penalty line (e.g. do not replace "2.5 million yen" in the materials with "5 million yen")
+              - Answer only the offense named in the question; do not add penalties for related offenses not in the materials (e.g. do not add acceptance-of-bribes penalties when only offering bribes was asked)
+              """.Trim();
+
+    internal static string RagPenaltyScopeInstruction(bool japanese) =>
+        japanese
+            ? """
+              【罰則回答の範囲（必須）】
+              - 回答の冒頭に、参考資料の「【資料記載の罰則文言（引用必須）】」をそのまま1文引用する
+              - その引用文に書かれていない刑期・罰金・金額を追加しない
+              - 質問された罪名以外（例：贈賄のみ聞かれたのに受賄）の罰則説明を付け加えない
+              """.Trim()
+            : """
+              [Penalty answer scope — required]
+              - Begin with one verbatim quote of "[Penalty text from materials (quote required)]" from the reference materials
+              - Do not add prison terms, fines, or amounts not present in that quoted line
+              - Do not add penalties for offenses not asked about and not covered in the materials
               """.Trim();
 
     internal static string RagDisabledNote(bool japanese) =>
         japanese
             ? "【RAG】オフ。資料DB（RAG）は参照していない。過去の会話や、このメッセージの添付以外の資料を読んだとは言わない。"
             : "[RAG] Off. The document database (RAG) is not used. Do not claim you read past chats or materials beyond this message's attachment.";
+
+    internal static string RagPersonaReferenceInstruction(bool japanese) =>
+        japanese
+            ? """
+              【RAG・キャラ会話モード】
+              直後の参考資料を、キャラの口調・人格を保ったまま自然に織り込む。
+              - 軽いネタや「刑法○条チェック！」のような突然の条文参照もよい（資料に根拠がある場合）
+              - 刑期・罰金・金額は資料どおり。資料にない条文番号は断定せず「資料だと〜」「この資料の範囲だと」
+              - 堅い法律文書口調・説教は禁止。相棒として会話の温度感を最優先
+              - 資料名（就業規則.md 等）を会話にさりげなく入れてよい
+              - 資料に該当がなければ無理に引用せず、普段どおり雑談する
+              """.Trim()
+            : """
+              [RAG — character conversation mode]
+              Weave the reference materials below into your reply while keeping the character's voice.
+              - Light asides and casual article references are fine when grounded in the materials
+              - Use penalty amounts and numbers exactly as in the materials; do not invent article numbers
+              - Avoid stiff legal-document tone; prioritize the conversational vibe
+              - You may mention file names naturally; skip forced citations when materials are irrelevant
+              """.Trim();
+
+    internal static string RagAdvisoryInstruction(bool japanese) =>
+        japanese
+            ? """
+              【相談・複数資料モード】
+              複数の参考資料が渡されている。実務的な助言をしてよい。
+              - 就業規則・税法など複数資料を横断し、論点ごとにどの資料を参照したか示す（ファイル名＋見出し）
+              - 「規則上は副業NGだけど、100億なら辞めて売却の方が…」のような現実的別案OK（資料根拠＋推理であることを示す）
+              - 資料と一般知識が食い違う場合：資料を優先しつつ、推理部分は「レンの意見」「一般論」と区別
+              - 税務・罰則の数字は資料に書いてあるものだけ。資料にない金額・条番号は推測しない
+              - キャラ口調は維持。最後に専門家確認の一言を添えてもよい
+              """.Trim()
+            : """
+              [Advisory — multi-document mode]
+              Multiple reference materials are provided. Practical advice is welcome.
+              - Cross-reference sources by file name and heading per topic
+              - Alternative paths (e.g. quit and sell vs. side-job rules) are OK when labeled as reasoning
+              - Prefer materials for numbers and penalties; do not invent figures not in the docs
+              - Keep the character voice; optional brief note to consult professionals
+              """.Trim();
 }

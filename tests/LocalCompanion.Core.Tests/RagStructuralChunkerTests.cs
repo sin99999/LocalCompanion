@@ -37,4 +37,23 @@ public sealed class RagStructuralChunkerTests
         Assert.NotEmpty(chunks);
         Assert.All(chunks, c => Assert.False(string.IsNullOrWhiteSpace(c.Text)));
     }
+
+    [Fact]
+    public void CreateChunks_OversizedSection_SetsParentText()
+    {
+        var body = string.Join("\n", Enumerable.Repeat("条文本文の一行です。", 80));
+        var text = $"""
+            ### 第8条
+
+            {body}
+            """;
+
+        var chunks = RagStructuralChunker.CreateChunks(text, source: "law.md", size: 200, overlap: 20);
+
+        Assert.True(chunks.Count > 1);
+        var withParent = chunks.Where(c => !string.IsNullOrWhiteSpace(c.ParentText)).ToList();
+        Assert.NotEmpty(withParent);
+        Assert.All(withParent, c => Assert.Contains("第8条", c.ParentText));
+        Assert.All(withParent, c => Assert.True(c.ArticleSortKey > 0));
+    }
 }

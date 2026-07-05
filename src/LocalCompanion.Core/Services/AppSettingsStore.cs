@@ -68,6 +68,9 @@ public sealed class AppSettingsStore
             ChatFontFamily = fontFamily,
             ChatFontSize = Math.Clamp(dto.ChatFontSize, 12, 24),
             UserDisplayName = userDisplayName,
+            RagUseHtmlMarkdown = dto.RagUseHtmlMarkdown,
+            RagUseLlmStructurer = dto.RagUseLlmStructurer,
+            RagSaveStructurerCache = dto.RagSaveStructurerCache,
         };
     }
 }

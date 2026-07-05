@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 using LocalCompanion.Models;
+using LocalCompanion.Services;
 
 namespace LocalCompanion.Data;
 
@@ -8,6 +9,7 @@ public sealed class RagDatabase
 {
     private readonly string _dbPath;
     private readonly RagSqliteVec _vec = new();
+    private readonly RagSqliteFts _fts = new();
 
     public RagDatabase(IOptions<LlamaOptions> opt)
     {
@@ -21,6 +23,8 @@ public sealed class RagDatabase
     public string DataDirectory { get; }
 
     public RagSqliteVec Vector => _vec;
+
+    public RagSqliteFts Fts => _fts;
 
     public SqliteConnection Open()
     {
@@ -44,11 +48,14 @@ public sealed class RagDatabase
         cmd.CommandText = """
             PRAGMA journal_mode=WAL;
             PRAGMA busy_timeout=5000;
+            PRAGMA mmap_size=268435456;
             """;
         cmd.ExecuteNonQuery();
     }
 
     public void PrepareVectors(SqliteConnection conn) => _vec.TryPrepare(conn);
+
+    public void PrepareFts(SqliteConnection conn) => _fts.TryPrepare(conn);
 
     private void Initialize()
     {
@@ -103,6 +110,145 @@ public sealed class RagDatabase
         EnsureCharacterProfileTopK(conn);
         EnsureRagChunkMetadata(conn);
         EnsureRagSourcePrefs(conn);
+        EnsureRagFtsBackfill(conn);
+        EnsureRagStructuredBackfill(conn);
+        EnsureRagUniversalBackfill(conn);
+    }
+
+    private void EnsureRagStructuredBackfill(SqliteConnection conn)
+    {
+        var check = conn.CreateCommand();
+        check.CommandText = "SELECT value FROM app_metadata WHERE key = 'rag_structured_backfilled' LIMIT 1";
+        if (check.ExecuteScalar()?.ToString() == "1")
+            return;
+
+        var select = conn.CreateCommand();
+        select.CommandText = """
+            SELECT id, header_text, text, parent_text
+            FROM rag_chunks
+            WHERE article_sort_key = 0 OR penalty_lead = ''
+            """;
+        using (var reader = select.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                var id = reader.GetInt64(0);
+                var header = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                var text = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                var parent = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                var (main, sub, sortKey) = LegalFieldExtractor.ParseArticle(header);
+                var penalty = LegalFieldExtractor.ExtractPenaltyLead(header, text, parent);
+                var kind = LegalFieldExtractor.ResolveChunkKind(header, parent);
+
+                var update = conn.CreateCommand();
+                update.CommandText = """
+                    UPDATE rag_chunks
+                    SET article_main = $m, article_sub = $s, article_sort_key = $k,
+                        penalty_lead = $p, chunk_kind = $c
+                    WHERE id = $id
+                    """;
+                update.Parameters.AddWithValue("$m", main);
+                update.Parameters.AddWithValue("$s", sub);
+                update.Parameters.AddWithValue("$k", sortKey);
+                update.Parameters.AddWithValue("$p", penalty);
+                update.Parameters.AddWithValue("$c", kind);
+                update.Parameters.AddWithValue("$id", id);
+                update.ExecuteNonQuery();
+            }
+        }
+
+        var flag = conn.CreateCommand();
+        flag.CommandText = """
+            INSERT INTO app_metadata (key, value) VALUES ('rag_structured_backfilled', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """;
+        flag.ExecuteNonQuery();
+    }
+
+    private void EnsureRagUniversalBackfill(SqliteConnection conn)
+    {
+        var check = conn.CreateCommand();
+        check.CommandText = "SELECT value FROM app_metadata WHERE key = 'rag_universal_backfilled' LIMIT 1";
+        if (check.ExecuteScalar()?.ToString() == "1")
+            return;
+
+        var select = conn.CreateCommand();
+        select.CommandText = """
+            SELECT id, source, header_text, text, parent_text, header_level,
+                   chapter, section, subsection, article_sort_key, chunk_kind
+            FROM rag_chunks
+            WHERE entry_key = '' OR entry_key IS NULL
+            """;
+        using (var reader = select.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                var id = reader.GetInt64(0);
+                var source = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                var header = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                var text = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                var parent = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                var headerLevel = reader.IsDBNull(5) ? 0 : reader.GetInt32(5);
+                var chapter = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                var section = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                var subsection = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                var articleSortKey = reader.IsDBNull(9) ? 0L : reader.GetInt64(9);
+                var chunkKind = reader.IsDBNull(10) ? "" : reader.GetString(10);
+
+                var docKind = RagDocumentProfileDetector.Detect(source, header + "\n" + text);
+                var generic = RagGenericFieldExtractor.Enrich(
+                    header, text, parent, headerLevel, chapter, section, subsection, docKind);
+
+                var entryKey = generic.EntryKey;
+                var definitionLead = generic.DefinitionLead;
+                var resolvedKind = chunkKind;
+                if (articleSortKey == 0 && generic.ChunkKind is "definition" or "glossary" or "faq")
+                    resolvedKind = generic.ChunkKind;
+
+                var update = conn.CreateCommand();
+                update.CommandText = """
+                    UPDATE rag_chunks
+                    SET entry_key = $ek, definition_lead = $dl, section_path = $sp,
+                        doc_kind = $dk, chunk_kind = $ck
+                    WHERE id = $id
+                    """;
+                update.Parameters.AddWithValue("$ek", entryKey);
+                update.Parameters.AddWithValue("$dl", definitionLead);
+                update.Parameters.AddWithValue("$sp", generic.SectionPath);
+                update.Parameters.AddWithValue("$dk", RagDocumentProfileDetector.ToStorageValue(docKind));
+                update.Parameters.AddWithValue("$ck", string.IsNullOrWhiteSpace(resolvedKind) ? "section" : resolvedKind);
+                update.Parameters.AddWithValue("$id", id);
+                update.ExecuteNonQuery();
+            }
+        }
+
+        var flag = conn.CreateCommand();
+        flag.CommandText = """
+            INSERT INTO app_metadata (key, value) VALUES ('rag_universal_backfilled', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """;
+        flag.ExecuteNonQuery();
+    }
+
+    private void EnsureRagFtsBackfill(SqliteConnection conn)
+    {
+        PrepareFts(conn);
+        if (!_fts.IsAvailable)
+            return;
+
+        var check = conn.CreateCommand();
+        check.CommandText = "SELECT value FROM app_metadata WHERE key = 'rag_fts_backfilled' LIMIT 1";
+        if (check.ExecuteScalar()?.ToString() == "1")
+            return;
+
+        _fts.Backfill(conn);
+
+        var flag = conn.CreateCommand();
+        flag.CommandText = """
+            INSERT INTO app_metadata (key, value) VALUES ('rag_fts_backfilled', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """;
+        flag.ExecuteNonQuery();
     }
 
     private static void EnsureRagSourcePrefs(SqliteConnection conn)
@@ -126,6 +272,25 @@ public sealed class RagDatabase
         EnsureRagColumn(conn, "chapter", "TEXT NOT NULL DEFAULT ''");
         EnsureRagColumn(conn, "section", "TEXT NOT NULL DEFAULT ''");
         EnsureRagColumn(conn, "subsection", "TEXT NOT NULL DEFAULT ''");
+        EnsureRagColumn(conn, "parent_text", "TEXT NOT NULL DEFAULT ''");
+        EnsureRagColumn(conn, "article_main", "INTEGER NOT NULL DEFAULT 0");
+        EnsureRagColumn(conn, "article_sub", "INTEGER NOT NULL DEFAULT 0");
+        EnsureRagColumn(conn, "article_sort_key", "INTEGER NOT NULL DEFAULT 0");
+        EnsureRagColumn(conn, "penalty_lead", "TEXT NOT NULL DEFAULT ''");
+        EnsureRagColumn(conn, "chunk_kind", "TEXT NOT NULL DEFAULT ''");
+        EnsureRagColumn(conn, "entry_key", "TEXT NOT NULL DEFAULT ''");
+        EnsureRagColumn(conn, "definition_lead", "TEXT NOT NULL DEFAULT ''");
+        EnsureRagColumn(conn, "section_path", "TEXT NOT NULL DEFAULT ''");
+        EnsureRagColumn(conn, "doc_kind", "TEXT NOT NULL DEFAULT 'general'");
+        EnsureRagIndex(conn, "idx_rag_chunks_article", "article_sort_key", "source");
+        EnsureRagIndex(conn, "idx_rag_chunks_entry_key", "entry_key", "source");
+    }
+
+    private static void EnsureRagIndex(SqliteConnection conn, string name, string column, string sourceColumn)
+    {
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = $"CREATE INDEX IF NOT EXISTS {name} ON rag_chunks({sourceColumn}, {column})";
+        cmd.ExecuteNonQuery();
     }
 
     private static void EnsureRagColumn(SqliteConnection conn, string column, string definition)

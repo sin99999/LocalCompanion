@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 using LocalCompanion.Models;
 
@@ -14,15 +14,21 @@ internal static class RagStructuralChunker
         @"^---\s*(?:ページ|Page)\s*(\d+)\s*---\s*$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    public static IReadOnlyList<RagChunkDraft> CreateChunks(string text, string source, int size, int overlap)
+    public static IReadOnlyList<RagChunkDraft> CreateChunks(
+        string text,
+        string source,
+        int size,
+        int overlap,
+        RagDocumentKind docKind = RagDocumentKind.General)
     {
         if (string.IsNullOrWhiteSpace(text))
             return Array.Empty<RagChunkDraft>();
 
         text = text.Replace("\r\n", "\n").Trim();
+        var docKindValue = RagDocumentProfileDetector.ToStorageValue(docKind);
         var sections = SplitIntoSections(text);
         if (sections.Count == 0)
-            return FallbackChunks(text, source, size, overlap);
+            return FallbackChunks(text, source, size, overlap, docKind, docKindValue);
 
         var drafts = new List<RagChunkDraft>();
         foreach (var section in sections)
@@ -33,24 +39,31 @@ internal static class RagStructuralChunker
 
             if (body.Length <= size)
             {
-                drafts.Add(CreateDraft(section, body, source, partIndex: 0));
+                drafts.Add(CreateDraft(section, body, source, partIndex: 0, parentText: "", docKind, docKindValue));
                 continue;
             }
 
+            var fullSectionText = BuildSectionText(section, body);
             var part = 0;
             foreach (var slice in RagTextChunker.SplitOversized(body, size, overlap))
             {
                 if (slice.Trim().Length < 10)
                     continue;
-                drafts.Add(CreateDraft(section, slice.Trim(), source, part));
+                drafts.Add(CreateDraft(section, slice.Trim(), source, part, fullSectionText, docKind, docKindValue));
                 part++;
             }
         }
 
-        return drafts.Count > 0 ? drafts : FallbackChunks(text, source, size, overlap);
+        return drafts.Count > 0 ? drafts : FallbackChunks(text, source, size, overlap, docKind, docKindValue);
     }
 
-    private static IReadOnlyList<RagChunkDraft> FallbackChunks(string text, string source, int size, int overlap)
+    private static IReadOnlyList<RagChunkDraft> FallbackChunks(
+        string text,
+        string source,
+        int size,
+        int overlap,
+        RagDocumentKind docKind,
+        string docKindValue)
     {
         var list = new List<RagChunkDraft>();
         var index = 0;
@@ -58,6 +71,7 @@ internal static class RagStructuralChunker
         {
             if (string.IsNullOrWhiteSpace(chunk))
                 continue;
+            var (entryKey, definitionLead, chunkKind) = RagGenericFieldExtractor.EnrichFallback(chunk, docKind);
             list.Add(new RagChunkDraft(
                 Text: chunk,
                 EmbeddingText: chunk,
@@ -67,15 +81,63 @@ internal static class RagStructuralChunker
                 Page: 0,
                 Chapter: "",
                 Section: "",
-                Subsection: ""));
+                Subsection: "",
+                ParentText: "",
+                ChunkKind: chunkKind,
+                EntryKey: entryKey,
+                DefinitionLead: definitionLead,
+                DocKind: docKindValue));
         }
         return list;
     }
 
-    private static RagChunkDraft CreateDraft(SectionBlock section, string body, string source, int partIndex)
+    private static RagChunkDraft CreateDraft(
+        SectionBlock section,
+        string body,
+        string source,
+        int partIndex,
+        string parentText,
+        RagDocumentKind docKind,
+        string docKindValue)
     {
         var chunkId = BuildChunkId(section, partIndex);
         var embedding = BuildEmbeddingText(section, body);
+
+        var articleMain = 0;
+        var articleSub = 0;
+        long articleSortKey = 0;
+        var penaltyLead = "";
+        var chunkKind = "section";
+
+        var useLegal = docKind == RagDocumentKind.Legal
+            || RagArticleQueryParser.TryParseArticleSortKey(section.HeaderText, out _);
+        if (useLegal)
+        {
+            (articleMain, articleSub, articleSortKey) = LegalFieldExtractor.ParseArticle(section.HeaderText);
+            penaltyLead = LegalFieldExtractor.ExtractPenaltyLead(section.HeaderText, body, parentText);
+            chunkKind = LegalFieldExtractor.ResolveChunkKind(section.HeaderText, parentText);
+        }
+        else
+        {
+            chunkKind = LegalFieldExtractor.ResolveChunkKind(section.HeaderText, parentText);
+        }
+
+        var generic = RagGenericFieldExtractor.Enrich(
+            section.HeaderText,
+            body,
+            parentText,
+            section.HeaderLevel,
+            section.Chapter,
+            section.Section,
+            section.Subsection,
+            docKind);
+
+        var entryKey = generic.EntryKey;
+        var definitionLead = generic.DefinitionLead;
+        var sectionPath = generic.SectionPath;
+        if (articleSortKey == 0 && generic.ChunkKind is "definition" or "glossary" or "faq")
+            chunkKind = generic.ChunkKind;
+
         return new RagChunkDraft(
             Text: body,
             EmbeddingText: embedding,
@@ -85,7 +147,25 @@ internal static class RagStructuralChunker
             Page: section.Page,
             Chapter: section.Chapter,
             Section: section.Section,
-            Subsection: section.Subsection);
+            Subsection: section.Subsection,
+            ParentText: parentText,
+            ArticleMain: articleMain,
+            ArticleSub: articleSub,
+            ArticleSortKey: articleSortKey,
+            PenaltyLead: penaltyLead,
+            ChunkKind: chunkKind,
+            EntryKey: entryKey,
+            DefinitionLead: definitionLead,
+            SectionPath: sectionPath,
+            DocKind: docKindValue);
+    }
+
+    private static string BuildSectionText(SectionBlock section, string body)
+    {
+        if (string.IsNullOrWhiteSpace(section.HeaderText))
+            return body;
+
+        return section.HeaderText + "\n" + body;
     }
 
     private static string BuildEmbeddingText(SectionBlock section, string body)

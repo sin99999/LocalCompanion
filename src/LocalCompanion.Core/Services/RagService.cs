@@ -17,15 +17,24 @@ public sealed class RagService
 
     private readonly RagDatabase _db;
     private readonly LlamaServerClient _llama;
+    private readonly RagDocumentStructurer _structurer;
+    private readonly AppSettingsStore _settings;
     private readonly LlamaOptions _opt;
     private readonly SemaphoreSlim _ingestLock = new(1, 1);
 
     private const int MaxLegacySearchChunks = 3000;
 
-    public RagService(RagDatabase db, LlamaServerClient llama, IOptions<LlamaOptions> opt)
+    public RagService(
+        RagDatabase db,
+        LlamaServerClient llama,
+        RagDocumentStructurer structurer,
+        AppSettingsStore settings,
+        IOptions<LlamaOptions> opt)
     {
         _db = db;
         _llama = llama;
+        _structurer = structurer;
+        _settings = settings;
         _opt = opt.Value;
     }
 
@@ -37,7 +46,13 @@ public sealed class RagService
         if (!await _llama.EmbeddingsSupportedAsync(ct))
             throw new LocalizedServiceException("Settings.Rag.Error.EmbeddingsUnavailable");
 
-        var drafts = RagStructuralChunker.CreateChunks(text, source, _opt.ChunkSize, _opt.ChunkOverlap);
+        var options = LoadIngestOptions();
+        text = RagIngestPreprocessor.Preprocess(source, text, options);
+        text = RagDocumentNormalizer.Normalize(text);
+        var docKind = RagDocumentProfileDetector.Detect(source, text);
+        text = await _structurer.StructureAsync(source, text, docKind, options, ct);
+        text = RagDocumentNormalizer.Normalize(text);
+        var drafts = RagStructuralChunker.CreateChunks(text, source, _opt.ChunkSize, _opt.ChunkOverlap, docKind);
         var prepared = new List<(RagChunkDraft Draft, float[] Embedding)>();
         var embedSkipped = 0;
 
@@ -62,6 +77,7 @@ public sealed class RagService
             using var conn = _db.Open();
             await conn.OpenAsync(ct);
             _db.PrepareVectors(conn);
+            _db.PrepareFts(conn);
 
             var embeddingDim = prepared[0].Embedding.Length;
 
@@ -81,9 +97,12 @@ public sealed class RagService
                     cmd.CommandText = """
                         INSERT INTO rag_chunks (
                           source, text, embedding, created_at,
-                          chunk_id, header_text, header_level, page, chapter, section, subsection
+                          chunk_id, header_text, header_level, page, chapter, section, subsection, parent_text,
+                          article_main, article_sub, article_sort_key, penalty_lead, chunk_kind,
+                          entry_key, definition_lead, section_path, doc_kind
                         )
-                        VALUES ($s, $t, $e, $at, $cid, $ht, $hl, $pg, $ch, $sec, $sub)
+                        VALUES ($s, $t, $e, $at, $cid, $ht, $hl, $pg, $ch, $sec, $sub, $parent,
+                          $am, $as, $ask, $pl, $ck, $ek, $dl, $sp, $dk)
                         RETURNING id
                         """;
                     cmd.Parameters.AddWithValue("$s", source);
@@ -97,6 +116,16 @@ public sealed class RagService
                     cmd.Parameters.AddWithValue("$ch", draft.Chapter);
                     cmd.Parameters.AddWithValue("$sec", draft.Section);
                     cmd.Parameters.AddWithValue("$sub", draft.Subsection);
+                    cmd.Parameters.AddWithValue("$parent", draft.ParentText);
+                    cmd.Parameters.AddWithValue("$am", draft.ArticleMain);
+                    cmd.Parameters.AddWithValue("$as", draft.ArticleSub);
+                    cmd.Parameters.AddWithValue("$ask", draft.ArticleSortKey);
+                    cmd.Parameters.AddWithValue("$pl", draft.PenaltyLead);
+                    cmd.Parameters.AddWithValue("$ck", draft.ChunkKind);
+                    cmd.Parameters.AddWithValue("$ek", draft.EntryKey);
+                    cmd.Parameters.AddWithValue("$dl", draft.DefinitionLead);
+                    cmd.Parameters.AddWithValue("$sp", draft.SectionPath);
+                    cmd.Parameters.AddWithValue("$dk", draft.DocKind);
 
                     var idObj = await cmd.ExecuteScalarAsync(ct);
                     if (idObj is null)
@@ -104,6 +133,14 @@ public sealed class RagService
 
                     var chunkId = Convert.ToInt64(idObj);
                     _db.Vector.InsertVector(conn, chunkId, emb, sqliteTx);
+                    _db.Fts.IndexChunk(
+                        conn,
+                        chunkId,
+                        draft.Text,
+                        draft.HeaderText,
+                        draft.Chapter,
+                        draft.Section,
+                        sqliteTx);
                     count++;
                 }
 
@@ -131,6 +168,7 @@ public sealed class RagService
     private void DeleteSourceChunks(SqliteConnection conn, string source, SqliteTransaction? transaction = null)
     {
         _db.Vector.DeleteVectorsForSource(conn, source, transaction);
+        _db.Fts.DeleteForSource(conn, source, transaction);
 
         var cmd = conn.CreateCommand();
         cmd.Transaction = transaction;
@@ -143,10 +181,12 @@ public sealed class RagService
     {
         using var conn = _db.Open();
         _db.PrepareVectors(conn);
+        _db.PrepareFts(conn);
         using var tx = conn.BeginTransaction();
         try
         {
             _db.Vector.DeleteVectorsForSource(conn, source, tx);
+            _db.Fts.DeleteForSource(conn, source, tx);
 
             var cmd = conn.CreateCommand();
             cmd.Transaction = tx;
@@ -240,6 +280,17 @@ public sealed class RagService
             list.Add(new RagSourceInfo(source, chunks, createdAt, exists, enabled));
         }
         return list;
+    }
+
+    public async Task<RagIngestResult> IngestUrlAsync(string url, CancellationToken ct)
+    {
+        var (displayName, text) = await ChatUrlContentFetcher.FetchAsync(url, ct);
+        var source = $"url:{url.Trim()}";
+        var (chunks, embedSkipped) = await IngestTextAsync(source, text, ct);
+        var skipped = BuildEmbedWarnings(displayName, embedSkipped);
+        if (chunks <= 0)
+            skipped = [.. skipped, FormatSkipped("Settings.Rag.Error.SkippedEmpty", displayName)];
+        return new RagIngestResult(source, chunks > 0 ? 1 : 0, chunks, skipped);
     }
 
     public async Task<RagIngestResult> IngestSingleFileAsync(string path, CancellationToken ct)
@@ -372,33 +423,163 @@ public sealed class RagService
 
     public async Task<IReadOnlyList<RagSearchHit>> SearchAsync(string query, int topK, CancellationToken ct)
     {
+        var result = await SearchWithPlanAsync(query, previousUserMessage: null, topK, ct);
+        return result.Hits;
+    }
+
+    public async Task<RagSearchResult> SearchWithPlanAsync(
+        string currentMessage,
+        string? previousUserMessage,
+        int topK,
+        CancellationToken ct)
+    {
+        var plan = RagQueryPlanner.Plan(currentMessage, previousUserMessage);
         if (GetChunkCount() == 0)
-            return Array.Empty<RagSearchHit>();
+            return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
 
         if (!await _llama.EmbeddingsSupportedAsync(ct))
-            return Array.Empty<RagSearchHit>();
-
-        var q = await _llama.EmbedAsync(query, ct);
-        if (q is null || q.Length == 0)
-            return Array.Empty<RagSearchHit>();
+            return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
 
         using var conn = _db.Open();
         await conn.OpenAsync(ct);
         _db.PrepareVectors(conn);
+        _db.PrepareFts(conn);
 
         var enabledSources = GetEnabledSources(conn);
         if (enabledSources.Count == 0)
+            return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
+
+        var sources = string.IsNullOrWhiteSpace(plan.SourceHint)
+            ? enabledSources
+            : FilterSourcesByHint(enabledSources, plan.SourceHint);
+
+        if (plan.Intent == RagQueryIntent.Advisory && plan.SourceHints is { Count: > 0 })
+        {
+            var advisoryHits = await MultiSourceHybridSearchAsync(
+                conn, plan.EffectiveQuery, plan.SourceHints, enabledSources, Math.Max(topK, 8), ct);
+            if (advisoryHits.Count > 0)
+                return new RagSearchResult(CollapseParentHits(advisoryHits).Take(topK + 2).ToList(), plan);
+        }
+
+        if (plan.Intent != RagQueryIntent.General && plan.Intent != RagQueryIntent.Advisory)
+        {
+            var structured = CollapseParentHits(RagStructuredSearch.Execute(conn, plan, sources, topK));
+            if (structured.Count > 0)
+                return new RagSearchResult(structured.Take(topK).ToList(), plan);
+        }
+
+        var hybridHits = await HybridSearchAsync(conn, plan.EffectiveQuery, enabledSources, topK, ct);
+        return new RagSearchResult(CollapseParentHits(hybridHits).Take(topK).ToList(), plan);
+    }
+
+    private async Task<IReadOnlyList<RagSearchHit>> HybridSearchAsync(
+        SqliteConnection conn,
+        string query,
+        IReadOnlyList<string> enabledSources,
+        int topK,
+        CancellationToken ct)
+    {
+        var q = await _llama.EmbedAsync(query, ct);
+        if (q is null || q.Length == 0)
             return Array.Empty<RagSearchHit>();
 
+        var pool = Math.Max(_opt.RagSearchPoolSize, topK);
+        var rrfK = Math.Max(_opt.RagRrfK, 1);
+        var (wFts, wVec) = RagHybridSearch.ResolveWeights(query, _opt.RagWeightFts, _opt.RagWeightVec);
+
+        IReadOnlyList<long> ftsIds = Array.Empty<long>();
+        if (_db.Fts.IsAvailable)
+        {
+            var matchQuery = BuildFtsMatchQuery(query);
+            if (!string.IsNullOrWhiteSpace(matchQuery))
+                ftsIds = _db.Fts.Search(conn, matchQuery, pool, enabledSources);
+        }
+
+        IReadOnlyList<long> vectorIds = Array.Empty<long>();
         if (_db.Vector.IsAvailable)
         {
             _db.Vector.EnsureVectorTable(conn, q.Length);
-            var ids = _db.Vector.Search(conn, q, topK, enabledSources);
-            if (ids.Count > 0)
-                return LoadHitsByIds(conn, ids);
+            vectorIds = _db.Vector.Search(conn, q, pool, enabledSources);
+        }
+
+        if (ftsIds.Count > 0 || vectorIds.Count > 0)
+        {
+            var fused = RagHybridSearch.FuseRrf(ftsIds, vectorIds, topK, rrfK, wFts, wVec);
+            if (fused.Count > 0)
+                return LoadHitsByIds(conn, fused);
         }
 
         return await LegacySearchAsync(conn, q, topK, enabledSources, ct);
+    }
+
+    private async Task<IReadOnlyList<RagSearchHit>> MultiSourceHybridSearchAsync(
+        SqliteConnection conn,
+        string query,
+        IReadOnlyList<string> sourceHints,
+        IReadOnlyList<string> enabledSources,
+        int topK,
+        CancellationToken ct)
+    {
+        var perSource = Math.Clamp((topK + sourceHints.Count - 1) / sourceHints.Count, 2, 4);
+        var merged = new List<RagSearchHit>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var hint in sourceHints)
+        {
+            var sources = FilterSourcesByHint(enabledSources, hint);
+            var hits = await HybridSearchAsync(conn, query, sources, perSource, ct);
+            foreach (var hit in hits)
+            {
+                var key = hit.Source + "\0" + (hit.ChunkId.Length > 0 ? hit.ChunkId : hit.Text[..Math.Min(40, hit.Text.Length)]);
+                if (!seen.Add(key))
+                    continue;
+                merged.Add(hit);
+            }
+        }
+
+        if (merged.Count >= topK / 2)
+            return merged;
+
+        var fallback = await HybridSearchAsync(conn, query, enabledSources, topK, ct);
+        foreach (var hit in fallback)
+        {
+            var key = hit.Source + "\0" + hit.ChunkId;
+            if (seen.Add(key))
+                merged.Add(hit);
+        }
+
+        return merged;
+    }
+
+    private static string BuildFtsMatchQuery(string query)
+    {
+        var match = RagSqliteFts.BuildMatchQuery(query);
+        if (!RagArticleQueryParser.TryGetArticleNumber(query, out var articleNumber))
+            return match;
+
+        var articleTerms = RagArticleQueryParser.BuildHeaderPrefixes(articleNumber)
+            .Select(p => $"\"{p}\"");
+        if (string.IsNullOrWhiteSpace(match))
+            return string.Join(" OR ", articleTerms);
+
+        return match + " OR " + string.Join(" OR ", articleTerms);
+    }
+
+    private static IReadOnlyList<RagSearchHit> CollapseParentHits(IReadOnlyList<RagSearchHit> hits)
+    {
+        var result = new List<RagSearchHit>(hits.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var hit in hits)
+        {
+            var key = !string.IsNullOrWhiteSpace(hit.ParentText)
+                ? hit.Source + "\0" + hit.ParentText
+                : hit.Source + "\0" + hit.ChunkId + "\0" + hit.Text;
+            if (!seen.Add(key))
+                continue;
+            result.Add(hit);
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<RagSearchHit> LoadHitsByIds(SqliteConnection conn, IReadOnlyList<long> ids)
@@ -408,7 +589,7 @@ public sealed class RagService
         {
             var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                SELECT text, source, header_text, page, chunk_id
+                SELECT text, source, header_text, page, chunk_id, parent_text, penalty_lead, definition_lead
                 FROM rag_chunks WHERE id = $id
                 """;
             cmd.Parameters.AddWithValue("$id", id);
@@ -420,14 +601,38 @@ public sealed class RagService
             if (string.IsNullOrWhiteSpace(text))
                 continue;
 
-            hits.Add(new RagSearchHit(
-                text,
-                reader.GetString(1),
-                reader.IsDBNull(2) ? "" : reader.GetString(2),
-                reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
-                reader.IsDBNull(4) ? "" : reader.GetString(4)));
+            hits.Add(MapSearchHit(reader));
         }
         return hits;
+    }
+
+    private static RagSearchHit MapSearchHit(Microsoft.Data.Sqlite.SqliteDataReader reader)
+    {
+        var penaltyLead = reader.FieldCount > 6 && !reader.IsDBNull(6) ? reader.GetString(6) : "";
+        var definitionLead = reader.FieldCount > 7 && !reader.IsDBNull(7) ? reader.GetString(7) : "";
+        return new RagSearchHit(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.IsDBNull(2) ? "" : reader.GetString(2),
+            reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+            reader.IsDBNull(4) ? "" : reader.GetString(4),
+            reader.IsDBNull(5) ? "" : reader.GetString(5),
+            penaltyLead,
+            penaltyLead,
+            definitionLead);
+    }
+
+    private static IReadOnlyList<string> FilterSourcesByHint(
+        IReadOnlyList<string> enabledSources,
+        string? sourceHint)
+    {
+        if (string.IsNullOrWhiteSpace(sourceHint))
+            return enabledSources;
+
+        var filtered = enabledSources
+            .Where(s => Path.GetFileName(s).Contains(sourceHint, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        return filtered.Count > 0 ? filtered : enabledSources;
     }
 
     private static async Task<IReadOnlyList<RagSearchHit>> LegacySearchAsync(
@@ -453,7 +658,7 @@ public sealed class RagService
 
         var rows = new List<(RagSearchHit Hit, float[] Vec)>();
         cmd.CommandText = $"""
-            SELECT text, source, header_text, page, chunk_id, embedding
+            SELECT text, source, header_text, page, chunk_id, parent_text, penalty_lead, definition_lead, embedding
             FROM rag_chunks
             WHERE source IN ({inClause})
             """;
@@ -461,17 +666,11 @@ public sealed class RagService
         while (await reader.ReadAsync(ct))
         {
             var text = reader.GetString(0);
-            var vec = JsonSerializer.Deserialize<float[]>(reader.GetString(5));
+            var vec = JsonSerializer.Deserialize<float[]>(reader.GetString(8));
             if (vec is not { Length: > 0 } || string.IsNullOrWhiteSpace(text))
                 continue;
 
-            var hit = new RagSearchHit(
-                text,
-                reader.GetString(1),
-                reader.IsDBNull(2) ? "" : reader.GetString(2),
-                reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
-                reader.IsDBNull(4) ? "" : reader.GetString(4));
-            rows.Add((hit, vec));
+            rows.Add((MapSearchHit(reader), vec));
         }
 
         return rows
@@ -532,5 +731,14 @@ public sealed class RagService
         }
         if (na == 0 || nb == 0) return 0;
         return (float)(dot / (Math.Sqrt(na) * Math.Sqrt(nb)));
+    }
+
+    private RagIngestOptions LoadIngestOptions()
+    {
+        var s = _settings.Load();
+        return new RagIngestOptions(
+            s.RagUseHtmlMarkdown,
+            s.RagUseLlmStructurer,
+            s.RagSaveStructurerCache);
     }
 }

@@ -26,5 +26,8 @@ public sealed class ChatSystemPromptTextsTests
         var line = ChatSystemPromptTexts.RagPriorityInstruction(japanese: true);
         Assert.Contains("参考資料を優先", line);
         Assert.Contains("無関係", line);
+        Assert.Contains("数値", line);
+        Assert.Contains("置き換えない", line);
+        Assert.Contains("引用必須", line);
     }
 }

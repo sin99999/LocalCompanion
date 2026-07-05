@@ -627,6 +627,14 @@
 
                         <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagSourceUseHint, Mode=OneWay}" />
 
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagHtmlMarkdown, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUseHtmlMarkdown, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagHtmlMarkdownHint, Mode=OneWay}" />
+
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagLlmStructurer, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUseLlmStructurer, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagLlmStructurerHint, Mode=OneWay}" />
+
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagSaveCache, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagSaveStructurerCache, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+
                         <TextBlock Style="{StaticResource SettingsSectionLabelStyle}">
 
                             <Run Text="{x:Bind ViewModel.UiRagChunkCountPrefix, Mode=OneWay}" />
@@ -640,6 +648,14 @@
                             <Button x:Name="IngestFileButton" Click="OnIngestFileClick" Content="{x:Bind ViewModel.UiRagIngestFile, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
 
                             <Button x:Name="IngestFolderButton" Click="OnIngestFolderClick" Content="{x:Bind ViewModel.UiRagIngestFolder, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+
+                        </StackPanel>
+
+                        <TextBlock Margin="0,8,0,4" Style="{StaticResource SettingsSectionLabelStyle}" Text="{x:Bind ViewModel.UiRagIngestUrl, Mode=OneWay}" />
+
+                        <StackPanel Style="{StaticResource SettingsTabButtonRowStyle}">
+                            <TextBox MinWidth="280" PlaceholderText="https://..." Text="{x:Bind ViewModel.RagIngestUrl, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                            <Button Command="{x:Bind ViewModel.IngestRagUrlCommand}" Content="{x:Bind ViewModel.UiRagIngestUrlButton, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
 
                         </StackPanel>
 

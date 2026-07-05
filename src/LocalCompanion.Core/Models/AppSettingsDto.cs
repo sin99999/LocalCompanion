@@ -1,4 +1,4 @@
-namespace LocalCompanion.Models;
+﻿namespace LocalCompanion.Models;
 
 public sealed class AppSettingsDto
 {
@@ -16,6 +16,15 @@ public sealed class AppSettingsDto
 
     /// <summary>チャット表示名および AI プロンプト用。空のときはローカライズされた「あなた」。</summary>
     public string UserDisplayName { get; set; } = string.Empty;
+
+    /// <summary>HTML 取込時に見出し付き Markdown 風テキストへ変換する。</summary>
+    public bool RagUseHtmlMarkdown { get; set; } = true;
+
+    /// <summary>取込時にローカル LLM で資料を構造化する（時間がかかります）。</summary>
+    public bool RagUseLlmStructurer { get; set; }
+
+    /// <summary>AI 構造化結果をユーザーデータ配下 rag-cache に保存する。</summary>
+    public bool RagSaveStructurerCache { get; set; } = true;
 
     public static AppSettingsDto CreateDefault() => new();
 }

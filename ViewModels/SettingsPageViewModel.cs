@@ -240,6 +240,7 @@ public partial class SettingsPageViewModel : ObservableObject
     public void Refresh()
     {
         LoadGeneralSettings();
+        LoadRagIngestOptions();
         RefreshAboutInfo();
         var scan = _models.Scan();
         ModelsDirectory = scan.ModelsDirectory;

@@ -1,4 +1,4 @@
-using LocalCompanion.Models;
+﻿using LocalCompanion.Models;
 using Microsoft.UI.Xaml;
 
 namespace LocalCompanion.Services;
@@ -42,6 +42,9 @@ public sealed class AppAppearanceService
             ChatFontFamily = Current.ChatFontFamily,
             ChatFontSize = Current.ChatFontSize,
             UserDisplayName = Current.UserDisplayName,
+            RagUseHtmlMarkdown = Current.RagUseHtmlMarkdown,
+            RagUseLlmStructurer = Current.RagUseLlmStructurer,
+            RagSaveStructurerCache = Current.RagSaveStructurerCache,
         });
     }
 
