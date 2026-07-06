@@ -16,7 +16,7 @@ public sealed class ChatTextExporterTests
                 "刑法第54条",
                 "test-export",
                 ".md",
-                ChatExportDestination.Desktop);
+                new ChatExportTarget(ChatExportTargetKind.Desktop));
 
             var document = new ChatExportDocument("刑法第54条", "第54条の本文です。");
             var content = ChatTextExporter.BuildDocument(

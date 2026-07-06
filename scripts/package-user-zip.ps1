@@ -51,6 +51,13 @@ function Test-DistributionFolder {
             throw "配布フォルダに必要なファイルがありません: $rel"
         }
     }
+
+    foreach ($rel in @("AGENTS.md", ".cursor")) {
+        $full = Join-Path $Folder $rel
+        if (Test-Path $full) {
+            throw "配布フォルダに開発者向けファイルが含まれています: $rel"
+        }
+    }
 }
 
 Write-Host "=== package user ZIP ===" -ForegroundColor Cyan

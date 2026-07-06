@@ -420,7 +420,8 @@ public sealed class ChatService
         if (!await _llama.PingAsync(ct))
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
-        var (effectiveMessage, exportRequest) = ResolveExportRequest(req);
+        var historyMode = ResolveHistory(req);
+        var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
@@ -437,7 +438,6 @@ public sealed class ChatService
         var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
-        var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
         if (allowRagWithAttach)
@@ -567,7 +567,8 @@ public sealed class ChatService
         if (!await _llama.PingAsync(ct))
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
-        var (effectiveMessage, exportRequest) = ResolveExportRequest(req);
+        var historyMode = ResolveHistory(req);
+        var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
@@ -584,7 +585,6 @@ public sealed class ChatService
         var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
-        var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
         string? verbatimReply = null;
@@ -980,11 +980,39 @@ public sealed class ChatService
         return string.Join("\n\n", parts);
     }
 
-    private static (string EffectiveMessage, ChatExportRequest? Export) ResolveExportRequest(ChatRequestDto req)
+    private (string EffectiveMessage, ChatExportRequest? Export) ResolveExportRequest(
+        ChatRequestDto req,
+        HistoryMode historyMode)
     {
         if (ChatExportRequestParser.TryParse(req.Message, out var export))
             return (export.Query, export);
+
+        if (historyMode.Load && !string.IsNullOrWhiteSpace(historyMode.SessionId)
+            && ChatExportRequestParser.TryInheritRepeatExport(
+                req.Message,
+                GetRecentUserMessageContents(historyMode.SessionId),
+                out export))
+        {
+            return (export.Query, export);
+        }
+
         return (req.Message, null);
+    }
+
+    private List<string> GetRecentUserMessageContents(string sessionId, int maxRows = 24)
+    {
+        var rows = LoadRecentSessionRows(sessionId, maxRows);
+        var users = new List<string>();
+        foreach (var (role, content) in rows)
+        {
+            if (string.Equals(role, "user", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(content))
+            {
+                users.Add(content);
+            }
+        }
+
+        return users;
     }
 
     private async Task<string> FinalizeReplyWithExportAsync(

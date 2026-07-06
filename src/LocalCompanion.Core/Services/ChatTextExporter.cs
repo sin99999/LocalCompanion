@@ -56,10 +56,13 @@ public static class ChatTextExporter
             return null;
         }
 
-        var directory = ResolveDirectory(request.Destination, out usedFallback);
-        if (string.IsNullOrWhiteSpace(directory))
+        var resolution = ChatExportPathResolver.Resolve(request.Target);
+        usedFallback = resolution.UsedFallback;
+        var directory = resolution.Directory;
+        if (!resolution.Success || string.IsNullOrWhiteSpace(directory))
         {
-            errorMessage = LocalizationService.Instance.Get("Chat.Export.Error.Destination");
+            errorMessage = resolution.ErrorMessage
+                ?? LocalizationService.Instance.Get("Chat.Export.Error.Destination");
             return null;
         }
 
@@ -166,17 +169,6 @@ public static class ChatTextExporter
 
         stem = stem.Replace(' ', '_');
         return stem.Trim('_', '.', '。', '、', '！', '？', '!', '?');
-    }
-
-    private static string? ResolveDirectory(ChatExportDestination destination, out bool usedFallback)
-    {
-        usedFallback = false;
-        if (destination != ChatExportDestination.Desktop)
-            return null;
-
-        var (directory, fallback) = DesktopPathResolver.ResolveDesktopOrFallback();
-        usedFallback = fallback;
-        return directory;
     }
 
     private static void WriteUtf8Text(string path, string content)

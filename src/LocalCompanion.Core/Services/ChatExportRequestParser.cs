@@ -42,6 +42,34 @@ internal static class ChatExportRequestParser
         @"[、,]?\s*(?:テキスト|text)\s*ファイル(?:として|で)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private static readonly Regex WindowsAbsolutePath = new(
+        @"[A-Za-z]:\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*)",
+        RegexOptions.Compiled);
+
+    private static readonly Regex UncPath = new(
+        @"\\\\[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*",
+        RegexOptions.Compiled);
+
+    private static readonly Regex RelativeExportPath = new(
+        @"\.\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*)",
+        RegexOptions.Compiled);
+
+    private static readonly Regex DriveLetterRoot = new(
+        @"(?<![A-Za-z0-9])[A-Za-z]:\\?(?=\s*(?:に|へ|の中|ドライブ|へ保存|に保存|[、。!?]|$))",
+        RegexOptions.Compiled);
+
+    private static readonly Regex StripTailPath = new(
+        @"[、,]?\s*(?:[A-Za-z]:\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*)|\\\\[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*|\.\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*))(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|残して|おいて))?[。!?]?\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex StripTailUsb = new(
+        @"[、,]?\s*(?:USB(?:メモリ)?|usb(?:メモリ)?|外付け(?:メモリ|ドライブ)?|リムーバブル(?:ディスク|ドライブ)?|removable(?:\s+storage)?|flash\s+drive)(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|残して))?[。!?]?\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex StripTailSpecialFolder = new(
+        @"[、,]?\s*(?:ドキュメント(?:フォルダ)?|書類フォルダ|downloads?|ダウンロード(?:フォルダ)?|data(?:フォルダ)?|データフォルダー?|ユーザーデータ|アプリ(?:の)?(?:フォルダ|ディレクトリ)|exe(?:の)?横|インストール(?:先|フォルダ)|カレント(?:ディレクトリ)?)(?:に|へ|の中に)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|残して))?[。!?]?\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     public static bool TryParse(string message, out ChatExportRequest request)
     {
         request = null!;
@@ -52,23 +80,223 @@ internal static class ChatExportRequestParser
         if (!LooksLikeExportIntent(trimmed))
             return false;
 
+        request = BuildRequest(trimmed);
+        StartupLog.Write(
+            $"Chat export intent: target={request.Target.Kind}, ext={request.Extension}, query={TruncateLog(request.Query)}");
+        return true;
+    }
+
+    /// <summary>「今の処理をもう一度」など、直前の保存付き依頼を繰り返す意図を検出する。</summary>
+    public static bool TryInheritRepeatExport(
+        string message,
+        IReadOnlyList<string> priorUserMessagesNewestFirst,
+        out ChatExportRequest request)
+    {
+        request = null!;
+        if (!LooksLikeRepeatRequest(message.Trim()))
+            return false;
+
+        foreach (var prior in priorUserMessagesNewestFirst)
+        {
+            if (!TryParse(prior, out var priorExport))
+                continue;
+
+            request = priorExport;
+            StartupLog.Write(
+                $"Chat export repeat: target={request.Target.Kind}, ext={request.Extension}, query={TruncateLog(request.Query)}");
+            return true;
+        }
+
+        return false;
+    }
+
+    private static ChatExportRequest BuildRequest(string trimmed)
+    {
         var extension = DetectExtension(trimmed);
         var fileStem = DetectFileNameStem(trimmed, extension);
+        var target = DetectTarget(trimmed);
         var query = StripExportClauses(trimmed);
         if (string.IsNullOrWhiteSpace(query))
             query = trimmed;
 
-        request = new ChatExportRequest(
+        return new ChatExportRequest(
             query.Trim(),
             fileStem,
             ChatTextExportFormats.NormalizeExtension(extension),
-            ChatExportDestination.Desktop);
-        StartupLog.Write($"Chat export intent: ext={request.Extension}, query={TruncateLog(request.Query)}");
-        return true;
+            target);
+    }
+
+    private static ChatExportTarget DetectTarget(string message)
+    {
+        var explicitDir = TryExtractExplicitDirectory(message);
+        if (explicitDir is not null)
+            return new ChatExportTarget(ChatExportTargetKind.Directory, explicitDir);
+
+        if (ContainsUsbCue(message))
+            return new ChatExportTarget(ChatExportTargetKind.RemovableStorage);
+
+        if (ContainsDocumentsCue(message))
+            return new ChatExportTarget(ChatExportTargetKind.Documents);
+
+        if (ContainsDownloadsCue(message))
+            return new ChatExportTarget(ChatExportTargetKind.Downloads);
+
+        if (ContainsUserDataCue(message))
+            return new ChatExportTarget(ChatExportTargetKind.UserData);
+
+        if (ContainsAppRootCue(message))
+            return new ChatExportTarget(ChatExportTargetKind.AppRoot);
+
+        return new ChatExportTarget(ChatExportTargetKind.Desktop);
+    }
+
+    internal static string? TryExtractExplicitDirectory(string message)
+    {
+        string? best = null;
+        foreach (Match match in WindowsAbsolutePath.Matches(message))
+        {
+            var candidate = NormalizeExtractedPath(match.Value);
+            if (best is null || candidate.Length > best.Length)
+                best = candidate;
+        }
+
+        foreach (Match match in UncPath.Matches(message))
+        {
+            var candidate = NormalizeExtractedPath(match.Value);
+            if (best is null || candidate.Length > best.Length)
+                best = candidate;
+        }
+
+        foreach (Match match in RelativeExportPath.Matches(message))
+        {
+            var relative = NormalizeExtractedPath(match.Value);
+            var candidate = Path.GetFullPath(Path.Combine(AppPaths.Current.Root, relative));
+            if (best is null || candidate.Length > best.Length)
+                best = candidate;
+        }
+
+        if (best is null)
+        {
+            var driveRoot = DriveLetterRoot.Match(message);
+            if (driveRoot.Success)
+            {
+                var letter = driveRoot.Value.TrimEnd('\\');
+                best = letter.EndsWith(":", StringComparison.Ordinal)
+                    ? letter + "\\"
+                    : letter;
+            }
+        }
+
+        if (best is null)
+            return null;
+
+        if (ChatTextExportFormats.IsAllowed(Path.GetExtension(best)))
+            best = Path.GetDirectoryName(best) ?? best;
+
+        return string.IsNullOrWhiteSpace(best) ? null : best;
+    }
+
+    private static string NormalizeExtractedPath(string raw)
+    {
+        var trimmed = raw.Trim().TrimEnd('」', '』', '"', '\'');
+        while (trimmed.Length > 0)
+        {
+            var last = trimmed[^1];
+            if ("にへの、,。！？!?.".Contains(last))
+                trimmed = trimmed[..^1].TrimEnd();
+            else
+                break;
+        }
+
+        return trimmed;
+    }
+
+    private static bool ContainsUsbCue(string message) =>
+        message.Contains("USB", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("usbメモリ", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("USBメモリ", StringComparison.Ordinal)
+        || message.Contains("外付け", StringComparison.Ordinal)
+        || message.Contains("リムーバブル", StringComparison.Ordinal)
+        || message.Contains("removable", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("flash drive", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsDocumentsCue(string message) =>
+        message.Contains("ドキュメント", StringComparison.Ordinal)
+        || message.Contains("書類フォルダ", StringComparison.Ordinal)
+        || message.Contains("documents folder", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsDownloadsCue(string message) =>
+        message.Contains("ダウンロード", StringComparison.Ordinal)
+        || message.Contains("download", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsUserDataCue(string message) =>
+        message.Contains("データフォルダ", StringComparison.Ordinal)
+        || message.Contains("dataフォルダ", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("ユーザーデータ", StringComparison.Ordinal)
+        || message.Contains("user data", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsAppRootCue(string message) =>
+        message.Contains("アプリのフォルダ", StringComparison.Ordinal)
+        || message.Contains("アプリフォルダ", StringComparison.Ordinal)
+        || message.Contains("exeの横", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("インストール先", StringComparison.Ordinal)
+        || message.Contains("インストールフォルダ", StringComparison.Ordinal)
+        || message.Contains("カレントディレクトリ", StringComparison.Ordinal)
+        || message.Contains("カレント", StringComparison.Ordinal)
+        || message.Contains("app folder", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("install folder", StringComparison.OrdinalIgnoreCase);
+
+    private static bool LooksLikeRepeatRequest(string message)
+    {
+        if (message.Contains("今の処理", StringComparison.Ordinal)
+            || message.Contains("さっきの処理", StringComparison.Ordinal)
+            || message.Contains("前の処理", StringComparison.Ordinal)
+            || message.Contains("再処理", StringComparison.Ordinal)
+            || message.Contains("前と同じ", StringComparison.Ordinal)
+            || message.Contains("同じことを", StringComparison.Ordinal))
+            return true;
+
+        var hasRepeatCue = message.Contains("もう一度", StringComparison.Ordinal)
+            || message.Contains("再度", StringComparison.Ordinal)
+            || message.Contains("もう一回", StringComparison.Ordinal)
+            || message.Contains("もう1回", StringComparison.Ordinal)
+            || message.Contains("again", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("repeat", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("redo", StringComparison.OrdinalIgnoreCase);
+
+        if (!hasRepeatCue)
+            return false;
+
+        return message.Contains("処理", StringComparison.Ordinal)
+            || message.Contains("お願い", StringComparison.Ordinal)
+            || message.Contains("保存", StringComparison.Ordinal)
+            || message.Contains("出力", StringComparison.Ordinal)
+            || message.Contains("デスクトップ", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("ファイル", StringComparison.Ordinal)
+            || message.Contains("付き合", StringComparison.Ordinal)
+            || message.Contains("テスト", StringComparison.Ordinal);
     }
 
     private static bool LooksLikeExportIntent(string message)
     {
+        if (TryExtractExplicitDirectory(message) is not null && ContainsSaveCue(message))
+            return true;
+
+        if (ContainsUsbCue(message) && ContainsSaveCue(message))
+            return true;
+
+        if (ContainsDocumentsCue(message) && ContainsSaveCue(message))
+            return true;
+
+        if (ContainsDownloadsCue(message) && ContainsSaveCue(message))
+            return true;
+
+        if (ContainsUserDataCue(message) && ContainsSaveCue(message))
+            return true;
+
+        if (ContainsAppRootCue(message) && ContainsSaveCue(message))
+            return true;
+
         if (message.Contains("デスクトップ", StringComparison.OrdinalIgnoreCase)
             || message.Contains("desktop", StringComparison.OrdinalIgnoreCase))
         {
@@ -185,6 +413,9 @@ internal static class ChatExportRequestParser
         for (var i = 0; i < 6; i++)
         {
             var next = StripTail.Replace(q, "");
+            next = StripTailPath.Replace(next, "");
+            next = StripTailUsb.Replace(next, "");
+            next = StripTailSpecialFolder.Replace(next, "");
             next = StripTailFile.Replace(next, "");
             next = StripTailLoose.Replace(next, "");
             next = StripTailEn.Replace(next, "");
