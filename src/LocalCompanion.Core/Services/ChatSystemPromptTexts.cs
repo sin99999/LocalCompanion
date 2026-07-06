@@ -236,4 +236,19 @@ internal static class ChatSystemPromptTexts
               - Prefer materials for numbers and penalties; do not invent figures not in the docs
               - Keep the character voice; optional brief note to consult professionals
               """.Trim();
+
+    internal static string ExportHandoffInstruction(bool japanese) =>
+        japanese
+            ? """
+              【ファイル保存】
+              ユーザーがデスクトップへの保存を求めている場合、実際の保存はアプリケーションが行う。
+              - 「保存しました」「デスクトップに置きました」、ファイルパス、ファイル名、拡張子を返答に書かない
+              - 調査結果の内容だけを通常どおり答える
+              """.Trim()
+            : """
+              [File export]
+              When the user asks to save to the desktop, the application performs the save.
+              - Do not claim you saved a file, and do not output paths or filenames
+              - Answer the research request normally
+              """.Trim();
 }

@@ -19,17 +19,24 @@ public static class ChatTextExporter
         CancellationToken ct)
     {
         var loc = LocalizationService.Instance;
+        var cleanReply = ChatExportReplySanitizer.StripFakeSaveClaims(chatReply);
         var document = await ChatExportDocumentFormatter.FormatAsync(
-            llama, export, chatReply, ragSources, japanese, ct);
+            llama, export, cleanReply, ragSources, japanese, ct);
 
-        var path = TryExport(export, document, ragSources, japanese, out var error);
+        var path = TryExport(export, document, ragSources, japanese, out var error, out var usedFallback);
         if (path is not null)
-            return chatReply + "\n\n" + loc.Format("Chat.Export.Saved", path);
+        {
+            var notice = usedFallback
+                ? loc.Format("Chat.Export.SavedFallback", path)
+                : loc.Format("Chat.Export.Saved", path);
+            return cleanReply + "\n\n" + notice;
+        }
 
         var reason = string.IsNullOrWhiteSpace(error)
             ? loc.Get("Chat.Export.Error.Unknown")
             : error;
-        return chatReply + "\n\n" + loc.Format("Chat.Export.Failed", reason);
+        StartupLog.Write($"Chat export failed: {reason}");
+        return cleanReply + "\n\n" + loc.Format("Chat.Export.Failed", reason);
     }
 
     public static string? TryExport(
@@ -37,16 +44,18 @@ public static class ChatTextExporter
         ChatExportDocument document,
         string[]? ragSources,
         bool japanese,
-        out string? errorMessage)
+        out string? errorMessage,
+        out bool usedFallback)
     {
         errorMessage = null;
+        usedFallback = false;
         if (string.IsNullOrWhiteSpace(document.Body))
         {
             errorMessage = LocalizationService.Instance.Get("Chat.Export.Error.EmptyBody");
             return null;
         }
 
-        var directory = ResolveDirectory(request.Destination);
+        var directory = ResolveDirectory(request.Destination, out usedFallback);
         if (string.IsNullOrWhiteSpace(directory))
         {
             errorMessage = LocalizationService.Instance.Get("Chat.Export.Error.Destination");
@@ -66,7 +75,15 @@ public static class ChatTextExporter
 
         try
         {
-            AtomicFile.WriteAllText(path, content);
+            WriteUtf8Text(path, content);
+            if (!File.Exists(path))
+            {
+                errorMessage = LocalizationService.Instance.Get("Chat.Export.Error.VerifyFailed");
+                StartupLog.Write($"Chat export verify failed: {path}");
+                return null;
+            }
+
+            StartupLog.Write($"Chat export saved: {path}");
             return path;
         }
         catch (Exception ex)
@@ -129,13 +146,37 @@ public static class ChatTextExporter
         return stem.Trim('_', '.', '。', '、', '！', '？', '!', '?');
     }
 
-    private static string? ResolveDirectory(ChatExportDestination destination) =>
-        destination switch
+    private static string? ResolveDirectory(ChatExportDestination destination, out bool usedFallback)
+    {
+        usedFallback = false;
+        if (destination != ChatExportDestination.Desktop)
+            return null;
+
+        var (directory, fallback) = DesktopPathResolver.ResolveDesktopOrFallback();
+        usedFallback = fallback;
+        return directory;
+    }
+
+    private static void WriteUtf8Text(string path, string content)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
+
+        var tempPath = path + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
         {
-            ChatExportDestination.Desktop =>
-                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-            _ => null,
-        };
+            File.WriteAllText(tempPath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            if (File.Exists(path))
+                File.Delete(path);
+            File.Move(tempPath, path);
+        }
+        catch
+        {
+            try { File.Delete(tempPath); } catch { /* ignore */ }
+            throw;
+        }
+    }
 
     private static string ResolveUniquePath(string path)
     {

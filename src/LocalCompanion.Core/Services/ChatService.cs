@@ -435,6 +435,8 @@ public sealed class ChatService
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
+        if (exportRequest is not null)
+            systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
         var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
@@ -580,6 +582,8 @@ public sealed class ChatService
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
+        if (exportRequest is not null)
+            systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
         var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
