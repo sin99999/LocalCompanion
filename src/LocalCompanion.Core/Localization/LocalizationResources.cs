@@ -1,4 +1,4 @@
-namespace LocalCompanion.Localization;
+﻿namespace LocalCompanion.Localization;
 
 internal static class LocalizationResources
 {
@@ -97,6 +97,12 @@ internal static class LocalizationResources
         ["Chat.Status.ThreadLoaded"] = "過去の会話を読み込みました。続きから話せます。",
         ["Chat.Status.ThreadEmpty"] = "この会話にはメッセージがありません。",
         ["Chat.Status.EmptyReply"] = "応答が空でした。推論をオフにするか、しばらく待ってから再度お試しください。",
+        ["Chat.Export.Saved"] = "デスクトップに保存しました: {0}",
+        ["Chat.Export.Failed"] = "ファイルの保存に失敗しました: {0}",
+        ["Chat.Export.Error.EmptyBody"] = "保存する内容が空です。",
+        ["Chat.Export.Error.Destination"] = "保存先フォルダーを取得できませんでした。",
+        ["Chat.Export.Error.TooLarge"] = "保存する内容が大きすぎます。",
+        ["Chat.Export.Error.Unknown"] = "不明なエラー",
         ["Chat.Status.BusyCannotSwitch"] = "生成中は切り替え・削除できません。停止するか完了をお待ちください。",
         ["Chat.Error.NoCharacterSelected"] = "キャラクターが選択されていないため、会話セッションを作成できません。",
         ["Chat.Error.EmptyModelReply"] = "応答が空でした。推論をオフにするか、設定で別のモデルを選択し、LocalCompanion.exe を再起動してから再度お試しください。",
@@ -458,6 +464,12 @@ internal static class LocalizationResources
         ["Chat.Status.ThreadLoaded"] = "Loaded a previous conversation. You can continue from here.",
         ["Chat.Status.ThreadEmpty"] = "This conversation has no messages.",
         ["Chat.Status.EmptyReply"] = "The response was empty. Turn off reasoning or wait a moment and try again.",
+        ["Chat.Export.Saved"] = "Saved to desktop: {0}",
+        ["Chat.Export.Failed"] = "Could not save the file: {0}",
+        ["Chat.Export.Error.EmptyBody"] = "There is nothing to save.",
+        ["Chat.Export.Error.Destination"] = "Could not resolve the destination folder.",
+        ["Chat.Export.Error.TooLarge"] = "The content is too large to save.",
+        ["Chat.Export.Error.Unknown"] = "Unknown error",
         ["Chat.Status.BusyCannotSwitch"] = "Cannot switch or delete while generating. Stop generation or wait until it finishes.",
         ["Chat.Error.NoCharacterSelected"] = "Cannot create a conversation session because no character is selected.",
         ["Chat.Error.EmptyModelReply"] = "The response was empty. Turn off reasoning, choose another model in Settings, restart LocalCompanion.exe, and try again.",

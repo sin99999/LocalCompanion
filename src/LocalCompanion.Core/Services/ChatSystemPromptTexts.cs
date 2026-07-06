@@ -1,4 +1,4 @@
-namespace LocalCompanion.Services;
+﻿namespace LocalCompanion.Services;
 
 /// <summary>チャット用システムプロンプトの日英文言。</summary>
 internal static class ChatSystemPromptTexts
@@ -236,4 +236,19 @@ internal static class ChatSystemPromptTexts
               - Prefer materials for numbers and penalties; do not invent figures not in the docs
               - Keep the character voice; optional brief note to consult professionals
               """.Trim();
+
+    internal static string ExportDocumentInstruction(string extension, bool japanese) =>
+        japanese
+            ? $"""
+               【ファイル書き出し】
+               ユーザーは回答をデスクトップへ {extension} 形式で保存します。
+               - 見出し・段落・箇条書きを整えた、単体で読める本文のみを返す
+               - 保存先パスや「ファイルに書きました」等のメタ説明は不要（アプリが追記する）
+               """.Trim()
+            : $"""
+               [File export]
+               The user will save your answer to the desktop as {extension}.
+               - Return a self-contained document body only (headings, paragraphs, lists as appropriate)
+               - Do not mention file paths or that you saved a file (the app adds that)
+               """.Trim();
 }

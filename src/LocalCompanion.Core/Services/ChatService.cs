@@ -1,4 +1,4 @@
-using LocalCompanion.Data;
+﻿using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.Services.LlamaNative;
@@ -420,40 +420,44 @@ public sealed class ChatService
         if (!await _llama.PingAsync(ct))
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
+        var (effectiveMessage, exportRequest) = ResolveExportRequest(req);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
         var hasImage = req.ImagesBase64 is { Length: > 0 };
         var hasFile = !string.IsNullOrWhiteSpace(req.AttachedText);
         var heavyRequest = IsHeavyRequest(hasImage, hasFile, req.AttachedText, _opt.RagLightAttachMaxChars);
-        var allowRagWithAttach = req.UseRag && req.Message.Length >= 4 && !hasImage
+        var allowRagWithAttach = req.UseRag && effectiveMessage.Length >= 4 && !hasImage
             && (!hasFile || (req.AttachedText?.Length ?? 0) <= _opt.RagLightAttachMaxChars)
             && _rag.GetChunkCount() > 0;
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
-        var japaneseReply = TextScriptHelper.LooksJapanese(req.Message);
+        var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
-        var systemParts = BuildSystemParts(profile, runtime, req.Message, japaneseReply);
+        var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
+        if (exportRequest is not null)
+            systemParts.Add(ChatSystemPromptTexts.ExportDocumentInstruction(exportRequest.Extension, japaneseReply));
         var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
         if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-            var ragResult = await TrySearchRagWithPlanAsync(req.Message, previousUser, ct);
-            if (TryResolveVerbatimReply(ragResult, isCharacter, req.Message, japaneseReply, out var verbatimReply, out ragSources))
+            var ragResult = await TrySearchRagWithPlanAsync(effectiveMessage, previousUser, ct);
+            if (TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out var verbatimReply, out ragSources))
             {
+                var finalVerbatim = FinalizeReplyWithExport(verbatimReply, exportRequest, ragSources, japaneseReply);
                 if (historyMode.Save
                     && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                     && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
                 {
                     SaveMessage(historyMode.SessionId, historyMode.PresetKey, "user", SummarizeForHistory(req));
-                    SaveMessage(historyMode.SessionId, historyMode.PresetKey, "assistant", TruncateContent(verbatimReply, HistorySaveMaxChars));
+                    SaveMessage(historyMode.SessionId, historyMode.PresetKey, "assistant", TruncateContent(finalVerbatim, HistorySaveMaxChars));
                     TouchSession(historyMode.SessionId, req.Message);
                 }
 
                 return new ChatResponseDto(
-                    verbatimReply,
+                    finalVerbatim,
                     ragSources is { Length: > 0 },
                     ragSources ?? Array.Empty<string>(),
                     profile.Name,
@@ -468,14 +472,14 @@ public sealed class ChatService
             }
 
             if (ragResult is not null)
-                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, req.Message, japaneseReply);
+                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply);
         }
         else if (!req.UseRag)
         {
             systemParts.Add(ChatSystemPromptTexts.RagDisabledNote(japaneseReply));
         }
 
-        var userContent = BuildUserContent(req, _opt.MaxAttachTextChars);
+        var userContent = BuildUserContent(req, _opt.MaxAttachTextChars, effectiveMessage);
         var systemText = string.Join("\n\n", systemParts);
 
         var attempts = BuildAttempts(heavyRequest, effectiveContext);
@@ -530,6 +534,7 @@ public sealed class ChatService
             throw lastError ?? new InvalidOperationException(LlamaServerClient.ContextOverflowMessage);
 
         reply = ChatReplyLimitHelper.FinishReply(reply, _opt.MaxReplyChars, hitStreamCap: false, japaneseReply);
+        reply = FinalizeReplyWithExport(reply, exportRequest, ragSources, japaneseReply);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -562,20 +567,23 @@ public sealed class ChatService
         if (!await _llama.PingAsync(ct))
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
+        var (effectiveMessage, exportRequest) = ResolveExportRequest(req);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
         var hasImage = req.ImagesBase64 is { Length: > 0 };
         var hasFile = !string.IsNullOrWhiteSpace(req.AttachedText);
         var heavyRequest = IsHeavyRequest(hasImage, hasFile, req.AttachedText, _opt.RagLightAttachMaxChars);
-        var allowRagWithAttach = req.UseRag && req.Message.Length >= 4 && !hasImage
+        var allowRagWithAttach = req.UseRag && effectiveMessage.Length >= 4 && !hasImage
             && (!hasFile || (req.AttachedText?.Length ?? 0) <= _opt.RagLightAttachMaxChars)
             && _rag.GetChunkCount() > 0;
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
-        var japaneseReply = TextScriptHelper.LooksJapanese(req.Message);
+        var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
-        var systemParts = BuildSystemParts(profile, runtime, req.Message, japaneseReply);
+        var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
+        if (exportRequest is not null)
+            systemParts.Add(ChatSystemPromptTexts.ExportDocumentInstruction(exportRequest.Extension, japaneseReply));
         var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
@@ -583,14 +591,14 @@ public sealed class ChatService
         if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-            var ragResult = await TrySearchRagWithPlanAsync(req.Message, previousUser, ct);
-            if (TryResolveVerbatimReply(ragResult, isCharacter, req.Message, japaneseReply, out verbatimReply, out ragSources))
+            var ragResult = await TrySearchRagWithPlanAsync(effectiveMessage, previousUser, ct);
+            if (TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out verbatimReply, out ragSources))
             {
                 // handled below
             }
             else if (ragResult is not null)
             {
-                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, req.Message, japaneseReply);
+                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply);
             }
         }
         else if (!req.UseRag)
@@ -600,27 +608,28 @@ public sealed class ChatService
 
         if (!string.IsNullOrWhiteSpace(verbatimReply))
         {
+            var finalVerbatim = FinalizeReplyWithExport(verbatimReply, exportRequest, ragSources, japaneseReply);
             if (historyMode.Save
                 && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                 && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
             {
                 SaveMessage(historyMode.SessionId, historyMode.PresetKey, "user", SummarizeForHistory(req));
-                SaveMessage(historyMode.SessionId, historyMode.PresetKey, "assistant", TruncateContent(verbatimReply, HistorySaveMaxChars));
+                SaveMessage(historyMode.SessionId, historyMode.PresetKey, "assistant", TruncateContent(finalVerbatim, HistorySaveMaxChars));
                 TouchSession(historyMode.SessionId, req.Message);
             }
 
-            yield return new ChatStreamChunkDto("content", verbatimReply);
+            yield return new ChatStreamChunkDto("content", finalVerbatim);
             var verbatimMeta = formatMetaForStream(ragSources is { Length: > 0 }, req.UseReasoning, historyMode.Load, hasFile, modelFileName, runtime);
             yield return new ChatStreamChunkDto(
                 "done",
-                verbatimReply,
+                finalVerbatim,
                 Meta: verbatimMeta,
                 CharacterName: profile.Name,
                 Done: true);
             yield break;
         }
 
-        var userContent = BuildUserContent(req, _opt.MaxAttachTextChars);
+        var userContent = BuildUserContent(req, _opt.MaxAttachTextChars, effectiveMessage);
         var systemText = string.Join("\n\n", systemParts);
         var attempts = BuildAttempts(heavyRequest, effectiveContext);
 
@@ -755,6 +764,8 @@ public sealed class ChatService
         var reasoning = reasoningBuilder.ToString().Trim();
         if (string.IsNullOrWhiteSpace(reply) && string.IsNullOrWhiteSpace(reasoning))
             throw new LocalizedServiceException("Chat.Error.EmptyModelReply");
+
+        reply = FinalizeReplyWithExport(reply, exportRequest, ragSources, japaneseReply);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -949,7 +960,7 @@ public sealed class ChatService
         return parts;
     }
 
-    private static string BuildUserContent(ChatRequestDto req, int maxAttachChars)
+    private static string BuildUserContent(ChatRequestDto req, int maxAttachChars, string? messageOverride = null)
     {
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(req.AttachedText))
@@ -965,9 +976,23 @@ public sealed class ChatService
         }
         if (req.ImagesBase64 is { Length: > 0 })
             parts.Add("（画像が添付されています。描写と、写っている文字の読み取り（OCR）の両方を答えてください）");
-        parts.Add(req.Message);
+        parts.Add(messageOverride ?? req.Message);
         return string.Join("\n\n", parts);
     }
+
+    private static (string EffectiveMessage, ChatExportRequest? Export) ResolveExportRequest(ChatRequestDto req)
+    {
+        if (ChatExportRequestParser.TryParse(req.Message, out var export))
+            return (export.Query, export);
+        return (req.Message, null);
+    }
+
+    private static string FinalizeReplyWithExport(
+        string reply,
+        ChatExportRequest? export,
+        string[]? ragSources,
+        bool japaneseReply) =>
+        ChatTextExporter.AppendExportNotice(reply, export, ragSources, japaneseReply);
 
     /// <summary>キャンセル時にユーザーメッセージだけ履歴へ残す。</summary>
     public void PersistCancelledUserMessage(string sessionId, string presetKey, ChatRequestDto req)
