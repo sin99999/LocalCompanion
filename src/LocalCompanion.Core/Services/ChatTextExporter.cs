@@ -8,16 +8,39 @@ namespace LocalCompanion.Services;
 public static class ChatTextExporter
 {
     public const int MaxFileBytes = 2 * 1024 * 1024;
+    private const int MaxFileNameStemChars = 40;
+
+    public static async Task<string> AppendExportNoticeAsync(
+        LlamaServerClient llama,
+        string chatReply,
+        ChatExportRequest export,
+        string[]? ragSources,
+        bool japanese,
+        CancellationToken ct)
+    {
+        var loc = LocalizationService.Instance;
+        var document = await ChatExportDocumentFormatter.FormatAsync(
+            llama, export, chatReply, ragSources, japanese, ct);
+
+        var path = TryExport(export, document, ragSources, japanese, out var error);
+        if (path is not null)
+            return chatReply + "\n\n" + loc.Format("Chat.Export.Saved", path);
+
+        var reason = string.IsNullOrWhiteSpace(error)
+            ? loc.Get("Chat.Export.Error.Unknown")
+            : error;
+        return chatReply + "\n\n" + loc.Format("Chat.Export.Failed", reason);
+    }
 
     public static string? TryExport(
         ChatExportRequest request,
-        string body,
+        ChatExportDocument document,
         string[]? ragSources,
         bool japanese,
         out string? errorMessage)
     {
         errorMessage = null;
-        if (string.IsNullOrWhiteSpace(body))
+        if (string.IsNullOrWhiteSpace(document.Body))
         {
             errorMessage = LocalizationService.Instance.Get("Chat.Export.Error.EmptyBody");
             return null;
@@ -31,9 +54,9 @@ public static class ChatTextExporter
         }
 
         Directory.CreateDirectory(directory);
-        var fileName = BuildFileName(request);
+        var fileName = BuildFileName(request, document.Title);
         var path = ResolveUniquePath(Path.Combine(directory, fileName));
-        var content = BuildDocument(body.Trim(), request, ragSources, japanese);
+        var content = BuildDocument(document.Body.Trim(), request, document.Title, ragSources, japanese);
 
         if (Encoding.UTF8.GetByteCount(content) > MaxFileBytes)
         {
@@ -53,57 +76,42 @@ public static class ChatTextExporter
         }
     }
 
-    public static string AppendExportNotice(string reply, ChatExportRequest? export, string[]? ragSources, bool japanese)
-    {
-        if (export is null)
-            return reply;
-
-        var loc = LocalizationService.Instance;
-        var path = TryExport(export, reply, ragSources, japanese, out var error);
-        if (path is not null)
-            return reply + "\n\n" + loc.Format("Chat.Export.Saved", path);
-
-        var reason = string.IsNullOrWhiteSpace(error)
-            ? loc.Get("Chat.Export.Error.Unknown")
-            : error;
-        return reply + "\n\n" + loc.Format("Chat.Export.Failed", reason);
-    }
-
     internal static string BuildDocument(
         string body,
         ChatExportRequest request,
+        string title,
         string[]? ragSources,
         bool japanese)
     {
         var ext = ChatTextExportFormats.NormalizeExtension(request.Extension);
         if (ext is ".json")
-            return BuildJsonDocument(body, request.Query);
+            return BuildJsonDocument(body, title);
 
         if (ext is ".csv" && LooksLikeMarkdownTable(body))
             return ConvertMarkdownTableToCsv(body);
 
         if (ext is ".md" or ".markdown" or ".mdx" or ".rst")
-            return BuildMarkdownDocument(body, request.Query, ragSources, japanese);
+            return BuildMarkdownDocument(body, title, ragSources, japanese);
 
         if (ext is ".html" or ".htm")
-            return BuildHtmlDocument(body, request.Query, ragSources, japanese);
+            return BuildHtmlDocument(body, title, ragSources, japanese);
 
         if (ext is ".xml")
-            return BuildXmlDocument(body, request.Query);
+            return BuildXmlDocument(body, title);
 
-        return BuildPlainDocument(body, request.Query, ragSources, japanese);
+        return BuildPlainDocument(body, title, ragSources, japanese);
     }
 
-    private static string BuildFileName(ChatExportRequest request)
+    private static string BuildFileName(ChatExportRequest request, string titleStem)
     {
         var stem = SanitizeFileStem(request.FileNameStem);
         if (string.IsNullOrWhiteSpace(stem))
-            stem = SanitizeFileStem(request.Query);
+            stem = SanitizeFileStem(titleStem);
         if (string.IsNullOrWhiteSpace(stem))
             stem = "LocalCompanion-export";
 
-        if (stem.Length > 80)
-            stem = stem[..80];
+        if (stem.Length > MaxFileNameStemChars)
+            stem = stem[..MaxFileNameStemChars].TrimEnd('_', '.');
 
         return stem + ChatTextExportFormats.NormalizeExtension(request.Extension);
     }
@@ -118,7 +126,7 @@ public static class ChatTextExporter
             stem = stem.Replace(c, '_');
 
         stem = stem.Replace(' ', '_');
-        return stem.Trim('_', '.', '。', '、');
+        return stem.Trim('_', '.', '。', '、', '！', '？', '!', '?');
     }
 
     private static string? ResolveDirectory(ChatExportDestination destination) =>
@@ -149,12 +157,13 @@ public static class ChatTextExporter
 
     private static string BuildPlainDocument(
         string body,
-        string query,
+        string title,
         string[]? ragSources,
         bool japanese)
     {
         var sb = new StringBuilder();
-        sb.AppendLine(japanese ? $"# 調査: {query}" : $"# Research: {query}");
+        sb.AppendLine(title);
+        sb.AppendLine(new string('=', Math.Min(title.Length, 60)));
         sb.AppendLine(DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm zzz"));
         sb.AppendLine();
         sb.AppendLine(body);
@@ -164,17 +173,21 @@ public static class ChatTextExporter
 
     private static string BuildMarkdownDocument(
         string body,
-        string query,
+        string title,
         string[]? ragSources,
         bool japanese)
     {
         var sb = new StringBuilder();
-        sb.AppendLine(japanese ? $"# {query}" : $"# {query}");
-        sb.AppendLine();
-        sb.AppendLine($"*{DateTimeOffset.Now:yyyy-MM-dd HH:mm}*");
-        sb.AppendLine();
+        if (!body.TrimStart().StartsWith('#'))
+        {
+            sb.AppendLine($"# {title}");
+            sb.AppendLine();
+            sb.AppendLine($"*{DateTimeOffset.Now:yyyy-MM-dd HH:mm}*");
+            sb.AppendLine();
+        }
+
         sb.AppendLine(body);
-        if (ragSources is { Length: > 0 })
+        if (ragSources is { Length: > 0 } && !body.Contains("## 出典", StringComparison.Ordinal) && !body.Contains("## Sources", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine();
             sb.AppendLine(japanese ? "## 出典" : "## Sources");
@@ -187,11 +200,36 @@ public static class ChatTextExporter
 
     private static string BuildHtmlDocument(
         string body,
-        string query,
+        string title,
         string[]? ragSources,
         bool japanese)
     {
-        var escapedTitle = System.Net.WebUtility.HtmlEncode(query);
+        if (body.TrimStart().StartsWith("<", StringComparison.Ordinal))
+        {
+            var wrapped = new StringBuilder();
+            wrapped.AppendLine("<!DOCTYPE html>");
+            wrapped.AppendLine("<html lang=\"ja\">");
+            wrapped.AppendLine("<head>");
+            wrapped.AppendLine("  <meta charset=\"utf-8\">");
+            wrapped.AppendLine($"  <title>{System.Net.WebUtility.HtmlEncode(title)}</title>");
+            wrapped.AppendLine("</head>");
+            wrapped.AppendLine("<body>");
+            wrapped.AppendLine(body);
+            if (ragSources is { Length: > 0 })
+            {
+                wrapped.AppendLine(japanese ? "  <h2>出典</h2>" : "  <h2>Sources</h2>");
+                wrapped.AppendLine("  <ul>");
+                foreach (var source in ragSources.Distinct(StringComparer.OrdinalIgnoreCase))
+                    wrapped.AppendLine($"    <li>{System.Net.WebUtility.HtmlEncode(source)}</li>");
+                wrapped.AppendLine("  </ul>");
+            }
+
+            wrapped.AppendLine("</body>");
+            wrapped.AppendLine("</html>");
+            return wrapped.ToString();
+        }
+
+        var escapedTitle = System.Net.WebUtility.HtmlEncode(title);
         var escapedBody = System.Net.WebUtility.HtmlEncode(body).Replace("\n", "<br>\n", StringComparison.Ordinal);
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
@@ -218,11 +256,14 @@ public static class ChatTextExporter
         return sb.ToString();
     }
 
-    private static string BuildJsonDocument(string body, string query)
+    private static string BuildJsonDocument(string body, string title)
     {
+        if (body.TrimStart().StartsWith('{') || body.TrimStart().StartsWith('['))
+            return body.TrimEnd() + Environment.NewLine;
+
         var payload = new
         {
-            title = query,
+            title,
             generatedAt = DateTimeOffset.Now,
             content = body,
         };
@@ -233,12 +274,15 @@ public static class ChatTextExporter
         }) + Environment.NewLine;
     }
 
-    private static string BuildXmlDocument(string body, string query)
+    private static string BuildXmlDocument(string body, string title)
     {
+        if (body.TrimStart().StartsWith("<?xml", StringComparison.OrdinalIgnoreCase))
+            return body.TrimEnd() + Environment.NewLine;
+
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
         sb.AppendLine("<document>");
-        sb.AppendLine($"  <title>{System.Security.SecurityElement.Escape(query)}</title>");
+        sb.AppendLine($"  <title>{System.Security.SecurityElement.Escape(title)}</title>");
         sb.AppendLine($"  <generatedAt>{DateTimeOffset.Now:O}</generatedAt>");
         sb.AppendLine("  <content><![CDATA[");
         sb.AppendLine(body);

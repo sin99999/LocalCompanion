@@ -435,8 +435,6 @@ public sealed class ChatService
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
-        if (exportRequest is not null)
-            systemParts.Add(ChatSystemPromptTexts.ExportDocumentInstruction(exportRequest.Extension, japaneseReply));
         var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
@@ -446,7 +444,7 @@ public sealed class ChatService
             var ragResult = await TrySearchRagWithPlanAsync(effectiveMessage, previousUser, ct);
             if (TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out var verbatimReply, out ragSources))
             {
-                var finalVerbatim = FinalizeReplyWithExport(verbatimReply, exportRequest, ragSources, japaneseReply);
+                var finalVerbatim = await FinalizeReplyWithExportAsync(verbatimReply, exportRequest, ragSources, japaneseReply, ct);
                 if (historyMode.Save
                     && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                     && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
@@ -534,7 +532,7 @@ public sealed class ChatService
             throw lastError ?? new InvalidOperationException(LlamaServerClient.ContextOverflowMessage);
 
         reply = ChatReplyLimitHelper.FinishReply(reply, _opt.MaxReplyChars, hitStreamCap: false, japaneseReply);
-        reply = FinalizeReplyWithExport(reply, exportRequest, ragSources, japaneseReply);
+        reply = await FinalizeReplyWithExportAsync(reply, exportRequest, ragSources, japaneseReply, ct);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -582,8 +580,6 @@ public sealed class ChatService
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
-        if (exportRequest is not null)
-            systemParts.Add(ChatSystemPromptTexts.ExportDocumentInstruction(exportRequest.Extension, japaneseReply));
         var historyMode = ResolveHistory(req);
 
         string[]? ragSources = null;
@@ -608,7 +604,7 @@ public sealed class ChatService
 
         if (!string.IsNullOrWhiteSpace(verbatimReply))
         {
-            var finalVerbatim = FinalizeReplyWithExport(verbatimReply, exportRequest, ragSources, japaneseReply);
+            var finalVerbatim = await FinalizeReplyWithExportAsync(verbatimReply, exportRequest, ragSources, japaneseReply, ct);
             if (historyMode.Save
                 && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                 && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
@@ -765,7 +761,7 @@ public sealed class ChatService
         if (string.IsNullOrWhiteSpace(reply) && string.IsNullOrWhiteSpace(reasoning))
             throw new LocalizedServiceException("Chat.Error.EmptyModelReply");
 
-        reply = FinalizeReplyWithExport(reply, exportRequest, ragSources, japaneseReply);
+        reply = await FinalizeReplyWithExportAsync(reply, exportRequest, ragSources, japaneseReply, ct);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -987,12 +983,19 @@ public sealed class ChatService
         return (req.Message, null);
     }
 
-    private static string FinalizeReplyWithExport(
+    private async Task<string> FinalizeReplyWithExportAsync(
         string reply,
         ChatExportRequest? export,
         string[]? ragSources,
-        bool japaneseReply) =>
-        ChatTextExporter.AppendExportNotice(reply, export, ragSources, japaneseReply);
+        bool japaneseReply,
+        CancellationToken ct)
+    {
+        if (export is null)
+            return reply;
+
+        return await ChatTextExporter.AppendExportNoticeAsync(
+            _llama, reply, export, ragSources, japaneseReply, ct);
+    }
 
     /// <summary>キャンセル時にユーザーメッセージだけ履歴へ残す。</summary>
     public void PersistCancelledUserMessage(string sessionId, string presetKey, ChatRequestDto req)
