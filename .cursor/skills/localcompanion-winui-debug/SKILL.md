@@ -48,4 +48,4 @@ exe 直ダブルクリックは WinApp SDK 未登録で落ちることがある 
 
 ## 再発したら
 
-AGENTS.md の **Gotchas** に1行追記を提案（理由付き・最小）。
+再発しやすい落とし穴は `docs/Troubleshooting.md` または CHANGELOG に1行追記を提案（理由付き・最小）。

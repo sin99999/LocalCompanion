@@ -61,6 +61,7 @@ _ReSharper*/
 
 # Maintainer-local Cursor rules (not for the public repo)
 docs/cursor-ren-user-rules-*.md
+AGENTS.md
 
 # Generated files
 Generated\ Files/

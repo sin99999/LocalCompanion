@@ -26,7 +26,7 @@ dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64
 dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 ```
 
-- 詳細は [AGENTS.md](AGENTS.md)（開発者向け）
+- ビルドは `Platform=x64` 必須。`dotnet build` だけでは llama / GGUF は初回起動時に取得されます
 - コミットに `models/*.gguf`・`bin/`・`dist/`・個人キャラ JSON は含めないでください
 
 ## プルリクエスト

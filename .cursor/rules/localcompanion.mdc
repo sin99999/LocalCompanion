@@ -5,7 +5,7 @@ alwaysApply: true
 
 # LocalCompanion（常時）
 
-詳細は [AGENTS.md](AGENTS.md)。ここは毎回効く短い判断のみ。
+リポ内の短い判断のみ。詳細な開発メモはメンテナローカル用です。
 
 ## ビルド・起動
 
