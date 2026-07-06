@@ -18,8 +18,20 @@ internal static class ChatExportRequestParser
         @"\.(txt|md|markdown|mdx|rst|csv|json|xml|html?|ya?ml|log|ini|cfg)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private static readonly Regex LooseExtension = new(
+        @"(?<![\w./\\])(txt|md|markdown|mdx|rst|csv|json|xml|html?|ya?ml|log|ini|cfg)(?![\w])",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static readonly Regex StripTail = new(
-        @"[、,]?\s*(?:(?:結果|内容|まとめ|レポート|報告)(?:を|の)?)?\s*(?:デスクトップ|desktop)(?:上|に)?(?:へ|に)?(?:[^\n。!?]{0,80}?(?:置いといて|置いておいて|置いて|保存して|書いといて|書き出して|出力して|残して|おいて|ください|お願い))[^\n。!?]{0,40}?(?:\.(?:txt|md|markdown|mdx|rst|csv|json|xml|html?|ya?ml|log|ini|cfg))?(?:形式|ファイル)?(?:で)?[。!?]?\s*$",
+        @"[、,]?\s*(?:(?:結果|内容|まとめ|レポート|報告)(?:を|の)?)?\s*(?:デスクトップ|desktop)(?:上|に)?(?:へ|に)?(?:[^\n。!?]{0,80}?(?:置いといて|置いておいて|置いて|保存して|書いといて|書き出して|出力して|残して|おいて|作って|書いて|ください|お願い))[^\n。!?]{0,40}?(?:\.(?:txt|md|markdown|mdx|rst|csv|json|xml|html?|ya?ml|log|ini|cfg)|txt|md)?(?:形式|ファイル)?(?:で)?[。!?]?\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex StripTailFile = new(
+        @"[、,]?\s*(?:(?:結果|内容|まとめ|レポート|報告)(?:を|の)?)?\s*(?:テキスト|text)?\s*ファイル(?:に|へ|として|で)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|作って|残して))?[。!?]?\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex StripTailLoose = new(
+        @"[、,]?\s*(?:(?:結果|内容|まとめ)(?:を|の)?)?\s*(?:(?:txt|md|markdown|テキスト)[^\n。!?]{0,20}?(?:で|に|として))?(?:[^\n。!?]{0,30}?(?:書いておいて|書いといて|作っておいて|吐き出して|出力しておいて|保存しておいて))[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTailEn = new(
@@ -51,6 +63,7 @@ internal static class ChatExportRequestParser
             fileStem,
             ChatTextExportFormats.NormalizeExtension(extension),
             ChatExportDestination.Desktop);
+        StartupLog.Write($"Chat export intent: ext={request.Extension}, query={TruncateLog(request.Query)}");
         return true;
     }
 
@@ -63,16 +76,35 @@ internal static class ChatExportRequestParser
                 return true;
         }
 
+        if (message.Contains("ファイル", StringComparison.OrdinalIgnoreCase)
+            && ContainsSaveCue(message))
+            return true;
+
         if ((message.Contains("テキストファイル", StringComparison.OrdinalIgnoreCase)
              || message.Contains("text file", StringComparison.OrdinalIgnoreCase))
             && ContainsSaveCue(message))
             return true;
 
-        if (ExplicitExtension.IsMatch(message) && ContainsSaveCue(message))
+        if ((ExplicitExtension.IsMatch(message) || LooseExtension.IsMatch(message))
+            && ContainsSaveCue(message))
+            return true;
+
+        if (ContainsLooseExportCue(message))
             return true;
 
         return false;
     }
+
+    private static bool ContainsLooseExportCue(string message) =>
+        (message.Contains("書いてお", StringComparison.Ordinal)
+         || message.Contains("書いと", StringComparison.Ordinal)
+         || message.Contains("作ってお", StringComparison.Ordinal)
+         || message.Contains("吐き出", StringComparison.Ordinal)
+         || message.Contains("出力してお", StringComparison.Ordinal))
+        && (message.Contains("txt", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("md", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("テキスト", StringComparison.Ordinal)
+            || message.Contains("ファイル", StringComparison.Ordinal));
 
     private static bool ContainsSaveCue(string message) =>
         message.Contains("置いと", StringComparison.Ordinal)
@@ -80,6 +112,9 @@ internal static class ChatExportRequestParser
         || message.Contains("保存", StringComparison.Ordinal)
         || message.Contains("書き出", StringComparison.Ordinal)
         || message.Contains("書いと", StringComparison.Ordinal)
+        || message.Contains("書いて", StringComparison.Ordinal)
+        || message.Contains("作って", StringComparison.Ordinal)
+        || message.Contains("吐き出", StringComparison.Ordinal)
         || message.Contains("出力", StringComparison.Ordinal)
         || message.Contains("残して", StringComparison.Ordinal)
         || message.Contains("save to", StringComparison.OrdinalIgnoreCase)
@@ -113,12 +148,20 @@ internal static class ChatExportRequestParser
             return ".xml";
 
         if (message.Contains("テキストファイル", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("text file", StringComparison.OrdinalIgnoreCase))
+            || message.Contains("text file", StringComparison.OrdinalIgnoreCase)
+            || (message.Contains("テキスト", StringComparison.Ordinal) && message.Contains("ファイル", StringComparison.Ordinal)))
             return ".txt";
 
         var extMatch = ExplicitExtension.Match(message);
         if (extMatch.Success)
             return "." + extMatch.Groups[1].Value.ToLowerInvariant();
+
+        var loose = LooseExtension.Match(message);
+        if (loose.Success)
+            return "." + loose.Groups[1].Value.ToLowerInvariant();
+
+        if (message.Contains("txt", StringComparison.OrdinalIgnoreCase))
+            return ".txt";
 
         return ChatTextExportFormats.DefaultExtension;
     }
@@ -139,9 +182,11 @@ internal static class ChatExportRequestParser
     private static string StripExportClauses(string message)
     {
         var q = message.Trim();
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 6; i++)
         {
             var next = StripTail.Replace(q, "");
+            next = StripTailFile.Replace(next, "");
+            next = StripTailLoose.Replace(next, "");
             next = StripTailEn.Replace(next, "");
             next = StripTextFile.Replace(next, "");
             next = next.Trim().TrimEnd('、', ',', '。', '.', '!', '?', '！', '？');
@@ -152,4 +197,7 @@ internal static class ChatExportRequestParser
 
         return q;
     }
+
+    private static string TruncateLog(string text) =>
+        text.Length <= 80 ? text : text[..80] + "…";
 }

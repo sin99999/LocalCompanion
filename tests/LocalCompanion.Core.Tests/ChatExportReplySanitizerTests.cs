@@ -17,4 +17,13 @@ public sealed class ChatExportReplySanitizerTests
         Assert.DoesNotContain("デスクトップに保存しました", cleaned);
         Assert.Contains("刑法の要点", cleaned);
     }
+
+    [Fact]
+    public void StripFakeSaveClaims_RemovesOfficialLookingFakeLine()
+    {
+        var input = "本文です。\n\nデスクトップに保存しました: C:\\Users\\SIN\\Desktop\\test.txt";
+        var cleaned = ChatExportReplySanitizer.StripFakeSaveClaims(input);
+        Assert.DoesNotContain("デスクトップに保存しました", cleaned);
+        Assert.Contains("本文です", cleaned);
+    }
 }

@@ -994,11 +994,12 @@ public sealed class ChatService
         bool japaneseReply,
         CancellationToken ct)
     {
+        var cleaned = ChatExportReplySanitizer.StripFakeSaveClaims(reply);
         if (export is null)
-            return reply;
+            return cleaned;
 
         return await ChatTextExporter.AppendExportNoticeAsync(
-            _llama, reply, export, ragSources, japaneseReply, ct);
+            _llama, cleaned, export, ragSources, japaneseReply, ct);
     }
 
     /// <summary>キャンセル時にユーザーメッセージだけ履歴へ残す。</summary>

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 
@@ -84,12 +85,33 @@ public static class ChatTextExporter
             }
 
             StartupLog.Write($"Chat export saved: {path}");
+            TryRevealInExplorer(path);
             return path;
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
             return null;
+        }
+    }
+
+    private static void TryRevealInExplorer(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return;
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{path}\"",
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write($"Chat export reveal failed: {ex.Message}");
         }
     }
 
