@@ -3,6 +3,32 @@
 本ファイルは LocalCompanion の利用者向け変更履歴です。
 バージョンは `LocalCompanion.csproj` の `<Version>` と一致させます。
 
+## 1.0.7 - 2026-07-07
+
+公開後レビューで見つかった不具合と信頼性の改善です。
+
+### 修正
+
+- RAG ベクトル検索で資料フィルタ使用時に sqlite-vec の KNN 制約エラーが出て検索が無効化される問題を修正
+- チャット保存機能以外の返答から正当な「保存しました」等が除去される問題を修正
+- 「名前を付けて説明して」等の通常質問が保存リピートと誤認される問題を修正
+- 同名ファイルの上書き確認後に LLM 整形をやり直して内容が変わる問題を修正（確認待ち内容を再利用）
+- Program Files 等で `{exe}\data` に書き込めない場合は LocalAppData へフォールバック
+- `D:\bin\...` 等のパスが開発ビルドと誤判定される問題を修正
+
+### 変更
+
+- 同名ファイル競合時はチャットで「上書き保存」「別名保存」を案内
+- 配布 ZIP に `docs\code-signing.md` を同梱（Troubleshooting のリンク切れ解消）
+- 内部ドキュメント・システムプロンプトの個人名表記を中立化
+
+### 開発基盤（Agent / テスト）
+
+- Cursor スキル追加: `localcompanion-rag`, `localcompanion-core-tests`, `localcompanion-agent-audit`
+- `.cursor/rules/localcompanion.mdc` にスキル一覧・妹作戦・テスト完了条件を整理
+- 刑法系テストを `Fixtures/PenalCodeTestFixtures` に統一（個人パス非依存）
+- 1.0.7 修正の回帰テスト追加（`RagSqliteVecTests`, `ChatExportPendingStoreTests`, `AppPathsTests`）
+
 ## 1.0.6 - 2026-07-07
 
 調査結果をデスクトップへテキストファイルで書き出す機能を追加したパッチです。

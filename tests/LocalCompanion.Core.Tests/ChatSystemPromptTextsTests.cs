@@ -15,9 +15,9 @@ public sealed class ChatSystemPromptTextsTests
     [Fact]
     public void UserAndCharacterNameDistinction_ListsBothNames()
     {
-        var line = ChatSystemPromptTexts.UserAndCharacterNameDistinction("太郎", "レン", japanese: true);
+        var line = ChatSystemPromptTexts.UserAndCharacterNameDistinction("太郎", "花子", japanese: true);
         Assert.Contains("太郎", line);
-        Assert.Contains("レン", line);
+        Assert.Contains("花子", line);
     }
 
     [Fact]

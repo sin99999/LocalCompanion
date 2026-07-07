@@ -6,8 +6,12 @@ namespace LocalCompanion.Services;
 internal static class ChatExportReplySanitizer
 {
     private static readonly Regex FakeSaveLine = new(
-        @"^[ \t「『（(]*.*?(?:デスクトップに保存しました|デスクトップへ?保存|デスクトップに書き込み|保存しました|書き出しました|書き込みました|ファイルに保存)[^\n]*$",
+        @"^[ \t「『（(]*.*?(?:デスクトップに保存しました|デスクトップへ?保存|デスクトップに書き込み|デスクトップに.*?保存|書き出しました|書き込みました)[^\n]*$",
         RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex FakeSaveWithPathLine = new(
+        @"^[ \t]*(?:デスクトップに保存しました|保存しました)\s*:\s*[A-Za-z]:\\[^\n]+$",
+        RegexOptions.Multiline | RegexOptions.Compiled);
 
     private static readonly Regex FakeSavedPathLine = new(
         @"^[ \t]*デスクトップに保存しました\s*:\s*[A-Za-z]:\\[^\n]+$",
@@ -23,6 +27,7 @@ internal static class ChatExportReplySanitizer
             return reply;
 
         var cleaned = FakeSaveLine.Replace(reply, "");
+        cleaned = FakeSaveWithPathLine.Replace(cleaned, "");
         cleaned = FakeSavedPathLine.Replace(cleaned, "");
         cleaned = FakeSavePathLine.Replace(cleaned, "");
         cleaned = Regex.Replace(cleaned, @"\n{3,}", "\n\n");

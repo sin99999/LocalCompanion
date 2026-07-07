@@ -104,32 +104,38 @@ public sealed class RagSqliteVec
             return Array.Empty<long>();
 
         var cmd = conn.CreateCommand();
+        cmd.Parameters.AddWithValue("$q", JsonSerializer.Serialize(query));
+        cmd.Parameters.AddWithValue("$k", topK);
+
         if (sourcesFilter is { Count: > 0 })
         {
+            // JOIN 付き KNN は LIMIT が vec0 に渡らないことがあるため CTE + k 制約を使う。
+            var knnK = Math.Min(Math.Max(topK * 8, topK), 512);
             var inClause = BuildInClause(cmd, sourcesFilter, "src");
             cmd.CommandText = $"""
-                SELECT v.rowid
-                FROM rag_vec v
-                INNER JOIN rag_chunks c ON c.id = v.rowid
+                WITH knn AS (
+                    SELECT rowid, distance
+                    FROM rag_vec
+                    WHERE embedding MATCH $q AND k = $knn
+                )
+                SELECT knn.rowid
+                FROM knn
+                INNER JOIN rag_chunks c ON c.id = knn.rowid
                 WHERE c.source IN ({inClause})
-                  AND v.embedding MATCH $q
                 ORDER BY distance
                 LIMIT $k
                 """;
+            cmd.Parameters.AddWithValue("$knn", knnK);
         }
         else
         {
             cmd.CommandText = """
                 SELECT rowid
                 FROM rag_vec
-                WHERE embedding MATCH $q
+                WHERE embedding MATCH $q AND k = $k
                 ORDER BY distance
-                LIMIT $k
                 """;
         }
-
-        cmd.Parameters.AddWithValue("$q", JsonSerializer.Serialize(query));
-        cmd.Parameters.AddWithValue("$k", topK);
 
         var ids = new List<long>();
         using var reader = cmd.ExecuteReader();

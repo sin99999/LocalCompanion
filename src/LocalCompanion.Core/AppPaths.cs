@@ -177,10 +177,13 @@ public sealed class AppPaths
         Directory.Exists(Path.Combine(directory, "scripts"))
         && Directory.Exists(Path.Combine(directory, "models"));
 
-    private static bool IsDevelopmentOutputPath(string path)
+    internal static bool IsDevelopmentOutputPath(string path)
     {
         var normalized = path.Replace('/', '\\');
-        return normalized.Contains(@"\bin\", StringComparison.OrdinalIgnoreCase)
+        return normalized.Contains(@"\bin\Debug\", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(@"\bin\Release\", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(@"\bin\x64\", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(@"\bin\Win32\", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains(@"\obj\", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -223,11 +226,33 @@ public sealed class AppPaths
     {
         var root = Current.Root;
         if (IsCompleteDistributionFolder(root) && !IsDevelopmentOutputPath(GetInstallDirectory()))
-            return Path.Combine(root, "data");
+        {
+            var dataDir = Path.Combine(root, "data");
+            if (CanWriteToDirectory(dataDir))
+                return dataDir;
+
+            StartupLog.Write($"Data directory not writable; using LocalAppData. path={dataDir}");
+        }
 
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalCompanionLlama");
+    }
+
+    private static bool CanWriteToDirectory(string directory)
+    {
+        try
+        {
+            Directory.CreateDirectory(directory);
+            var probe = Path.Combine(directory, ".write-probe-" + Guid.NewGuid().ToString("N"));
+            File.WriteAllText(probe, "ok");
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool IsSubPathOf(string childFullPath, string parentFullPath)

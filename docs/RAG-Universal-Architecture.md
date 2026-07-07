@@ -1,6 +1,6 @@
-# Universal RAG Architecture（LocalCompanion）
+﻿# Universal RAG Architecture（LocalCompanion）
 
-しんちゃんの理解①〜④を前提に、**「どんなファイルでも高精度 RAG」** へ向けた全体設計です。
+以下の前提（①〜④）に基づき、**「どんなファイルでも高精度 RAG」** へ向けた全体設計です。
 
 ## 現状の整理（①〜④との対応）
 

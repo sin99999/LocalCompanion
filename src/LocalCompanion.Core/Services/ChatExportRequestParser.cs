@@ -86,6 +86,29 @@ internal static class ChatExportRequestParser
         return true;
     }
 
+    /// <summary>上書き／別名保存の短い返答だけを検出する（リピート誤爆防止用）。</summary>
+    public static bool TryParseConflictResolution(string message, out ChatExportConflictPolicy policy)
+    {
+        policy = ChatExportConflictPolicy.AskUser;
+        var trimmed = message.Trim();
+        if (trimmed.Length == 0 || trimmed.Length > 80)
+            return false;
+
+        if (ContainsStrictOverwriteCue(trimmed))
+        {
+            policy = ChatExportConflictPolicy.Overwrite;
+            return true;
+        }
+
+        if (ContainsStrictSaveAsCue(trimmed))
+        {
+            policy = ChatExportConflictPolicy.SaveAsNewFile;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>「今の処理をもう一度」など、直前の保存付き依頼を繰り返す意図を検出する。</summary>
     public static bool TryInheritRepeatExport(
         string message,
@@ -101,7 +124,7 @@ internal static class ChatExportRequestParser
             if (!TryParse(prior, out var priorExport))
                 continue;
 
-            request = priorExport;
+            request = priorExport with { ConflictPolicy = ResolveConflictPolicyForRepeat(message, priorExport.ConflictPolicy) };
             StartupLog.Write(
                 $"Chat export repeat: target={request.Target.Kind}, ext={request.Extension}, query={TruncateLog(request.Query)}");
             return true;
@@ -115,6 +138,7 @@ internal static class ChatExportRequestParser
         var extension = DetectExtension(trimmed);
         var fileStem = DetectFileNameStem(trimmed, extension);
         var target = DetectTarget(trimmed);
+        var conflictPolicy = DetectConflictPolicy(trimmed);
         var query = StripExportClauses(trimmed);
         if (string.IsNullOrWhiteSpace(query))
             query = trimmed;
@@ -123,7 +147,8 @@ internal static class ChatExportRequestParser
             query.Trim(),
             fileStem,
             ChatTextExportFormats.NormalizeExtension(extension),
-            target);
+            target,
+            conflictPolicy);
     }
 
     private static ChatExportTarget DetectTarget(string message)
@@ -246,8 +271,57 @@ internal static class ChatExportRequestParser
         || message.Contains("app folder", StringComparison.OrdinalIgnoreCase)
         || message.Contains("install folder", StringComparison.OrdinalIgnoreCase);
 
+    private static ChatExportConflictPolicy DetectConflictPolicy(string message)
+    {
+        if (ContainsStrictOverwriteCue(message))
+            return ChatExportConflictPolicy.Overwrite;
+        if (ContainsStrictSaveAsCue(message))
+            return ChatExportConflictPolicy.SaveAsNewFile;
+        return ChatExportConflictPolicy.AskUser;
+    }
+
+    private static bool ContainsStrictOverwriteCue(string message) =>
+        message.Contains("上書き保存", StringComparison.Ordinal)
+        || message.Contains("上書きやっちゃ", StringComparison.Ordinal)
+        || message.Contains("上書きして", StringComparison.Ordinal)
+        || message.Contains("上書きで", StringComparison.Ordinal)
+        || (message.Contains("上書き", StringComparison.Ordinal)
+            && (message.Contains("保存", StringComparison.Ordinal)
+                || message.Contains("ファイル", StringComparison.Ordinal)))
+        || message.Contains("overwrite", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("置き換え", StringComparison.Ordinal);
+
+    private static bool ContainsStrictSaveAsCue(string message) =>
+        message.Contains("別名保存", StringComparison.Ordinal)
+        || message.Contains("別名だけ", StringComparison.Ordinal)
+        || message.Contains("別名で", StringComparison.Ordinal)
+        || message.Contains("名前を変えて", StringComparison.Ordinal)
+        || message.Contains("名前だけ変えて", StringComparison.Ordinal)
+        || message.Contains("名前を付け直して", StringComparison.Ordinal)
+        || message.Contains("新しい名前で", StringComparison.Ordinal)
+        || message.Contains("save as", StringComparison.OrdinalIgnoreCase)
+        || (message.Contains("名前を付けて", StringComparison.Ordinal)
+            && (message.Contains("保存", StringComparison.Ordinal)
+                || message.Contains("ファイル", StringComparison.Ordinal)));
+
+    private static bool ContainsOverwriteCue(string message) => ContainsStrictOverwriteCue(message);
+
+    private static bool ContainsSaveAsCue(string message) => ContainsStrictSaveAsCue(message);
+
+    private static ChatExportConflictPolicy ResolveConflictPolicyForRepeat(
+        string message,
+        ChatExportConflictPolicy fallback)
+    {
+        if (TryParseConflictResolution(message, out var policy))
+            return policy;
+        return fallback;
+    }
+
     private static bool LooksLikeRepeatRequest(string message)
     {
+        if (TryParseConflictResolution(message, out _))
+            return true;
+
         if (message.Contains("今の処理", StringComparison.Ordinal)
             || message.Contains("さっきの処理", StringComparison.Ordinal)
             || message.Contains("前の処理", StringComparison.Ordinal)

@@ -10,23 +10,40 @@ public static class ChatTextExporter
 {
     public const int MaxFileBytes = 2 * 1024 * 1024;
     private const int MaxFileNameStemChars = 40;
+    private const string ConfirmPrefix = "__confirm__:";
 
-    public static async Task<string> AppendExportNoticeAsync(
+    internal static async Task<string> AppendExportNoticeAsync(
         LlamaServerClient llama,
         string chatReply,
         ChatExportRequest export,
         string[]? ragSources,
         bool japanese,
+        ChatExportPendingStore? pendingStore,
+        string? sessionId,
         CancellationToken ct)
     {
-        var loc = LocalizationService.Instance;
         var cleanReply = ChatExportReplySanitizer.StripFakeSaveClaims(chatReply);
         var document = await ChatExportDocumentFormatter.FormatAsync(
             llama, export, cleanReply, ragSources, japanese, ct);
 
+        return CompleteExportNotice(
+            cleanReply, export, document, ragSources, japanese, pendingStore, sessionId);
+    }
+
+    internal static string CompleteExportNotice(
+        string cleanReply,
+        ChatExportRequest export,
+        ChatExportDocument document,
+        string[]? ragSources,
+        bool japanese,
+        ChatExportPendingStore? pendingStore,
+        string? sessionId)
+    {
+        var loc = LocalizationService.Instance;
         var path = TryExport(export, document, ragSources, japanese, out var error, out var usedFallback);
         if (path is not null)
         {
+            pendingStore?.Clear(sessionId);
             var notice = usedFallback
                 ? loc.Format("Chat.Export.SavedFallback", path)
                 : loc.Format("Chat.Export.Saved", path);
@@ -36,6 +53,14 @@ public static class ChatTextExporter
         var reason = string.IsNullOrWhiteSpace(error)
             ? loc.Get("Chat.Export.Error.Unknown")
             : error;
+        if (reason.StartsWith(ConfirmPrefix, StringComparison.Ordinal))
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+                pendingStore?.Set(sessionId, export, document, cleanReply, ragSources);
+            return cleanReply + "\n\n" + reason[ConfirmPrefix.Length..];
+        }
+
+        pendingStore?.Clear(sessionId);
         StartupLog.Write($"Chat export failed: {reason}");
         return cleanReply + "\n\n" + loc.Format("Chat.Export.Failed", reason);
     }
@@ -68,7 +93,14 @@ public static class ChatTextExporter
 
         Directory.CreateDirectory(directory);
         var fileName = BuildFileName(request, document.Title);
-        var path = ResolveUniquePath(Path.Combine(directory, fileName));
+        var basePath = Path.Combine(directory, fileName);
+        var path = ResolveDestinationPath(basePath, request, out var needsConfirmMessage);
+        if (needsConfirmMessage is not null)
+        {
+            errorMessage = ConfirmPrefix + needsConfirmMessage;
+            return null;
+        }
+
         var content = BuildDocument(document.Body.Trim(), request, document.Title, ragSources, japanese);
 
         if (Encoding.UTF8.GetByteCount(content) > MaxFileBytes)
@@ -208,6 +240,28 @@ public static class ChatTextExporter
         }
 
         return Path.Combine(dir, $"{name}-{Guid.NewGuid():N}{ext}");
+    }
+
+    private static string ResolveDestinationPath(
+        string basePath,
+        ChatExportRequest request,
+        out string? confirmMessage)
+    {
+        confirmMessage = null;
+        if (!File.Exists(basePath))
+            return basePath;
+
+        switch (request.ConflictPolicy)
+        {
+            case ChatExportConflictPolicy.Overwrite:
+                return basePath;
+            case ChatExportConflictPolicy.SaveAsNewFile:
+                return ResolveUniquePath(basePath);
+            case ChatExportConflictPolicy.AskUser:
+            default:
+                confirmMessage = LocalizationService.Instance.Format("Chat.Export.ConflictPrompt", basePath);
+                return basePath;
+        }
     }
 
     private static string BuildPlainDocument(

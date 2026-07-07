@@ -1,3 +1,4 @@
+﻿using LocalCompanion.Core.Tests.Fixtures;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
 
@@ -9,11 +10,8 @@ public sealed class RagPenalCodePipelineTests
     [Fact]
     public void FullPreIngestPipeline_PenalCodeMd_ExtractsArticles()
     {
-        var path = @"C:\Users\SIN\Desktop\PDF\刑法.md";
-        Assert.True(File.Exists(path), "刑法.md not found on this machine.");
-
-        var source = path;
-        var text = File.ReadAllText(path);
+        var source = "刑法.md";
+        var text = PenalCodeTestFixtures.BuildMarkdown();
         var options = new RagIngestOptions(
             UseHtmlMarkdown: true,
             UseLlmStructurer: true,
@@ -25,7 +23,6 @@ public sealed class RagPenalCodePipelineTests
         var docKind = RagDocumentProfileDetector.Detect(source, text);
         Assert.Equal(RagDocumentKind.Legal, docKind);
 
-        // .md は structurer をスキップ（拡張子 .md）
         var ext = Path.GetExtension(source).ToLowerInvariant();
         Assert.True(ext is ".md" or ".markdown");
 

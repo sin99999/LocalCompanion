@@ -5,13 +5,14 @@ alwaysApply: true
 
 # LocalCompanion（常時）
 
-リポ内の短い判断のみ。詳細な開発メモはメンテナローカル用です。
+リポ内の短い判断のみ。詳細は `AGENTS.md` と各スキル。
 
 ## ビルド・起動
 
 ```powershell
 dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64
 .\scripts\run-debug-winui.ps1
+dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 ```
 
 - Platform `x64` 必須。`dotnet build` だけでは llama / GGUF は落ちない（初回起動時）。
@@ -19,7 +20,7 @@ dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64
 ## データパス
 
 - Debug → `%LocalAppData%\LocalCompanionLlama\`
-- 配布 exe → `{exe 横}\data\`
+- 配布 exe → `{exe 横}\data\`（書き込み不可時は LocalAppData にフォールバック）
 
 ## プロジェクトスキル（該当時は Read して従う）
 
@@ -28,14 +29,20 @@ dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64
 | ZIP / GitHub Release / push / note 配布 | `.cursor/skills/localcompanion-release/` |
 | WinUI レイアウト・UI 不具合 | `.cursor/skills/localcompanion-winui-debug/` + `winui-design` |
 | ビルド・run-debug | `winui-dev-workflow` |
+| RAG・ingest・vec 検索 | `.cursor/skills/localcompanion-rag/` |
+| テスト追加・修正 | `.cursor/skills/localcompanion-core-tests/` |
+| 公開前監査・妹作戦・横断レビュー | `.cursor/skills/localcompanion-agent-audit/` |
+
+## 妹作戦（ユーザーが依頼したとき）
+
+Task を並列で起動（explore）。親 Agent が統合して **最小修正 + テスト** まで持っていく。詳細は `localcompanion-agent-audit` スキル。
 
 ## Agent の完了条件（実装タスク）
 
-実装タスクでは、可能なら次を満たしてから報告する:
-
 1. `dotnet build` 成功（または失敗理由を明示）
-2. 触った範囲の再現手順 or 確認手順を1〜3行
-3. commit は **明示的な依頼時のみ**（セーブ≠commit）
+2. 触った範囲は `dotnet test`（可能なら全件）
+3. 再現手順 or 確認手順を 1〜3 行
+4. commit は **明示的な依頼時のみ**（セーブ≠commit）
 
 ## 製品文案
 

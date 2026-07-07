@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\LocalCompanion.Core\LocalCompanion.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="$(NuGetPackageRoot)sqlite-vec\0.1.7-alpha.2.1\runtimes\win-x64\native\vec0.dll" Link="vec0.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -53,6 +53,7 @@ public sealed class ChatService
     private readonly ModelCatalogService _models;
     private readonly AppSettingsStore _appSettings;
     private readonly LlamaOptions _opt;
+    private readonly ChatExportPendingStore _exportPending = new();
 
     public ChatService(
         LlamaServerClient llama,
@@ -421,6 +422,25 @@ public sealed class ChatService
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
         var historyMode = ResolveHistory(req);
+        if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
+        {
+            var conflictProfile = _character.Get();
+            var conflictRuntime = await _models.GetRuntimeStatusAsync(_llama, ct);
+            return new ChatResponseDto(
+                conflictReply,
+                conflictRagSources is { Length: > 0 },
+                conflictRagSources ?? Array.Empty<string>(),
+                conflictProfile.Name,
+                req.UseReasoning,
+                historyMode.Load,
+                !string.IsNullOrWhiteSpace(req.AttachedText),
+                conflictRuntime.ActiveModelFileName,
+                conflictRuntime.SelectedModelFileName,
+                conflictRuntime.LoadedModelFileName,
+                conflictRuntime.ModelMismatch,
+                conflictRuntime.StatusMessage);
+        }
+
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -446,7 +466,8 @@ public sealed class ChatService
             var ragResult = await TrySearchRagWithPlanAsync(effectiveMessage, previousUser, ct);
             if (TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out var verbatimReply, out ragSources))
             {
-                var finalVerbatim = await FinalizeReplyWithExportAsync(verbatimReply, exportRequest, ragSources, japaneseReply, ct);
+                var finalVerbatim = await FinalizeReplyWithExportAsync(
+                    verbatimReply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
                 if (historyMode.Save
                     && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                     && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
@@ -534,7 +555,8 @@ public sealed class ChatService
             throw lastError ?? new InvalidOperationException(LlamaServerClient.ContextOverflowMessage);
 
         reply = ChatReplyLimitHelper.FinishReply(reply, _opt.MaxReplyChars, hitStreamCap: false, japaneseReply);
-        reply = await FinalizeReplyWithExportAsync(reply, exportRequest, ragSources, japaneseReply, ct);
+        reply = await FinalizeReplyWithExportAsync(
+            reply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -568,6 +590,27 @@ public sealed class ChatService
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
         var historyMode = ResolveHistory(req);
+        if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
+        {
+            var conflictProfile = _character.Get();
+            var conflictRuntime = await _models.GetRuntimeStatusAsync(_llama, ct);
+            yield return new ChatStreamChunkDto("content", conflictReply);
+            var conflictMeta = formatMetaForStream(
+                conflictRagSources is { Length: > 0 },
+                req.UseReasoning,
+                historyMode.Load,
+                !string.IsNullOrWhiteSpace(req.AttachedText),
+                conflictRuntime.ActiveModelFileName,
+                conflictRuntime);
+            yield return new ChatStreamChunkDto(
+                "done",
+                conflictReply,
+                Meta: conflictMeta,
+                CharacterName: conflictProfile.Name,
+                Done: true);
+            yield break;
+        }
+
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -608,7 +651,8 @@ public sealed class ChatService
 
         if (!string.IsNullOrWhiteSpace(verbatimReply))
         {
-            var finalVerbatim = await FinalizeReplyWithExportAsync(verbatimReply, exportRequest, ragSources, japaneseReply, ct);
+            var finalVerbatim = await FinalizeReplyWithExportAsync(
+                verbatimReply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
             if (historyMode.Save
                 && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                 && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
@@ -765,7 +809,8 @@ public sealed class ChatService
         if (string.IsNullOrWhiteSpace(reply) && string.IsNullOrWhiteSpace(reasoning))
             throw new LocalizedServiceException("Chat.Error.EmptyModelReply");
 
-        reply = await FinalizeReplyWithExportAsync(reply, exportRequest, ragSources, japaneseReply, ct);
+        reply = await FinalizeReplyWithExportAsync(
+            reply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -1015,19 +1060,58 @@ public sealed class ChatService
         return users;
     }
 
+    private bool TryBuildPendingExportConflictReply(
+        ChatRequestDto req,
+        HistoryMode historyMode,
+        out string reply,
+        out string[]? ragSources)
+    {
+        reply = "";
+        ragSources = null;
+        if (!_exportPending.TryResolveConflictContinuation(
+                historyMode.SessionId, req.Message, out var pending, out var policy))
+        {
+            return false;
+        }
+
+        var export = pending.Request with { ConflictPolicy = policy };
+        var japanese = TextScriptHelper.LooksJapanese(pending.Request.Query);
+        reply = ChatTextExporter.CompleteExportNotice(
+            pending.CleanReply,
+            export,
+            pending.Document,
+            pending.RagSources,
+            japanese,
+            _exportPending,
+            historyMode.SessionId);
+        ragSources = pending.RagSources;
+
+        if (historyMode.Save
+            && !string.IsNullOrWhiteSpace(historyMode.SessionId)
+            && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
+        {
+            SaveMessage(historyMode.SessionId, historyMode.PresetKey, "user", SummarizeForHistory(req));
+            SaveMessage(historyMode.SessionId, historyMode.PresetKey, "assistant", TruncateContent(reply, HistorySaveMaxChars));
+            TouchSession(historyMode.SessionId, req.Message);
+        }
+
+        return true;
+    }
+
     private async Task<string> FinalizeReplyWithExportAsync(
         string reply,
         ChatExportRequest? export,
         string[]? ragSources,
         bool japaneseReply,
+        string? sessionId,
         CancellationToken ct)
     {
-        var cleaned = ChatExportReplySanitizer.StripFakeSaveClaims(reply);
         if (export is null)
-            return cleaned;
+            return reply;
 
+        var cleaned = ChatExportReplySanitizer.StripFakeSaveClaims(reply);
         return await ChatTextExporter.AppendExportNoticeAsync(
-            _llama, cleaned, export, ragSources, japaneseReply, ct);
+            _llama, cleaned, export, ragSources, japaneseReply, _exportPending, sessionId, ct);
     }
 
     /// <summary>キャンセル時にユーザーメッセージだけ履歴へ残す。</summary>

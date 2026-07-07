@@ -1,6 +1,6 @@
 ﻿---
 description: WinUI XAML 編集時のレイアウト手順（LocalCompanion）
-globs: "**/*.{xaml,xaml.cs}"
+globs: "**/*.xaml,**/*.xaml.cs"
 alwaysApply: false
 ---
 
@@ -14,4 +14,4 @@ alwaysApply: false
 
 UI 不具合時は `.cursor/skills/localcompanion-winui-debug/SKILL.md` を読む。
 
-新規 UI 文言は `LocalizationResources.cs` に日英で追加。
+新規 UI 文案は `LocalizationResources.cs` に日英で追加。

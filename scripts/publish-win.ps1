@@ -69,6 +69,12 @@ function Copy-DistributionDocs {
     New-Item -ItemType Directory -Force -Path $docsDir | Out-Null
     Copy-Item $docsSrc (Join-Path $docsDir "Troubleshooting.md") -Force
 
+    $codeSigningSrc = Join-Path $Root "docs\code-signing.md"
+    if (-not (Test-Path $codeSigningSrc)) {
+        throw "配布用ドキュメントがありません: docs\code-signing.md"
+    }
+    Copy-Item $codeSigningSrc (Join-Path $docsDir "code-signing.md") -Force
+
     $helpSrc = Join-Path $Root "docs\help"
     if (-not (Test-Path $helpSrc)) {
         throw "配布用ドキュメントがありません: docs\help"
