@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Models;
 
@@ -72,6 +72,10 @@ public sealed class AppSettingsStore
             RagUseLlmStructurer = dto.RagUseLlmStructurer,
             RagSaveStructurerCache = dto.RagSaveStructurerCache,
             RagUsePdfLayoutReader = dto.RagUsePdfLayoutReader,
+            MemoryEnabled = dto.MemoryEnabled,
+            MemoryAutoExtractOnClose = dto.MemoryAutoExtractOnClose,
+            ChatSearchEnabled = dto.ChatSearchEnabled,
+            SpeechInputEnabled = dto.SpeechInputEnabled,
         };
     }
 }

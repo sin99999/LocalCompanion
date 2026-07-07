@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 
@@ -13,6 +13,7 @@ public partial class SettingsPageViewModel
     [ObservableProperty] public partial string UiTabModel { get; set; }
     [ObservableProperty] public partial string UiTabCharacter { get; set; }
     [ObservableProperty] public partial string UiTabRag { get; set; }
+    [ObservableProperty] public partial string UiTabMemory { get; set; }
     [ObservableProperty] public partial string UiTabVoicevox { get; set; }
     [ObservableProperty] public partial string UiGeneralFontFamily { get; set; }
     [ObservableProperty] public partial string UiGeneralUserDisplayName { get; set; }
@@ -200,6 +201,7 @@ public partial class SettingsPageViewModel
         UiTabModel = _loc.Get("Settings.Tab.Model");
         UiTabCharacter = _loc.Get("Settings.Tab.Character");
         UiTabRag = _loc.Get("Settings.Tab.Rag");
+        UiTabMemory = _loc.Get("Settings.Tab.Memory");
         UiTabVoicevox = _loc.Get("Settings.Tab.Voicevox");
         UiGeneralFontFamily = _loc.Get("Settings.General.FontFamily");
         UiGeneralUserDisplayName = _loc.Get("Settings.General.UserDisplayName");
@@ -236,6 +238,7 @@ public partial class SettingsPageViewModel
         UiRagChunkCountPrefix = _loc.Get("Settings.Rag.ChunkCount");
         UiRagIngestFile = _loc.Get("Settings.Rag.IngestFile");
         UiRagIngestFolder = _loc.Get("Settings.Rag.IngestFolder");
+        ApplyMemoryLocalizedUi();
         UiRagHtmlMarkdown = _loc.Get("Settings.Rag.HtmlMarkdown");
         UiRagHtmlMarkdownHint = _loc.Get("Settings.Rag.HtmlMarkdown.Hint");
         UiRagLlmStructurer = _loc.Get("Settings.Rag.LlmStructurer");

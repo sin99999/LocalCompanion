@@ -1,4 +1,4 @@
-namespace LocalCompanion.Models;
+﻿namespace LocalCompanion.Models;
 
 public sealed class AppSettingsDto
 {
@@ -28,6 +28,18 @@ public sealed class AppSettingsDto
 
     /// <summary>PDF 取込時にレイアウト解析（見出し・ヘッダ除去）を使う。</summary>
     public bool RagUsePdfLayoutReader { get; set; }
+
+    /// <summary>会話をまたいで覚える長期記憶を有効にする。</summary>
+    public bool MemoryEnabled { get; set; } = true;
+
+    /// <summary>会話終了時に LLM で記憶を自動抽出する。</summary>
+    public bool MemoryAutoExtractOnClose { get; set; } = true;
+
+    /// <summary>過去メッセージの意味検索を有効にする。</summary>
+    public bool ChatSearchEnabled { get; set; } = true;
+
+    /// <summary>音声入力（Windows 音声認識）を有効にする。</summary>
+    public bool SpeechInputEnabled { get; set; }
 
     public static AppSettingsDto CreateDefault() => new();
 }

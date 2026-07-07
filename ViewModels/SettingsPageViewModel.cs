@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -26,6 +26,7 @@ public partial class SettingsPageViewModel : ObservableObject
     private readonly VoicevoxSpeakerCacheStore _speakerCache;
     private readonly AppAppearanceService _appearance;
     private readonly RuntimeHealthService _health;
+    private readonly MemoryService _memory;
     private int _voicevoxLoadGeneration;
 
     public SettingsPageViewModel(
@@ -42,7 +43,8 @@ public partial class SettingsPageViewModel : ObservableObject
         VoicevoxSettingsStore voicevoxSettings,
         VoicevoxSpeakerCacheStore speakerCache,
         AppAppearanceService appearance,
-        RuntimeHealthService health)
+        RuntimeHealthService health,
+        MemoryService memory)
     {
         _paths = paths;
         _models = models;
@@ -58,6 +60,7 @@ public partial class SettingsPageViewModel : ObservableObject
         _speakerCache = speakerCache;
         _appearance = appearance;
         _health = health;
+        _memory = memory;
         InitializeLocalization();
         RefreshSliderLabels();
         RefreshChatFontChoices();
@@ -240,6 +243,7 @@ public partial class SettingsPageViewModel : ObservableObject
     public void Refresh()
     {
         LoadGeneralSettings();
+        LoadMemorySearchOptions();
         LoadRagIngestOptions();
         RefreshAboutInfo();
         var scan = _models.Scan();

@@ -52,6 +52,8 @@ public sealed class ChatService
     private readonly CharacterPresetService _presets;
     private readonly ModelCatalogService _models;
     private readonly AppSettingsStore _appSettings;
+    private readonly MemoryService _memory;
+    private readonly ChatSearchService _chatSearch;
     private readonly LlamaOptions _opt;
     private readonly ChatExportPendingStore _exportPending = new();
 
@@ -63,6 +65,8 @@ public sealed class ChatService
         CharacterPresetService presets,
         ModelCatalogService models,
         AppSettingsStore appSettings,
+        MemoryService memory,
+        ChatSearchService chatSearch,
         IOptions<LlamaOptions> opt)
     {
         _llama = llama;
@@ -72,6 +76,8 @@ public sealed class ChatService
         _presets = presets;
         _models = models;
         _appSettings = appSettings;
+        _memory = memory;
+        _chatSearch = chatSearch;
         _opt = opt.Value;
     }
 
@@ -116,6 +122,12 @@ public sealed class ChatService
 
         return list;
     }
+
+    public Task<IReadOnlyList<ChatSearchHit>> SearchMessagesAsync(
+        string query,
+        int topK = 12,
+        CancellationToken ct = default) =>
+        _chatSearch.SearchAsync(query, topK, ct);
 
     public ConversationSessionRecord? GetSession(string sessionId)
     {
@@ -232,6 +244,7 @@ public sealed class ChatService
         if (!string.IsNullOrWhiteSpace(title))
             UpdateSessionTitle(sessionId, title, title);
 
+        await _memory.ExtractFromSessionAsync(sessionId, messages, ct);
         MarkSessionClosed(sessionId);
     }
 
@@ -455,7 +468,7 @@ public sealed class ChatService
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
-        var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
+        var systemParts = await BuildSystemPartsAsync(profile, runtime, effectiveMessage, japaneseReply, ct);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -625,7 +638,7 @@ public sealed class ChatService
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
-        var systemParts = BuildSystemParts(profile, runtime, effectiveMessage, japaneseReply);
+        var systemParts = await BuildSystemPartsAsync(profile, runtime, effectiveMessage, japaneseReply, ct);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -943,11 +956,12 @@ public sealed class ChatService
         return string.Join(" ", parts);
     }
 
-    private List<string> BuildSystemParts(
+    private async Task<List<string>> BuildSystemPartsAsync(
         CharacterProfileDto profile,
         ModelRuntimeStatus runtime,
         string userMessage,
-        bool japaneseReply)
+        bool japaneseReply,
+        CancellationToken ct)
     {
         var isDefaultCharacter = CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var parts = new List<string>();
@@ -955,6 +969,18 @@ public sealed class ChatService
         var userDisplayName = _appSettings.Load().UserDisplayName?.Trim();
         if (!string.IsNullOrEmpty(userDisplayName))
             parts.Add(ChatSystemPromptTexts.UserNameLine(userDisplayName, japaneseReply));
+
+        try
+        {
+            var memories = await _memory.GetRelevantForPromptAsync(userMessage, ct);
+            var memoryBlock = MemoryService.FormatForSystemPrompt(memories, japaneseReply);
+            if (!string.IsNullOrWhiteSpace(memoryBlock))
+                parts.Add(memoryBlock);
+        }
+        catch
+        {
+            /* memory is optional */
+        }
 
         parts.Add(isDefaultCharacter
             ? ChatSystemPromptTexts.DefaultLanguageInstruction(japaneseReply)
@@ -1134,6 +1160,13 @@ public sealed class ChatService
 
     private void SaveMessage(string sessionId, string presetKey, string role, string content)
     {
+        var messageId = InsertMessage(sessionId, presetKey, role, content);
+        if (messageId > 0)
+            _ = IndexMessageInBackground(messageId, content);
+    }
+
+    private long InsertMessage(string sessionId, string presetKey, string role, string content)
+    {
         using var conn = _db.Open();
         conn.Open();
         var cmd = conn.CreateCommand();
@@ -1147,6 +1180,22 @@ public sealed class ChatService
         cmd.Parameters.AddWithValue("$c", content);
         cmd.Parameters.AddWithValue("$t", DateTime.UtcNow.ToString("O"));
         cmd.ExecuteNonQuery();
+
+        var idCmd = conn.CreateCommand();
+        idCmd.CommandText = "SELECT last_insert_rowid()";
+        return (long)(idCmd.ExecuteScalar() ?? 0L);
+    }
+
+    private async Task IndexMessageInBackground(long messageId, string content)
+    {
+        try
+        {
+            await _chatSearch.IndexMessageAsync(messageId, content).ConfigureAwait(false);
+        }
+        catch
+        {
+            /* indexing is best-effort */
+        }
     }
 
     private List<(string Role, string Content)> LoadRecentSessionRows(string sessionId, int maxRows)

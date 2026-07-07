@@ -339,7 +339,94 @@ public sealed partial class MainWindow : Window
         var chat = AppServices.Get<ChatService>();
         ThreadList.ItemsSource = chat.ListThreadPreviews(ConversationHistoryLimit);
         ThreadList.SelectedItem = null;
+        ShowThreadList();
         UpdateConversationHistoryLayout();
+    }
+
+    private void ShowThreadList()
+    {
+        ThreadList.Visibility = Visibility.Visible;
+        SearchResultsList.Visibility = Visibility.Collapsed;
+        SearchResultsList.ItemsSource = null;
+    }
+
+    private async void OnConversationSearchClick(object sender, RoutedEventArgs e) =>
+        await RunConversationSearchAsync();
+
+    private async void OnConversationSearchKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await RunConversationSearchAsync();
+        }
+    }
+
+    private async Task RunConversationSearchAsync()
+    {
+        var query = ConversationSearchBox.Text?.Trim() ?? "";
+        if (query.Length == 0)
+        {
+            ShowThreadList();
+            return;
+        }
+
+        var chat = AppServices.Get<ChatService>();
+        var hits = await chat.SearchMessagesAsync(query, 20);
+        if (hits.Count == 0)
+        {
+            var loc = LocalizationService.Instance;
+            SearchResultsList.ItemsSource = new[]
+            {
+                new ConversationSearchResultItem("", loc.Get("Nav.ConversationSearch.Empty"), "", ""),
+            };
+            ThreadList.Visibility = Visibility.Collapsed;
+            SearchResultsList.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var items = hits.Select(h =>
+        {
+            var title = string.IsNullOrWhiteSpace(h.SessionTitle) ? h.PresetKey : h.SessionTitle;
+            var snippet = h.Content.Length > 72 ? h.Content[..72] + "…" : h.Content;
+            return new ConversationSearchResultItem(h.SessionId, title, snippet, h.Role);
+        }).ToList();
+
+        SearchResultsList.ItemsSource = items;
+        ThreadList.Visibility = Visibility.Collapsed;
+        SearchResultsList.Visibility = Visibility.Visible;
+    }
+
+    private void OnSearchResultSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (SearchResultsList.SelectedItem is not ConversationSearchResultItem item
+            || string.IsNullOrWhiteSpace(item.SessionId))
+        {
+            return;
+        }
+
+        if (ContentFrame.Content is ChatPage busyPage && busyPage.ViewModel.IsBusy)
+        {
+            busyPage.ViewModel.NotifyBusyMutationBlocked();
+            SearchResultsList.SelectedItem = null;
+            return;
+        }
+
+        if (ContentFrame.CurrentSourcePageType != typeof(ChatPage))
+        {
+            NavView.SelectedItem = ChatNavItem;
+            ContentFrame.Navigate(typeof(ChatPage));
+        }
+
+        if (ContentFrame.Content is ChatPage chatPage)
+        {
+            chatPage.ViewModel.LoadConversationSession(item.SessionId);
+            ReloadCharacterChoices();
+        }
+
+        SearchResultsList.SelectedItem = null;
+        ShowThreadList();
+        ConversationSearchBox.Text = "";
     }
 
     public void EnsureConversationHistoryVisible()
@@ -371,6 +458,8 @@ public sealed partial class MainWindow : Window
         ChatNavItem.Content = loc.Get("Nav.Chat");
         SettingsNavItem.Content = loc.Get("Nav.Settings");
         ConversationHistoryHeader.Text = loc.Get("Nav.ConversationHistory");
+        ConversationSearchBox.PlaceholderText = loc.Get("Nav.ConversationSearch.Placeholder");
+        ConversationSearchButton.Content = loc.Get("Nav.ConversationSearch.Button");
         SplashSubtitleText.Text = loc.Get("Splash.Subtitle");
         if (FirstRunSetupPanel.Visibility == Visibility.Visible)
             ApplyFirstRunSetupLocalization();

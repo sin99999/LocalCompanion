@@ -57,6 +57,9 @@ public static class AppServices
         services.AddSingleton(languageStore);
         services.AddSingleton(LocalizationService.Instance);
         services.AddSingleton<RagDatabase>();
+        services.AddSingleton<MemoryService>();
+        services.AddSingleton<ChatSearchService>();
+        services.AddSingleton<SpeechInputService>();
         services.AddSingleton<RagDocumentStructurer>();
         services.AddSingleton<RagService>();
         services.AddSingleton<CharacterPresetService>();

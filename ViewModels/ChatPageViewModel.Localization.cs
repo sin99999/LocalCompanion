@@ -18,6 +18,7 @@ public partial class ChatPageViewModel
     [ObservableProperty] public partial string UiInsertImage { get; set; }
     [ObservableProperty] public partial string UiInsertText { get; set; }
     [ObservableProperty] public partial string UiInsertUrl { get; set; }
+    [ObservableProperty] public partial string UiSpeechInputTooltip { get; set; }
     [ObservableProperty] public partial string UiRemoveAttachment { get; set; }
 
     private string? _statusKey;
@@ -79,6 +80,7 @@ public partial class ChatPageViewModel
         UiInsertImage = _loc.Get("Chat.InsertImage");
         UiInsertText = _loc.Get("Chat.InsertText");
         UiInsertUrl = _loc.Get("Chat.InsertUrl");
+        UiSpeechInputTooltip = _loc.Get("Chat.SpeechInput.Tooltip");
         UiRemoveAttachment = _loc.Get("Chat.RemoveAttachment");
         NotifySendStopButtonLabelChanged();
     }

@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
@@ -113,6 +113,35 @@ public sealed class RagDatabase
         EnsureRagFtsBackfill(conn);
         EnsureRagStructuredBackfill(conn);
         EnsureRagUniversalBackfill(conn);
+        EnsureUserMemories(conn);
+        EnsureChatMessageSearch(conn);
+    }
+
+    private static void EnsureUserMemories(SqliteConnection conn)
+    {
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE IF NOT EXISTS user_memories (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              content TEXT NOT NULL,
+              memory_path TEXT NOT NULL DEFAULT '',
+              source_session_id TEXT NOT NULL DEFAULT '',
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_user_memories_updated ON user_memories(updated_at DESC);
+            """;
+        cmd.ExecuteNonQuery();
+    }
+
+    private static void EnsureChatMessageSearch(SqliteConnection conn)
+    {
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, id);
+            """;
+        cmd.ExecuteNonQuery();
     }
 
     private void EnsureRagStructuredBackfill(SqliteConnection conn)

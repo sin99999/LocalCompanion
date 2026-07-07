@@ -141,6 +141,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
@@ -179,8 +180,24 @@
                     </Button>
 
                     <Button
+                        x:Name="SpeechInputButton"
+                        Grid.Column="2"
+                        Width="32"
+                        Height="32"
+                        AutomationProperties.Name="{x:Bind ViewModel.UiSpeechInputTooltip, Mode=OneWay}"
+                        Command="{x:Bind ViewModel.SpeechInputCommand}"
+                        IsEnabled="{x:Bind ViewModel.IsInputEnabled, Mode=OneWay}"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTipService.ToolTip="{x:Bind ViewModel.UiSpeechInputTooltip, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.SpeechInputVisibility, Mode=OneWay}">
+                        <FontIcon Glyph="&#xE720;" />
+                    </Button>
+
+                    <Button
                         x:Name="SendStopButton"
-                        Grid.Column="3"
+                        Grid.Column="4"
                         MinWidth="72"
                         AutomationProperties.Name="{x:Bind ViewModel.SendStopButtonLabel, Mode=OneWay}"
                         Click="OnSendOrStopClick"

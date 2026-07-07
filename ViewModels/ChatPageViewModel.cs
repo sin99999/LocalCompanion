@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,6 +17,7 @@ public partial class ChatPageViewModel : ObservableObject
     private readonly RuntimeHealthService _health;
     private readonly VoicevoxSpeechService _voicevoxSpeech;
     private readonly AppAppearanceService _appearance;
+    private readonly SpeechInputService _speechInput;
     private readonly List<string> _inputHistory = new();
 
     private int _inputHistoryIndex = -1;
@@ -38,7 +39,8 @@ public partial class ChatPageViewModel : ObservableObject
         CharacterPresetService characters,
         RuntimeHealthService health,
         VoicevoxSpeechService voicevoxSpeech,
-        AppAppearanceService appearance)
+        AppAppearanceService appearance,
+        SpeechInputService speechInput)
     {
         _chat = chat;
         _rag = rag;
@@ -46,6 +48,12 @@ public partial class ChatPageViewModel : ObservableObject
         _health = health;
         _voicevoxSpeech = voicevoxSpeech;
         _appearance = appearance;
+        _speechInput = speechInput;
+        _appearance.Changed += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsSpeechInputVisible));
+            OnPropertyChanged(nameof(SpeechInputVisibility));
+        };
         InitializeLocalization();
         ReloadCharacterChoices();
         RefreshWelcomeMessage();
@@ -81,6 +89,13 @@ public partial class ChatPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool UseHistory { get; set; } = true;
+
+    public bool IsSpeechInputVisible => _appearance.Current.SpeechInputEnabled;
+
+    public Microsoft.UI.Xaml.Visibility SpeechInputVisibility =>
+        IsSpeechInputVisible
+            ? Microsoft.UI.Xaml.Visibility.Visible
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
 
     [ObservableProperty]
     public partial bool UseReasoning { get; set; } = true;
@@ -674,6 +689,28 @@ public partial class ChatPageViewModel : ObservableObject
     }
 
     public void ReportError(Exception ex) => SetError(ex);
+
+    [RelayCommand]
+    private async Task SpeechInputAsync()
+    {
+        if (!_speechInput.IsEnabled || IsBusy)
+            return;
+
+        try
+        {
+            var text = await _speechInput.RecognizeOnceAsync();
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            InputText = string.IsNullOrWhiteSpace(InputText)
+                ? text
+                : InputText.TrimEnd() + " " + text;
+        }
+        catch (Exception ex)
+        {
+            SetError(new InvalidOperationException(_loc.Get("Chat.SpeechInput.Failed"), ex));
+        }
+    }
 }
 
 public sealed record CharacterChoiceViewModel(string FileName, string DisplayName);

@@ -105,7 +105,7 @@ public sealed partial class SettingsPage : Page
 
     private List<TabViewItem> BuildDesiredTabs()
     {
-        var tabs = new List<TabViewItem> { GeneralTab, ModelTab, CharacterTab, RagTab };
+        var tabs = new List<TabViewItem> { GeneralTab, ModelTab, CharacterTab, RagTab, MemoryTab };
         if (ViewModel.IsVoicevoxInstalled)
             tabs.Add(VoicevoxTab);
         return tabs;
@@ -221,6 +221,12 @@ public sealed partial class SettingsPage : Page
         if (string.IsNullOrWhiteSpace(path))
             return;
         ViewModel.SetAdditionalModelsFolder(path);
+    }
+
+    private void OnDeleteMemoryClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: LocalCompanion.Models.UserMemoryRecord record })
+            ViewModel.DeleteMemoryCommand.Execute(record);
     }
 
     private void OnClearModelsFolderClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) =>

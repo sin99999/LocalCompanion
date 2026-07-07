@@ -17,7 +17,7 @@ LocalCompanion.exe
 *.userosscache
 *.sln.docstates
 artifacts/
-data/
+/data/
 
 # Build logs
 [Ll]og/

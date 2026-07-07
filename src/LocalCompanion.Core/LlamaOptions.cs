@@ -1,4 +1,4 @@
-namespace LocalCompanion;
+﻿namespace LocalCompanion;
 
 public sealed class LlamaOptions
 {
@@ -24,6 +24,8 @@ public sealed class LlamaOptions
     public int ChunkSize { get; set; } = 900;
     public int ChunkOverlap { get; set; } = 128;
     public int RagTopK { get; set; } = 5;
+    /// <summary>長期記憶をプロンプトへ注入する最大件数。</summary>
+    public int MemoryTopK { get; set; } = 5;
     /// <summary>ハイブリッド検索で各レーン（FTS / ベクトル）から集める候補数。</summary>
     public int RagSearchPoolSize { get; set; } = 50;
     /// <summary>Reciprocal Rank Fusion の k（通常 60）。</summary>
