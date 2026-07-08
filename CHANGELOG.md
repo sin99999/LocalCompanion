@@ -23,6 +23,10 @@ v1.1.0 公開後の不具合修正と、記憶・音声入力まわりの使い�
 - .NET 10 で不要になった `System.Text.Encoding.CodePages` の PackageReference を削除（NU1510 警告解消）
 - 開発向け: `appsettings.local.json` で VOICEVOX 未導入時の UI テストが可能（`HideInstallForTesting`）
 
+### ドキュメント
+
+- トラブルシューティング（HTML / `docs/Troubleshooting.md`）に記憶・音声入力・設定タブの説明を追加
+
 ## 1.1.0 - 2026-07-08
 
 ### Added
