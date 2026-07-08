@@ -33,7 +33,7 @@
 ### 開発基盤（Agent / テスト）
 
 - Cursor スキル追加: `localcompanion-rag`, `localcompanion-core-tests`, `localcompanion-agent-audit`
-- `.cursor/rules/localcompanion.mdc` にスキル一覧・妹作戦・テスト完了条件を整理
+- `.cursor/rules/localcompanion.mdc` にスキル一覧・並列エージェント監査・テスト完了条件を整理
 - 刑法系テストを `Fixtures/PenalCodeTestFixtures` に統一（個人パス非依存）
 - 1.0.7 修正の回帰テスト追加（`RagSqliteVecTests`, `ChatExportPendingStoreTests`, `AppPathsTests`）
 
