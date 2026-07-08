@@ -7,6 +7,11 @@
     <IsPackable>false</IsPackable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!--
+      Prevent MSB3492 during CodeCoverage deterministic path map generation.
+      (See Microsoft.CodeCoverage.targets: MsCoverageReferencedPathMaps target)
+    -->
+    <DisableMsCoverageReferencedPathMaps>true</DisableMsCoverageReferencedPathMaps>
   </PropertyGroup>
 
   <ItemGroup>
