@@ -1,4 +1,6 @@
-﻿using System.Text.RegularExpressions;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace LocalCompanion.Services;
 
@@ -39,7 +41,16 @@ public static partial class ChatDisplayFormatter
 
             // モデルが改行しないときの表示用（保存・読み上げ原文は変えない）
             // ！！！… は句点群の末尾で1回だけ改行（各 ! ごとに改行しない）
-            t = JapaneseSentenceEndRegex().Replace(t, "$1\n");
+            // 直後が絵文字等の記号なら改行しない（！😘💕 を同列に保つ）
+            // ※ 絵文字はサロゲートペアなので \p{So} だけでは拾えない → Rune 判定
+            var source = t;
+            t = JapaneseSentenceEndRegex().Replace(source, match =>
+            {
+                var next = match.Index + match.Length;
+                if (IsEmojiOrSymbolDecoration(source, next))
+                    return match.Groups[1].Value;
+                return match.Groups[1].Value + "\n";
+            });
             t = WesternSentenceEndRegex().Replace(t, "$1\n");
 
             for (var i = 0; i < protectedSegments.Count; i++)
@@ -49,6 +60,19 @@ public static partial class ChatDisplayFormatter
         t = TrailingWhitespaceBeforeNewlineRegex().Replace(t, "\n");
         t = ExcessiveNewlinesRegex().Replace(t, "\n\n");
         return t.Trim();
+    }
+
+    /// <summary>句点直後が絵文字・装飾記号なら表示用改行を入れない。</summary>
+    private static bool IsEmojiOrSymbolDecoration(string text, int index)
+    {
+        if ((uint)index >= (uint)text.Length)
+            return false;
+
+        if (!Rune.TryGetRuneAt(text, index, out var rune))
+            return false;
+
+        var category = Rune.GetUnicodeCategory(rune);
+        return category is UnicodeCategory.OtherSymbol or UnicodeCategory.ModifierSymbol;
     }
 
     /// <summary>句点改行の対象外: 「…」、（…）内。</summary>

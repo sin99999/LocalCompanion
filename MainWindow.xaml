@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <Window
     x:Class="LocalCompanion.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -82,7 +82,6 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="8" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" MinHeight="72" />
                         </Grid.RowDefinitions>
                     <Border
@@ -98,26 +97,9 @@
                         Text="Conversation History"
                         TextTrimming="CharacterEllipsis"
                         TextWrapping="NoWrap" />
-                    <Grid Grid.Row="2" Margin="12,0,12,8" ColumnSpacing="6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBox
-                            x:Name="ConversationSearchBox"
-                            AutomationProperties.Name="Search past messages"
-                            PlaceholderText="Search"
-                            KeyDown="OnConversationSearchKeyDown" />
-                        <Button
-                            x:Name="ConversationSearchButton"
-                            Grid.Column="1"
-                            Click="OnConversationSearchClick"
-                            Content="Search"
-                            MinWidth="56" />
-                    </Grid>
                     <ListView
                         x:Name="ThreadList"
-                        Grid.Row="3"
+                        Grid.Row="2"
                         HorizontalAlignment="Stretch"
                         SelectionChanged="OnThreadSelected"
                         SelectionMode="Single">
@@ -141,40 +123,6 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                         </ListView>
-                    <ListView
-                        x:Name="SearchResultsList"
-                        Grid.Row="3"
-                        HorizontalAlignment="Stretch"
-                        SelectionChanged="OnSearchResultSelected"
-                        SelectionMode="Single"
-                        Visibility="Collapsed">
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Setter Property="MinHeight" Value="52" />
-                                <Setter Property="Padding" Value="12,8,12,8" />
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            </Style>
-                        </ListView.ItemContainerStyle>
-                        <ListView.ItemTemplate>
-                            <DataTemplate
-                                x:DataType="services:ConversationSearchResultItem"
-                                xmlns:services="using:LocalCompanion.Services">
-                                <StackPanel Spacing="2">
-                                    <TextBlock
-                                        Style="{StaticResource BodyTextBlockStyle}"
-                                        Text="{x:Bind Title}"
-                                        TextTrimming="CharacterEllipsis"
-                                        TextWrapping="NoWrap" />
-                                    <TextBlock
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Style="{StaticResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind Snippet}"
-                                        TextTrimming="CharacterEllipsis"
-                                        TextWrapping="NoWrap" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
                     </Grid>
                 </Grid>
             </NavigationView.PaneFooter>

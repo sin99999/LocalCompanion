@@ -16,6 +16,9 @@ public sealed class VoicevoxInstallLocator
 
     public VoicevoxInstallDto DescribeInstall()
     {
+        if (_opt.HideInstallForTesting)
+            return new VoicevoxInstallDto(false, null, null);
+
         var path = FindLauncher();
         if (path is not null)
             return new VoicevoxInstallDto(true, path, null);
@@ -83,6 +86,9 @@ public sealed class VoicevoxInstallLocator
 
     public string? FindLauncher()
     {
+        if (_opt.HideInstallForTesting)
+            return null;
+
         if (_cachedLauncher is not null && File.Exists(_cachedLauncher))
             return _cachedLauncher;
 

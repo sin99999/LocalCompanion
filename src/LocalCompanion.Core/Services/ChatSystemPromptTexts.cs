@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services;
+namespace LocalCompanion.Services;
 
 /// <summary>チャット用システムプロンプトの日英文言。</summary>
 internal static class ChatSystemPromptTexts
@@ -116,6 +116,24 @@ internal static class ChatSystemPromptTexts
         japanese
             ? "【記憶の区別】「【参考資料（RAG）】」がある場合のみ資料データベース由来と述べる。テキスト添付は当該メッセージのみ有効。それ以外は過去の会話履歴とする。RAGに未登録の内容を資料由来と述べない。"
             : "[Memory] Mention the document database only when [Reference materials (RAG)] is present. Text attachments apply only to the current message. Otherwise treat content as chat history. Do not claim document-database sources for content not in RAG.";
+
+    /// <summary>長期記憶ブロックが載っているときにだけ付ける。不意打ちで自然に触れる指示。</summary>
+    internal static string SpontaneousMemoryInstruction(bool japanese) =>
+        japanese
+            ? """
+              【長期記憶の出し方】
+              - 上の長期記憶はあなたが前から知っている個人的なこと。設定画面やリストではない
+              - たまに、会話の合間や関係しそうなタイミングで、自然な口調でひとつだけ触れてよい
+              - 「覚えてる？」「前に言ってくれたよね」など、キャラとして自然ならOK。全部並べない
+              - 「記憶から」「DBに保存」などのメタ説明は禁止。無理に話題を変えない
+              """.Trim()
+            : """
+              [How to use long-term memory]
+              - The memories above are personal things you already know — not a settings list.
+              - Occasionally, when it fits or the chat has a quiet opening, casually mention about one.
+              - Natural lines like "you said that before" are fine. Do not dump the whole list.
+              - Do not mention databases or settings. Do not force a topic change.
+              """.Trim();
 
     internal static string AttachmentInstruction(bool japanese) =>
         japanese

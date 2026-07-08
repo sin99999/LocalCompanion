@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Data;
+using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.Services.LlamaNative;
@@ -247,6 +247,13 @@ public sealed class ChatService
         await _memory.ExtractFromSessionAsync(sessionId, messages, ct);
         MarkSessionClosed(sessionId);
     }
+
+    /// <summary>セッションを閉じずに長期記憶だけ抽出する（デフォルトAI削除前など）。</summary>
+    public Task ExtractMemoriesFromSessionAsync(
+        string sessionId,
+        IReadOnlyList<(string Role, string Content)> messages,
+        CancellationToken ct = default) =>
+        _memory.ExtractFromSessionAsync(sessionId, messages, ct);
 
     private string FormatSessionTitle(string presetKey, string title, string lastSnippet)
     {
@@ -970,12 +977,16 @@ public sealed class ChatService
         if (!string.IsNullOrEmpty(userDisplayName))
             parts.Add(ChatSystemPromptTexts.UserNameLine(userDisplayName, japaneseReply));
 
+        var memoryInjected = false;
         try
         {
             var memories = await _memory.GetRelevantForPromptAsync(userMessage, ct);
             var memoryBlock = MemoryService.FormatForSystemPrompt(memories, japaneseReply);
             if (!string.IsNullOrWhiteSpace(memoryBlock))
+            {
                 parts.Add(memoryBlock);
+                memoryInjected = true;
+            }
         }
         catch
         {
@@ -985,6 +996,9 @@ public sealed class ChatService
         parts.Add(isDefaultCharacter
             ? ChatSystemPromptTexts.DefaultLanguageInstruction(japaneseReply)
             : ChatSystemPromptTexts.CharacterLanguageInstruction(japaneseReply));
+
+        if (memoryInjected)
+            parts.Add(ChatSystemPromptTexts.SpontaneousMemoryInstruction(japaneseReply));
 
         if (!isDefaultCharacter)
         {

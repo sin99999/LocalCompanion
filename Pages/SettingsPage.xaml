@@ -91,6 +91,10 @@
 
             x:Name="SettingsTabs"
 
+            HorizontalAlignment="Stretch"
+
+            TabWidthMode="Equal"
+
             AllowDropTabs="False"
 
             CanDragTabs="False"
@@ -101,11 +105,9 @@
 
             IsAddTabButtonVisible="False"
 
-            PointerReleased="OnSettingsTabsPointerReleased"
+            Loaded="OnSettingsTabsLoaded"
 
             SelectionChanged="OnSettingsTabSelectionChanged"
-
-            TabDragCompleted="OnSettingsTabDragCompleted"
 
             TabDragStarting="OnSettingsTabDragStarting">
 
@@ -742,9 +744,10 @@
 
             <TabViewItem x:Name="MemoryTab" CanDrag="False" Header="{x:Bind ViewModel.UiTabMemory, Mode=OneWay}" IsClosable="False">
 
-                <ScrollViewer Style="{StaticResource SettingsTabScrollViewerStyle}">
+                <!-- 他タブと同じく ViewportWidth 固定。無いと DesiredWidth が狭いまま TabView の測りが崩れ、設定直後・記憶選択時に左寄せが残る -->
+                <ScrollViewer x:Name="MemoryTabScroll" Style="{StaticResource SettingsTabScrollViewerStyle}">
 
-                    <StackPanel Style="{StaticResource SettingsTabContentStackStyle}">
+                    <StackPanel Style="{StaticResource SettingsTabContentStackStyle}" Width="{Binding ElementName=MemoryTabScroll, Path=ViewportWidth, Mode=OneWay}">
 
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiMemoryEnabled, Mode=OneWay}" />
@@ -756,38 +759,6 @@
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiMemoryAutoExtract, Mode=OneWay}" />
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMemoryAutoExtractHint, Mode=OneWay}" />
                             <ToggleSwitch IsOn="{x:Bind ViewModel.MemoryAutoExtractOnClose, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
-                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiMemoryManual, Mode=OneWay}" />
-                            <Border Style="{StaticResource SettingsInputBorderStyle}">
-                                <TextBox Style="{StaticResource SettingsInBorderTextBoxStyle}" Text="{x:Bind ViewModel.NewMemoryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </Border>
-                            <Button Command="{x:Bind ViewModel.AddMemoryCommand}" Content="{x:Bind ViewModel.UiMemoryAdd, Mode=OneWay}" HorizontalAlignment="Left" />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
-                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiMemoryList, Mode=OneWay}" />
-                            <ListView ItemsSource="{x:Bind ViewModel.MemoryItems, Mode=OneWay}" SelectionMode="None">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:UserMemoryRecord" xmlns:models="using:LocalCompanion.Models">
-                                        <Grid ColumnSpacing="8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock VerticalAlignment="Center" Text="{x:Bind Content}" TextWrapping="WrapWholeWords" />
-                                            <Button Grid.Column="1" Click="OnDeleteMemoryClick" Content="×" Tag="{x:Bind}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
-                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiChatSearchEnabled, Mode=OneWay}" />
-                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiChatSearchEnabledHint, Mode=OneWay}" />
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.ChatSearchEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         </StackPanel>
 
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">

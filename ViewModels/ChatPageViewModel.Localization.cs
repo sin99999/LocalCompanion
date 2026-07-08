@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Localization;
 
 namespace LocalCompanion.ViewModels;
@@ -80,7 +80,9 @@ public partial class ChatPageViewModel
         UiInsertImage = _loc.Get("Chat.InsertImage");
         UiInsertText = _loc.Get("Chat.InsertText");
         UiInsertUrl = _loc.Get("Chat.InsertUrl");
-        UiSpeechInputTooltip = _loc.Get("Chat.SpeechInput.Tooltip");
+        UiSpeechInputTooltip = IsSpeechListening
+            ? _loc.Get("Chat.SpeechInput.Tooltip.Listening")
+            : _loc.Get("Chat.SpeechInput.Tooltip");
         UiRemoveAttachment = _loc.Get("Chat.RemoveAttachment");
         NotifySendStopButtonLabelChanged();
     }

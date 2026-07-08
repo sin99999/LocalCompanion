@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="LocalCompanion.Pages.ChatPage"
     x:Name="ChatPageRoot"
@@ -192,7 +192,7 @@
                         BorderThickness="0"
                         ToolTipService.ToolTip="{x:Bind ViewModel.UiSpeechInputTooltip, Mode=OneWay}"
                         Visibility="{x:Bind ViewModel.SpeechInputVisibility, Mode=OneWay}">
-                        <FontIcon Glyph="&#xE720;" />
+                        <FontIcon Glyph="{x:Bind ViewModel.SpeechInputGlyph, Mode=OneWay}" />
                     </Button>
 
                     <Button

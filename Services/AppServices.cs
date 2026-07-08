@@ -21,6 +21,7 @@ public static class AppServices
         var config = new ConfigurationBuilder()
             .SetBasePath(paths.ContentRoot)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+            .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: false)
             .Build();
 
         var configuredDataDir = config.GetSection(LlamaOptions.SectionName)["DataDirectory"];

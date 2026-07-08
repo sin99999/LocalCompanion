@@ -1,10 +1,10 @@
 ﻿using LocalCompanion;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using System.ComponentModel;
 using SelectionChangedEventArgs = Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs;
@@ -24,12 +24,16 @@ public sealed partial class SettingsPage : Page
         ViewModel.BindUiDispatcher(DispatcherQueue);
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Unloaded += OnUnloaded;
+        // 初回レイアウト前にタブ数を確定（VOICEVOX 未導入時は 5 本）
+        ViewModel.Refresh();
+        SyncVoicevoxTab();
         UpdateVoicevoxPoweredByLinkText();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        SettingsTabs.LayoutUpdated -= OnSettingsTabsLayoutUpdatedForEqualTabs;
         _pageCts?.Cancel();
         _pageCts?.Dispose();
         _pageCts = null;
@@ -39,6 +43,8 @@ public sealed partial class SettingsPage : Page
     {
         if (e.PropertyName == nameof(SettingsPageViewModel.VoicevoxPoweredByText))
             UpdateVoicevoxPoweredByLinkText();
+        if (e.PropertyName == nameof(SettingsPageViewModel.IsVoicevoxInstalled))
+            SyncVoicevoxTab();
     }
 
     private void UpdateVoicevoxPoweredByLinkText()
@@ -49,24 +55,81 @@ public sealed partial class SettingsPage : Page
         VoicevoxPoweredByLinkText.Inlines.Add(link);
     }
 
-    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
         _pageCts?.Cancel();
         _pageCts?.Dispose();
         _pageCts = new CancellationTokenSource();
         ViewModel.Refresh();
-        await ViewModel.RefreshRuntimeHealthAsync();
         SyncVoicevoxTab();
-        if (ViewModel.IsVoicevoxInstalled)
-            await ViewModel.LoadVoicevoxSpeakersAsync();
         UpdateVoicevoxPoweredByLinkText();
+
+        // TabView の初回レイアウト後にデータ取得と等幅再計算を行う（OnNavigatedTo で await すると左寄せで固まる）
+        if (SettingsTabs.IsLoaded)
+            BeginSettingsPageActivation();
     }
 
+    private void OnSettingsTabsLoaded(object sender, RoutedEventArgs e) =>
+        BeginSettingsPageActivation();
+
+    private void BeginSettingsPageActivation()
+    {
+        SyncVoicevoxTab();
+        EnsureEqualTabHeaders();
+        ScheduleSettingsDataRefresh();
+    }
+
+    /// <summary>
+    /// TabView の Equal 幅は初回 Measure 時に strip 幅が未確定だと左詰まりのまま固まる。タブ切替で直るのと同じ再計算を初回から行う。
+    /// </summary>
+    private void EnsureEqualTabHeaders()
+    {
+        if (SettingsTabs.ActualWidth <= 0)
+        {
+            SettingsTabs.LayoutUpdated -= OnSettingsTabsLayoutUpdatedForEqualTabs;
+            SettingsTabs.LayoutUpdated += OnSettingsTabsLayoutUpdatedForEqualTabs;
+            return;
+        }
+
+        SettingsTabs.LayoutUpdated -= OnSettingsTabsLayoutUpdatedForEqualTabs;
+        SettingsTabs.TabWidthMode = TabViewWidthMode.SizeToContent;
+        SettingsTabs.TabWidthMode = TabViewWidthMode.Equal;
+    }
+
+    private void OnSettingsTabsLayoutUpdatedForEqualTabs(object? sender, object e) =>
+        EnsureEqualTabHeaders();
+
+    private void ScheduleSettingsDataRefresh()
+    {
+        var token = _pageCts?.Token ?? CancellationToken.None;
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, async () =>
+        {
+            if (token.IsCancellationRequested)
+                return;
+
+            try
+            {
+                await ViewModel.RefreshRuntimeHealthAsync(token);
+                if (ViewModel.IsVoicevoxInstalled)
+                    await ViewModel.LoadVoicevoxSpeakersAsync(token);
+                UpdateVoicevoxPoweredByLinkText();
+                EnsureEqualTabHeaders();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        });
+    }
+
+    /// <summary>
+    /// VOICEVOX タブの出し入れのみ。順序は XAML 固定（基本→モデル→キャラ→RAG→記憶→VOICEVOX）。
+    /// </summary>
     private void SyncVoicevoxTab()
     {
         var installed = ViewModel.IsVoicevoxInstalled;
         var contains = SettingsTabs.TabItems.Contains(VoicevoxTab);
+        var expectedCount = SettingsTabCatalog.VisibleTabCount(installed);
 
         if (!installed && contains)
         {
@@ -74,102 +137,21 @@ public sealed partial class SettingsPage : Page
                 SettingsTabs.SelectedItem = GeneralTab;
 
             SettingsTabs.TabItems.Remove(VoicevoxTab);
+            EnsureEqualTabHeaders();
         }
         else if (installed && !contains)
         {
             SettingsTabs.TabItems.Add(VoicevoxTab);
+            EnsureEqualTabHeaders();
         }
 
-        ResetSettingsTabOrder();
-    }
-
-    private void ResetSettingsTabOrder()
-    {
-        var selected = SettingsTabs.SelectedItem as TabViewItem;
-        var desired = BuildDesiredTabs();
-        if (NeedsTabOrderReset(desired))
-        {
-            SettingsTabs.TabItems.Clear();
-            foreach (var tab in desired)
-                SettingsTabs.TabItems.Add(tab);
-        }
-
-        if (selected is not null && SettingsTabs.TabItems.Contains(selected))
-            SettingsTabs.SelectedItem = selected;
-        else if (SettingsTabs.TabItems.Count > 0)
-            SettingsTabs.SelectedItem = SettingsTabs.TabItems[0];
-
-        SettingsTabs.UpdateLayout();
-        ResetTabStripVisualStates();
-    }
-
-    private List<TabViewItem> BuildDesiredTabs()
-    {
-        var tabs = new List<TabViewItem> { GeneralTab, ModelTab, CharacterTab, RagTab, MemoryTab };
-        if (ViewModel.IsVoicevoxInstalled)
-            tabs.Add(VoicevoxTab);
-        return tabs;
-    }
-
-    private bool NeedsTabOrderReset(IReadOnlyList<TabViewItem> desired)
-    {
-        if (SettingsTabs.TabItems.Count != desired.Count)
-            return true;
-
-        for (var i = 0; i < desired.Count; i++)
-        {
-            if (!ReferenceEquals(SettingsTabs.TabItems[i], desired[i]))
-                return true;
-        }
-
-        return false;
+        System.Diagnostics.Debug.Assert(
+            SettingsTabs.TabItems.Count == expectedCount,
+            $"Settings tabs: expected {expectedCount}, actual {SettingsTabs.TabItems.Count}, voicevox={installed}");
     }
 
     private void OnSettingsTabDragStarting(TabView sender, TabViewTabDragStartingEventArgs args) =>
         args.Cancel = true;
-
-    private void OnSettingsTabDragCompleted(TabView sender, TabViewTabDragCompletedEventArgs args) =>
-        ResetTabStripVisualStates();
-
-    private void OnSettingsTabsPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) =>
-        ResetTabStripVisualStates();
-
-    private void ResetTabStripVisualStates()
-    {
-        var listView = FindDescendant<ListView>(SettingsTabs, "TabListView");
-        if (listView is null)
-            return;
-
-        var selected = SettingsTabs.SelectedItem;
-        foreach (var item in listView.Items)
-        {
-            if (listView.ContainerFromItem(item) is not ListViewItem container)
-                continue;
-
-            VisualStateManager.GoToState(container, "Normal", true);
-            if (ReferenceEquals(item, selected))
-                VisualStateManager.GoToState(container, "Selected", true);
-        }
-
-        SettingsTabs.UpdateLayout();
-    }
-
-    private static T? FindDescendant<T>(DependencyObject root, string name) where T : FrameworkElement
-    {
-        var count = VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            if (child is T match && match.Name == name)
-                return match;
-
-            var found = FindDescendant<T>(child, name);
-            if (found is not null)
-                return found;
-        }
-
-        return null;
-    }
 
     private async void OnSettingsTabSelectionChanged(object sender, SelectionChangedEventArgs args)
     {
@@ -180,11 +162,9 @@ public sealed partial class SettingsPage : Page
 
         if (args.AddedItems.FirstOrDefault() is TabViewItem { Header: not null })
             await ViewModel.RefreshRuntimeHealthAsync();
-
-        ResetTabStripVisualStates();
     }
 
-    private async void OnIngestFileClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private async void OnIngestFileClick(object sender, RoutedEventArgs e)
     {
         if (!ViewModel.IsSettingsInputEnabled)
             return;
@@ -221,12 +201,6 @@ public sealed partial class SettingsPage : Page
         if (string.IsNullOrWhiteSpace(path))
             return;
         ViewModel.SetAdditionalModelsFolder(path);
-    }
-
-    private void OnDeleteMemoryClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: LocalCompanion.Models.UserMemoryRecord record })
-            ViewModel.DeleteMemoryCommand.Execute(record);
     }
 
     private void OnClearModelsFolderClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) =>

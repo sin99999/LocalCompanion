@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -54,6 +54,8 @@ public partial class ChatPageViewModel : ObservableObject
             OnPropertyChanged(nameof(IsSpeechInputVisible));
             OnPropertyChanged(nameof(SpeechInputVisibility));
         };
+        _speechInput.ListeningChanged += (_, _) =>
+            RunOnUi(RefreshSpeechListeningUi);
         InitializeLocalization();
         ReloadCharacterChoices();
         RefreshWelcomeMessage();
@@ -96,6 +98,12 @@ public partial class ChatPageViewModel : ObservableObject
         IsSpeechInputVisible
             ? Microsoft.UI.Xaml.Visibility.Visible
             : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    /// <summary>音声認識中（再クリックでキャンセル可）。</summary>
+    public bool IsSpeechListening => _speechInput.IsListening;
+
+    /// <summary>マイクボタンの表示グリフ（認識中は停止アイコン）。</summary>
+    public string SpeechInputGlyph => IsSpeechListening ? "\uE71A" : "\uE720";
 
     [ObservableProperty]
     public partial bool UseReasoning { get; set; } = true;
@@ -155,7 +163,7 @@ public partial class ChatPageViewModel : ObservableObject
         if (characterChanged)
         {
             _syncedCharacterFileName = active;
-            BeginNewConversation();
+            _ = FinalizeAndBeginNewConversationAsync();
         }
         else
         {
@@ -190,19 +198,27 @@ public partial class ChatPageViewModel : ObservableObject
 
         _syncedCharacterFileName = newKey;
         if (!_suppressCharacterChangeReset)
-            BeginNewConversation();
+            _ = FinalizeAndBeginNewConversationAsync();
     }
 
-    public void BeginNewConversation()
+    public void BeginNewConversation() =>
+        _ = FinalizeAndBeginNewConversationAsync();
+
+    /// <summary>
+    /// 現在セッションを閉じる前に長期記憶を抽出し、新規会話へ移る。
+    /// </summary>
+    public async Task FinalizeAndBeginNewConversationAsync()
     {
         if (IsBusy)
             return;
 
+        await FinalizeCurrentSessionQuietlyAsync();
         DeleteActiveDefaultAiSessionIfAny();
         _activeSessionId = null;
         _continueSession = false;
         Messages.Clear();
         RefreshWelcomeMessage();
+        ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void DeleteActiveDefaultAiSessionIfAny()
@@ -217,35 +233,50 @@ public partial class ChatPageViewModel : ObservableObject
         _chat.DeleteSession(_activeSessionId);
     }
 
-    public async Task FinalizeActiveSessionOnCloseAsync()
+    /// <summary>長期記憶抽出＋タイトル確定。失敗しても新規会話は続行する。</summary>
+    private async Task FinalizeCurrentSessionQuietlyAsync()
     {
         if (string.IsNullOrWhiteSpace(_activeSessionId))
             return;
         if (!Messages.Any(m => !m.IsWelcomePlaceholder))
             return;
 
+        var sessionId = _activeSessionId;
         try
         {
-            var session = _chat.GetSession(_activeSessionId);
+            var session = _chat.GetSession(sessionId);
             if (session is not null && CharacterPresetService.IsDefaultAiSession(session.PresetKey))
-                _chat.DeleteSession(_activeSessionId);
+            {
+                // サイドバーに載せないデフォルトAIでも、終了時は事実だけ記憶へ残す
+                var messages = _chat.LoadSessionMessages(sessionId, 40);
+                if (messages.Count > 0)
+                    await _chat.ExtractMemoriesFromSessionAsync(sessionId, messages, CancellationToken.None);
+                _chat.DeleteSession(sessionId);
+            }
             else
-                await _chat.FinalizeSessionAsync(_activeSessionId, CancellationToken.None);
+            {
+                await _chat.FinalizeSessionAsync(sessionId, CancellationToken.None);
+            }
         }
         catch
         {
-            /* 終了時の要約失敗は無視 */
-        }
-        finally
-        {
-            _activeSessionId = null;
-            _continueSession = false;
+            /* 終了時の要約／記憶抽出失敗は無視 */
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanMutateConversation))]
-    private void ClearHistory()
+    public async Task FinalizeActiveSessionOnCloseAsync()
     {
+        await FinalizeCurrentSessionQuietlyAsync();
+        _activeSessionId = null;
+        _continueSession = false;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutateConversation))]
+    private async Task ClearHistoryAsync()
+    {
+        // 消去前に事実を拾える場合は拾う
+        await FinalizeCurrentSessionQuietlyAsync();
+
         var historyDeleted = false;
         if (!string.IsNullOrWhiteSpace(_activeSessionId))
         {
@@ -253,7 +284,10 @@ public partial class ChatPageViewModel : ObservableObject
             historyDeleted = true;
         }
 
-        BeginNewConversation();
+        _activeSessionId = null;
+        _continueSession = false;
+        Messages.Clear();
+        RefreshWelcomeMessage();
         if (historyDeleted)
             SetStatusByKey("Chat.Status.HistoryCleared", 1);
         else
@@ -265,10 +299,17 @@ public partial class ChatPageViewModel : ObservableObject
 
     public event EventHandler? ConversationThreadsChanged;
 
-    public void LoadConversationSession(string sessionId)
+    public void LoadConversationSession(string sessionId) =>
+        _ = SwitchToConversationSessionAsync(sessionId);
+
+    /// <summary>別スレッドへ移る前に、今の会話から長期記憶を抽出する。</summary>
+    public async Task SwitchToConversationSessionAsync(string sessionId)
     {
         if (IsBusy || string.IsNullOrWhiteSpace(sessionId))
             return;
+
+        if (!string.Equals(_activeSessionId, sessionId, StringComparison.Ordinal))
+            await FinalizeCurrentSessionQuietlyAsync();
 
         var session = _chat.GetSession(sessionId);
         if (session is null)
@@ -301,6 +342,9 @@ public partial class ChatPageViewModel : ObservableObject
 
             _activeSessionId = sessionId;
             _continueSession = true;
+            _syncedCharacterFileName = CharacterPresetService.IsDefaultAiSession(session.PresetKey)
+                ? CharacterPresetService.NoneSelection
+                : session.PresetKey;
         }
         finally
         {
@@ -684,17 +728,28 @@ public partial class ChatPageViewModel : ObservableObject
     private void SetError(Exception ex)
     {
         _lastErrorException = ex;
+        // InfoBar が既に開いていると同一失敗が目立たないため、いったん閉じて再開する
+        if (HasError)
+            HasError = false;
         HasError = true;
         ErrorText = UserFacingErrorLocalizer.Localize(ex);
     }
 
     public void ReportError(Exception ex) => SetError(ex);
 
-    [RelayCommand]
+    /// <summary>認識中の再クリックでキャンセルできるよう並行実行を許可する。</summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SpeechInputAsync()
     {
         if (!_speechInput.IsEnabled || IsBusy)
             return;
+
+        if (_speechInput.IsListening)
+        {
+            _speechInput.Cancel();
+            RefreshSpeechListeningUi();
+            return;
+        }
 
         try
         {
@@ -706,10 +761,27 @@ public partial class ChatPageViewModel : ObservableObject
                 ? text
                 : InputText.TrimEnd() + " " + text;
         }
-        catch (Exception ex)
+        catch (LocalizedServiceException ex)
         {
-            SetError(new InvalidOperationException(_loc.Get("Chat.SpeechInput.Failed"), ex));
+            SetError(ex);
         }
+        catch (Exception)
+        {
+            SetError(new LocalizedServiceException("Chat.SpeechInput.Failed"));
+        }
+        finally
+        {
+            RefreshSpeechListeningUi();
+        }
+    }
+
+    private void RefreshSpeechListeningUi()
+    {
+        OnPropertyChanged(nameof(IsSpeechListening));
+        OnPropertyChanged(nameof(SpeechInputGlyph));
+        UiSpeechInputTooltip = IsSpeechListening
+            ? _loc.Get("Chat.SpeechInput.Tooltip.Listening")
+            : _loc.Get("Chat.SpeechInput.Tooltip");
     }
 }
 

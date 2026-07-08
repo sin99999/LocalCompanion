@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Data;
+using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using Microsoft.Data.Sqlite;
@@ -153,7 +153,26 @@ public sealed class MemoryService
             return Array.Empty<UserMemoryRecord>();
 
         var topK = Math.Clamp(_opt.MemoryTopK, 1, 12);
-        return await SearchAsync(userMessage, topK, ct);
+        var related = await SearchAsync(userMessage, topK, ct);
+        if (related.Count > 0)
+            return related;
+
+        // 直近メッセージに似た記憶が無くても、ときどき「昔の話」をそっと渡す（不意打ち感）
+        if (!ShouldOfferCasualRecall(userMessage))
+            return Array.Empty<UserMemoryRecord>();
+
+        var pool = List(Math.Max(8, topK * 3));
+        if (pool.Count == 0)
+            return Array.Empty<UserMemoryRecord>();
+
+        var pick = Math.Min(2, Math.Min(topK, pool.Count));
+        if (pool.Count <= pick)
+            return pool;
+
+        // 決定的シャッフル（日付＋件数）で毎回同じにならないようにする
+        var seed = DateTime.UtcNow.DayOfYear * 397 ^ pool.Count * 31 ^ userMessage.Length;
+        var rng = new Random(seed);
+        return pool.OrderBy(_ => rng.Next()).Take(pick).ToList();
     }
 
     public static string FormatForSystemPrompt(IReadOnlyList<UserMemoryRecord> memories, bool japanese)
@@ -162,10 +181,39 @@ public sealed class MemoryService
             return "";
 
         var header = japanese
-            ? "【ユーザーについて覚えていること（長期記憶）】"
-            : "[Long-term memories about the user]";
+            ? "【心の中の長期記憶（ユーザーには一覧を見せない）】"
+            : "[Private long-term memories (never show as a list to the user)]";
         var lines = memories.Select(m => "- " + m.Content.Trim());
-        return header + "\n" + string.Join("\n", lines);
+        var guidance = japanese
+            ? """
+              使い方:
+              - これらはあなたが以前から知っていること。資料や設定画面の話ではない。
+              - 毎ターン全部は出さない。関係があるとき、または会話が穏やかで隙があるときだけ、自然な口調で1つほど触れてもよい。
+              - 「記憶リスト」「保存済み」「設定の記憶」などメタな言い方はしない。
+              - 無理やり話題をねじ曲げない。無関係なら使わなくてよい。
+              """.Trim()
+            : """
+              How to use:
+              - Treat these as things you already know about the user — not documents or settings UI.
+              - Do not dump every item. When relevant, or when the chat has a quiet opening, you may naturally mention about one.
+              - Do not talk about memory lists, saved memories, or settings.
+              - Do not force a topic change. Skip them when irrelevant.
+              """.Trim();
+        return header + "\n" + guidance + "\n" + string.Join("\n", lines);
+    }
+
+    /// <summary>短文のあいさつ・相槌など、不意の回想を挟みやすい発話。</summary>
+    private static bool ShouldOfferCasualRecall(string userMessage)
+    {
+        var t = userMessage.Trim();
+        if (t.Length == 0 || t.Length > 48)
+            return false;
+
+        // 質問というより、場をつなぐ系
+        if (t.Contains('？') || t.Contains('?'))
+            return t.Length <= 20;
+
+        return true;
     }
 
     public async Task ExtractFromSessionAsync(
@@ -190,6 +238,8 @@ public sealed class MemoryService
                 "system",
                 """
                 Extract 0 to 3 short facts worth remembering about the user for future chats.
+                Prefer personal feelings, promises, nicknames, preferences, relationship tone, hobbies, worries — not only schedules.
+                Do NOT invent facts. Skip pure small talk or roleplay instructions that are not about the user.
                 Output one fact per line. No bullets, no numbering, no quotes.
                 If nothing is worth remembering, output exactly: NONE
                 Use the same language as the conversation. Max 80 characters per line.

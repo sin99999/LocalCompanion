@@ -1,4 +1,4 @@
-namespace LocalCompanion;
+﻿namespace LocalCompanion;
 
 public sealed class VoicevoxOptions
 {
@@ -7,6 +7,8 @@ public sealed class VoicevoxOptions
     public string BaseUrl { get; set; } = "http://127.0.0.1:50021";
     /// <summary>run.exe などを直接指定（空なら標準インストール先を探索）</summary>
     public string EngineExePath { get; set; } = "";
+    /// <summary>開発・UI テスト用。true のときインストール検出を無視し、設定の VOICEVOX タブを非表示にする。</summary>
+    public bool HideInstallForTesting { get; set; }
     public bool AutoStart { get; set; } = true;
     public int StartupWaitSeconds { get; set; } = 45;
     public int ProbeTimeoutSeconds { get; set; } = 3;
