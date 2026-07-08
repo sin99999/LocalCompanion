@@ -34,7 +34,7 @@
 
 - Cursor スキル追加: `localcompanion-rag`, `localcompanion-core-tests`, `localcompanion-agent-audit`
 - `.cursor/rules/localcompanion.mdc` にスキル一覧・並列エージェント監査・テスト完了条件を整理
-- 刑法系テストを `Fixtures/PenalCodeTestFixtures` に統一（個人パス非依存）
+- 法令系テストを `Fixtures/PenalCodeTestFixtures` に統一（個人パス非依存）
 - 1.0.7 修正の回帰テスト追加（`RagSqliteVecTests`, `ChatExportPendingStoreTests`, `AppPathsTests`）
 
 ## 1.0.6 - 2026-07-07
@@ -72,7 +72,7 @@ RAG の入口統一・PDF 読取・FAQ 検索・引用優先応答を追加し�
 
 ### 修正
 
-- 刑法など Markdown 法令の条文メタデータ（`article_sort_key`）を `#### 第N条` 形式から確実に抽出
+- Markdown 法令形式の条文メタデータ（`article_sort_key`）を `#### 第N条` 形式から確実に抽出
 - 構造化検索失敗時に見出し前方一致（`第8条…`）へフォールバック
 - VERBATIM 失敗時に LLM が創作条文を返さないガード
 - 「RAG に何が登録されてる？」系の資料一覧を Settings と同じ内容で返す
@@ -100,7 +100,7 @@ RAG の検索・引用・キャラ会話連携、および資料取込パイプ�
 ### 変更
 
 - RAG 取込パイプラインをクエリプランナーと構造化検索に再編
-- 就業規則・税法など複数資料を横断する相談クエリの検索を改善
+- 複数資料を横断する相談クエリの検索を改善
 - HTML ファイルはタグ除去前の生 HTML を ingest パイプラインで処理
 
 ## 1.0.3 - 2026-07-03

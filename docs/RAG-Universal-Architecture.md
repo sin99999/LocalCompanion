@@ -52,7 +52,7 @@
 
 ### Phase 3 — 検索・応答の汎用化（一部実装済み）
 
-- **Advisory 意図** + **PersonaSynthesis** — 就業規則×税法など複数資料の相談（キャラ口調維持）
+- **Advisory 意図** + **PersonaSynthesis** — 複数資料の相談（キャラ口調維持）
 - **RagPersonaReferenceInstruction** — 遊び会話中の軽い条文参照（キャラ選択時・非フォーマル質問）
 - キャラ選択時は VERBATIM バイパスを抑制（「贈賄の罰則は？」等フォーマル質問のみ機械引用）
 - ✅ **FAQ 意図** + VERBATIM（Q/A ブロック ingest + `RagFaqQueryParser`）
