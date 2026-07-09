@@ -15,9 +15,10 @@ public sealed class LlamaOptions
     public string MmprojGgufPath { get; set; } = "";
     public string EmbedModel { get; set; } = "";
     public int GpuLayers { get; set; } = 99;
-    public int ContextLength { get; set; } = 8192;
+    public int ContextLength { get; set; } = 16384;
     public int MaxOutputTokens { get; set; } = 4096;
-    public double Temperature { get; set; } = 0.8;
+    /// <summary>Gemma 4 公式推奨は 1.0。</summary>
+    public double Temperature { get; set; } = 1.0;
     public double TopP { get; set; } = 0.95;
     /// <summary>llama-server へ渡す top_k（0 以下なら送信しない）。Gemma 4 推奨は 64。</summary>
     public int TopK { get; set; } = 64;
@@ -45,7 +46,7 @@ public sealed class LlamaOptions
     /// <summary>AI 構造化取込の1ウィンドウあたり最大文字数。</summary>
     public int RagStructurerWindowChars { get; set; } = 3500;
     /// <summary>RAG 取込の1ファイル最大バイト数（0 以下で無制限。大きいファイルは取込時のメモリ使用量が増えます）。</summary>
-    public long RagMaxFileBytes { get; set; }
+    public long RagMaxFileBytes { get; set; } = 32L * 1024 * 1024;
     /// <summary>フォルダー一括取込の最大ファイル数（0 以下で無制限）。</summary>
-    public int RagMaxFolderFiles { get; set; }
+    public int RagMaxFolderFiles { get; set; } = 500;
 }

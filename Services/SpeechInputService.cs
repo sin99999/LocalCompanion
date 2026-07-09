@@ -62,10 +62,9 @@ public sealed class SpeechInputService
 
     /// <summary>
     /// 1 回分の音声認識。既に認識中ならキャンセルして null を返す（トグルOFF）。
-    /// マイク未許可などは <see cref="LocalizedServiceException"/> を投げる。
-    /// 終了時は必ず SpeechRecognizer を破棄し、マイク／オーディオダッキングを解放する。
+    /// 戻り値の LanguageTag は実際に使った認識言語（フォールバック後）。
     /// </summary>
-    public async Task<string?> RecognizeOnceAsync(CancellationToken ct = default)
+    public async Task<(string? Text, string? LanguageTag)> RecognizeOnceDetailedAsync(CancellationToken ct = default)
     {
         if (!IsEnabled)
             throw new LocalizedServiceException("Chat.SpeechInput.Failed");
@@ -73,7 +72,7 @@ public sealed class SpeechInputService
         if (IsListening)
         {
             Cancel();
-            return null;
+            return (null, null);
         }
 
         await EnsureMicrophoneAccessAsync().ConfigureAwait(true);
@@ -81,11 +80,12 @@ public sealed class SpeechInputService
         SpeechRecognizer? recognizer = null;
         CancellationTokenSource? sessionCts = null;
         IAsyncOperation<SpeechRecognitionResult>? operation = null;
+        string? languageTag = null;
 
         try
         {
             sessionCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            recognizer = await CreateRecognizerAsync(sessionCts.Token);
+            (recognizer, languageTag) = await CreateRecognizerAsync(sessionCts.Token);
 
             lock (_gate)
             {
@@ -95,7 +95,6 @@ public sealed class SpeechInputService
 
             ListeningChanged?.Invoke(this, EventArgs.Empty);
 
-            // UI オーバーレイ付きだと終了漏れで「認識モードのまま」になりやすいためアプリ側制御を使う
             operation = recognizer.RecognizeAsync();
             lock (_gate)
                 _operation = operation;
@@ -103,12 +102,12 @@ public sealed class SpeechInputService
             using (sessionCts.Token.Register(() => TryCancelOperation(operation)))
             {
                 var result = await operation.AsTask(sessionCts.Token);
-                return MapRecognitionResult(result);
+                return (MapRecognitionResult(result), languageTag);
             }
         }
         catch (OperationCanceledException)
         {
-            return null;
+            return (null, languageTag);
         }
         catch (LocalizedServiceException)
         {
@@ -142,7 +141,19 @@ public sealed class SpeechInputService
         }
     }
 
-    private static async Task<SpeechRecognizer> CreateRecognizerAsync(CancellationToken ct)
+    /// <summary>
+    /// 1 回分の音声認識。既に認識中ならキャンセルして null を返す（トグルOFF）。
+    /// マイク未許可などは <see cref="LocalizedServiceException"/> を投げる。
+    /// 終了時は必ず SpeechRecognizer を破棄し、マイク／オーディオダッキングを解放する。
+    /// </summary>
+    public async Task<string?> RecognizeOnceAsync(CancellationToken ct = default)
+    {
+        var (text, _) = await RecognizeOnceDetailedAsync(ct);
+        return text;
+    }
+
+    private static async Task<(SpeechRecognizer Recognizer, string LanguageTag)> CreateRecognizerAsync(
+        CancellationToken ct)
     {
         Exception? lastError = null;
         foreach (var languageTag in EnumerateRecognizerLanguageCandidates())
@@ -152,7 +163,7 @@ public sealed class SpeechInputService
             {
                 var recognizer = new SpeechRecognizer(new Windows.Globalization.Language(languageTag));
                 await recognizer.CompileConstraintsAsync();
-                return recognizer;
+                return (recognizer, languageTag);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

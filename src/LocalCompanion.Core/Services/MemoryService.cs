@@ -1,4 +1,4 @@
-using LocalCompanion.Data;
+﻿using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using Microsoft.Data.Sqlite;
@@ -71,6 +71,18 @@ public sealed class MemoryService
         using (var conn = _db.Open())
         {
             conn.Open();
+
+            // 同一内容（前後空白・大小無視）は重複保存しない
+            var existsCmd = conn.CreateCommand();
+            existsCmd.CommandText = """
+                SELECT id FROM user_memories
+                WHERE lower(trim(content)) = lower(trim($c))
+                LIMIT 1
+                """;
+            existsCmd.Parameters.AddWithValue("$c", trimmed);
+            if (existsCmd.ExecuteScalar() is not null and not DBNull)
+                return null;
+
             var cmd = conn.CreateCommand();
             cmd.CommandText = """
                 INSERT INTO user_memories (content, memory_path, source_session_id, created_at, updated_at)
@@ -216,21 +228,22 @@ public sealed class MemoryService
         return true;
     }
 
-    public async Task ExtractFromSessionAsync(
+    /// <summary>セッションから記憶を抽出し、新規に保存できた件数を返す。</summary>
+    public async Task<int> ExtractFromSessionAsync(
         string sessionId,
         IReadOnlyList<(string Role, string Content)> messages,
         CancellationToken ct = default)
     {
         var settings = _appSettings.Load();
         if (!settings.MemoryEnabled || !settings.MemoryAutoExtractOnClose)
-            return;
+            return 0;
 
         if (!await _llama.PingAsync(ct))
-            return;
+            return 0;
 
         var transcript = BuildTranscript(messages, 2000);
         if (transcript.Length == 0)
-            return;
+            return 0;
 
         var prompt = new List<ChatTurn>
         {
@@ -247,6 +260,7 @@ public sealed class MemoryService
             new("user", transcript),
         };
 
+        var saved = 0;
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -260,7 +274,7 @@ public sealed class MemoryService
                 ct: timeout.Token);
 
             if (string.IsNullOrWhiteSpace(raw))
-                return;
+                return 0;
 
             foreach (var line in raw.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
@@ -268,13 +282,16 @@ public sealed class MemoryService
                     continue;
                 if (line.Length < 4)
                     continue;
-                await AddAsync(line, memoryPath: "session", sourceSessionId: sessionId, ct);
+                if (await AddAsync(line, memoryPath: "session", sourceSessionId: sessionId, ct) is not null)
+                    saved++;
             }
         }
         catch
         {
             /* optional extraction */
         }
+
+        return saved;
     }
 
     internal void PrepareIndexes(SqliteConnection conn)

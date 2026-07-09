@@ -53,12 +53,17 @@ function Test-DistributionFolder {
         }
     }
 
-    foreach ($rel in @("AGENTS.md", ".cursor")) {
+    foreach ($rel in @("AGENTS.md", ".cursor", "appsettings.local.json")) {
         $full = Join-Path $Folder $rel
         if (Test-Path $full) {
             throw "配布フォルダに開発者向けファイルが含まれています: $rel"
         }
     }
+
+    Get-ChildItem -Path (Join-Path $Folder "models") -Filter "*.gguf" -ErrorAction SilentlyContinue |
+        ForEach-Object { throw "配布フォルダに個人モデルが含まれています: models\$($_.Name)" }
+    Get-ChildItem -Path (Join-Path $Folder "characters") -Filter "*.json" -ErrorAction SilentlyContinue |
+        ForEach-Object { throw "配布フォルダに個人キャラ設定が含まれています: characters\$($_.Name)" }
 }
 
 Write-Host "=== package user ZIP ===" -ForegroundColor Cyan

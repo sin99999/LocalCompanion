@@ -103,6 +103,7 @@
       <li>Windows の <strong>設定 → プライバシーとセキュリティ → マイク</strong> で、デスクトップアプリのマイク利用が許可されている必要があります。オフのときはチャットに案内が表示されます。</li>
       <li>チャット入力欄横の <strong>マイク</strong> ボタンを押すと認識を開始します。<strong>もう一度押すと終了</strong>します（1 回の認識が終わると自動で終了することもあります）。</li>
       <li>マイクが接続されていない、または他のアプリがマイクを占有している場合は認識できません。</li>
+      <li>英語 UI でも、英語の音声認識パックが未導入の場合は日本語で聞き取ることがあります。英語で話す場合は Windows の設定で英語の音声認識を追加してください。</li>
       <li>音声入力のあと VOICEVOX の読み上げ音量が小さく感じる場合は、LocalCompanion を再起動するか、もう一度お試しください。</li>
     </ul>
 
@@ -134,7 +135,7 @@
     <h2>RAG（資料検索）が動かない</h2>
     <ul>
       <li>資料の登録・検索には llama-server の埋め込み API を使用します。状態が「OK」になってからお試しください。</li>
-      <li>取込件数・ファイルサイズに既定の上限はありません。必要なら <code>appsettings.json</code> の <code>RagMaxFileBytes</code>（バイト）と <code>RagMaxFolderFiles</code>（件数）で制限できます（0 以下は無制限）。</li>
+      <li>既定では 1 ファイル最大約 32 MB、フォルダー取り込みは最大 500 ファイルです。<code>appsettings.json</code> の <code>RagMaxFileBytes</code>（バイト）と <code>RagMaxFolderFiles</code>（件数）で変更できます（0 以下は無制限）。</li>
     </ul>
 
     <h2>ログの場所</h2>

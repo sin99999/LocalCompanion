@@ -515,12 +515,14 @@ public sealed class RagService
 
     private static IReadOnlyList<RagSearchHit> BuildSourceCatalogHits(IReadOnlyList<RagSourceInfo> sources)
     {
+        var loc = LocalizationService.Instance;
         var hits = new List<RagSearchHit>(sources.Count);
         foreach (var source in sources)
         {
             var label = FormatSourceDisplayName(source.Source);
-            var status = source.Enabled ? "" : "（検索オフ）";
-            var line = $"- {label}: {source.Chunks} チャンク{status}";
+            var line = source.Enabled
+                ? loc.Format("Settings.Rag.Catalog.Line", label, source.Chunks)
+                : loc.Format("Settings.Rag.Catalog.LineDisabled", label, source.Chunks);
             hits.Add(new RagSearchHit(
                 line,
                 source.Source,
@@ -731,23 +733,14 @@ public sealed class RagService
     {
         var cmd = conn.CreateCommand();
         var inClause = BuildInClause(cmd, enabledSources, "src");
-        var countCmd = conn.CreateCommand();
-        countCmd.CommandText = $"""
-            SELECT COUNT(*)
-            FROM rag_chunks
-            WHERE source IN ({inClause})
-            """;
-        foreach (SqliteParameter p in cmd.Parameters)
-            countCmd.Parameters.AddWithValue(p.ParameterName, p.Value);
-        var total = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
-        if (total > MaxLegacySearchChunks)
-            return Array.Empty<RagSearchHit>();
-
+        // 大規模 DB では全件ロードせず、新しいチャンクから上限件数だけ評価する（空返しで黙って失敗しない）
         var rows = new List<(RagSearchHit Hit, float[] Vec)>();
         cmd.CommandText = $"""
             SELECT text, source, header_text, page, chunk_id, parent_text, penalty_lead, definition_lead, embedding
             FROM rag_chunks
             WHERE source IN ({inClause})
+            ORDER BY id DESC
+            LIMIT {MaxLegacySearchChunks}
             """;
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))

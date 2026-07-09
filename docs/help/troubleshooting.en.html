@@ -103,6 +103,7 @@
       <li>Allow microphone access under <strong>Windows Settings → Privacy &amp; security → Microphone</strong> for desktop apps. If access is off, chat shows guidance.</li>
       <li>Click the <strong>microphone</strong> button next to the chat input to start recognition. <strong>Click again to stop</strong> (it may also stop automatically after one utterance).</li>
       <li>Recognition fails if no microphone is available or another app is using the mic.</li>
+      <li>Even with the English UI, Japanese recognition may be used if the English speech pack is not installed. To speak in English, add English speech recognition in Windows Settings.</li>
       <li>If VOICEVOX playback seems quiet after speech input, restart LocalCompanion or try again.</li>
     </ul>
 
@@ -133,7 +134,7 @@
     <h2>RAG (document search) does not work</h2>
     <ul>
       <li>Ingestion and search use the llama-server embedding API. Wait until status is OK.</li>
-      <li>There is no default limit on import file count or file size. Optionally set <code>RagMaxFileBytes</code> (bytes) and <code>RagMaxFolderFiles</code> (count) in <code>appsettings.json</code> (0 or less means unlimited).</li>
+      <li>By default, imports are limited to about 32 MB per file and 500 files per folder. Change <code>RagMaxFileBytes</code> (bytes) and <code>RagMaxFolderFiles</code> (count) in <code>appsettings.json</code> (0 or less means unlimited).</li>
     </ul>
 
     <h2>Log and data locations</h2>

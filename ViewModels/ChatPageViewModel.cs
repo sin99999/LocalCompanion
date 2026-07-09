@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -242,6 +242,7 @@ public partial class ChatPageViewModel : ObservableObject
             return;
 
         var sessionId = _activeSessionId;
+        var savedMemories = 0;
         try
         {
             var session = _chat.GetSession(sessionId);
@@ -250,18 +251,21 @@ public partial class ChatPageViewModel : ObservableObject
                 // サイドバーに載せないデフォルトAIでも、終了時は事実だけ記憶へ残す
                 var messages = _chat.LoadSessionMessages(sessionId, 40);
                 if (messages.Count > 0)
-                    await _chat.ExtractMemoriesFromSessionAsync(sessionId, messages, CancellationToken.None);
+                    savedMemories = await _chat.ExtractMemoriesFromSessionAsync(sessionId, messages, CancellationToken.None);
                 _chat.DeleteSession(sessionId);
             }
             else
             {
-                await _chat.FinalizeSessionAsync(sessionId, CancellationToken.None);
+                savedMemories = await _chat.FinalizeSessionWithMemoryCountAsync(sessionId, CancellationToken.None);
             }
         }
         catch
         {
             /* 終了時の要約／記憶抽出失敗は無視 */
         }
+
+        if (savedMemories > 0)
+            SetStatusByKey("Chat.Status.MemorySaved", savedMemories);
     }
 
     public async Task FinalizeActiveSessionOnCloseAsync()
@@ -753,13 +757,21 @@ public partial class ChatPageViewModel : ObservableObject
 
         try
         {
-            var text = await _speechInput.RecognizeOnceAsync();
+            var (text, languageTag) = await _speechInput.RecognizeOnceDetailedAsync();
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
             InputText = string.IsNullOrWhiteSpace(InputText)
                 ? text
                 : InputText.TrimEnd() + " " + text;
+
+            // 英語 UI なのに日本語音声パックへ落ちたときだけ、一度案内する
+            if (_loc.Current != AppLanguage.Japanese
+                && languageTag is not null
+                && languageTag.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
+            {
+                SetStatusByKey("Chat.SpeechInput.FallbackJapanese");
+            }
         }
         catch (LocalizedServiceException ex)
         {

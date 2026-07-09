@@ -5,6 +5,17 @@ namespace LocalCompanion.Core.Tests;
 public sealed class CharacterSamplingLimitsTests
 {
     [Fact]
+    public void Defaults_MatchGemma4Recommendations()
+    {
+        Assert.Equal(1.0, CharacterDefaults.Temperature);
+        Assert.Equal(0.95, CharacterDefaults.TopP);
+        Assert.Equal(64, CharacterDefaults.TopK);
+        Assert.Equal(16384, CharacterDefaults.ContextLength);
+        Assert.Equal(4096, CharacterDefaults.MaxOutputTokens);
+        Assert.True(CharacterSamplingLimits.MaxOutputTokensMax >= 16384);
+    }
+
+    [Fact]
     public void SnapMaxOutputTokens_CapsAtHalfContext()
     {
         var cap = CharacterSamplingLimits.MaxOutputTokensCapForContext(8192);

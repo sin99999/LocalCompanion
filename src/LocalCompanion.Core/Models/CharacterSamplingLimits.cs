@@ -22,7 +22,8 @@ public static class CharacterSamplingLimits
     public const int ContextLengthStep = 1024;
 
     public const int MaxOutputTokensMin = 128;
-    public const int MaxOutputTokensMax = 8192;
+    /// <summary>長文・推論向け。コンテキスト半分との小さい方でさらに制限する。</summary>
+    public const int MaxOutputTokensMax = 16384;
     public const int MaxOutputTokensStep = 128;
     public const int MaxOutputTokensDefault = CharacterDefaults.MaxOutputTokens;
 

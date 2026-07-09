@@ -1,4 +1,4 @@
-using LocalCompanion.Data;
+﻿using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.Services.LlamaNative;
@@ -248,8 +248,30 @@ public sealed class ChatService
         MarkSessionClosed(sessionId);
     }
 
-    /// <summary>セッションを閉じずに長期記憶だけ抽出する（デフォルトAI削除前など）。</summary>
-    public Task ExtractMemoriesFromSessionAsync(
+    /// <summary>長期記憶抽出＋タイトル確定。新規に保存できた記憶件数を返す。</summary>
+    public async Task<int> FinalizeSessionWithMemoryCountAsync(string sessionId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return 0;
+
+        var messages = LoadSessionMessages(sessionId, 40);
+        if (messages.Count == 0)
+        {
+            DeleteSession(sessionId);
+            return 0;
+        }
+
+        var title = await GenerateSessionTitleAsync(messages, ct);
+        if (!string.IsNullOrWhiteSpace(title))
+            UpdateSessionTitle(sessionId, title, title);
+
+        var saved = await _memory.ExtractFromSessionAsync(sessionId, messages, ct);
+        MarkSessionClosed(sessionId);
+        return saved;
+    }
+
+    /// <summary>セッションを閉じずに長期記憶だけ抽出する（デフォルトAI削除前など）。保存件数を返す。</summary>
+    public Task<int> ExtractMemoriesFromSessionAsync(
         string sessionId,
         IReadOnlyList<(string Role, string Content)> messages,
         CancellationToken ct = default) =>
