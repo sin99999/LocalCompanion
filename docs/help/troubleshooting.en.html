@@ -97,6 +97,12 @@
       <li>If memory never appears, check that memory is enabled and that the conversation has enough back-and-forth (especially with a character selected).</li>
     </ul>
 
+    <h2>When you switch characters</h2>
+    <ul>
+      <li>Switching characters starts a <strong>new conversation</strong>. Messages from another character are not mixed into the previous session.</li>
+      <li>To continue an earlier chat, select that session from the left history pane.</li>
+    </ul>
+
     <h2>Speech input does not work</h2>
     <ul>
       <li>Enable <strong>Use speech input</strong> under <strong>Settings → General</strong>.</li>
@@ -135,6 +141,13 @@
     <ul>
       <li>Ingestion and search use the llama-server embedding API. Wait until status is OK.</li>
       <li>By default, imports are limited to about 32 MB per file and 500 files per folder. Change <code>RagMaxFileBytes</code> (bytes) and <code>RagMaxFolderFiles</code> (count) in <code>appsettings.json</code> (0 or less means unlimited).</li>
+    </ul>
+
+    <h2>Privacy and network</h2>
+    <ul>
+      <li>Conversation, RAG, and attachment text are processed on this PC.</li>
+      <li>Optional update checks may contact GitHub, and loading a URL accesses that URL.</li>
+      <li>Speech input uses Windows speech recognition, which may be online depending on your environment.</li>
     </ul>
 
     <h2>Log and data locations</h2>
