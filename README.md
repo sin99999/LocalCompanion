@@ -57,7 +57,7 @@ Windows 向けのローカル AI チャットアプリケーションです。�
 |------|------|
 | OS | Windows 10 ビルド 17763 以降 |
 | ランタイム | [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0)（未導入の場合は 1 回インストール） |
-| ネットワーク | **初回起動時のみ**（AI エンジンと既定モデルのダウンロード。自前 GGUF を指定した場合はモデル DL をスキップ） |
+| ネットワーク | 初回起動時（AI エンジンと既定モデルの DL。自前 GGUF 指定時はモデル DL をスキップ）。任意の更新確認で GitHub にアクセスすることがあります |
 | 読み上げ | 任意。[VOICEVOX](https://voicevox.hiroshiba.jp/) を別途インストール |
 
 WinUI の実行に必要なファイルはアプリに同梱されています。別途「開発者モード」をオンにする必要はありません。
@@ -132,7 +132,7 @@ vision 用の mmproj が必要な場合は、**アプリ側の `models\` フォ�
 | チャット | ローカル AI と会話。キャラクター設定・会話履歴に対応（**デフォルト AI** の会話は左の履歴一覧に表示されません） |
 | 資料検索（RAG） | 登録したテキスト資料を検索し、回答に反映 |
 | 長期記憶 | 会話をまたいで短い事実を内部保存し、自然に思い出して返す（**設定 → 記憶**） |
-| 音声入力 | Windows の音声認識で入力（**設定 → 記憶** で有効化） |
+| 音声入力 | Windows の音声認識で入力（**設定 → 基本設定** で有効化） |
 | モデル管理 | 付属 `models\` と、任意で指定する **追加モデルフォルダ** を一覧表示。適用で llama を再起動 |
 | 読み上げ | VOICEVOX で返答を音声再生（任意） |
 | 画面言語 | 日本語 / 英語 |
@@ -172,8 +172,7 @@ URL 添付の取得上限は **2 MB** です（RAG 取込とは別の上限で�
 
 1. [VOICEVOX 公式サイト](https://voicevox.hiroshiba.jp/) からインストール
 2. LocalCompanion を **再起動**（または設定画面を開き直す）— インストールを検出すると **VOICEVOX** タブが表示されます
-3. ⚙ **設定 → VOICEVOX** で「**読み上げを有効**」をオンにし、話者を選択
-4. **「VOICEVOX 設定を保存」** を押す
+3. ⚙ **設定 → VOICEVOX** で「**読み上げを有効**」をオンにし、話者を選択（変更は自動保存されます）
 
 VOICEVOX **未インストール時は VOICEVOX タブは表示されません**。チャット・資料検索など **他の機能は通常どおり** 使えます。
 
@@ -184,14 +183,14 @@ The official VOICEVOX installer is **Japanese only**. If you cannot read the scr
 1. Use a translation tool (for example Google Lens) on the installer text.
 2. You can usually proceed by **clearing every checkbox** on each screen and clicking **Next** until installation finishes.
 
-Then **restart LocalCompanion** (or reopen Settings) so the **VOICEVOX** tab appears. Open **Settings** → **VOICEVOX**, enable speech, choose a speaker, and click **Save VOICEVOX settings**.
+Then **restart LocalCompanion** (or reopen Settings) so the **VOICEVOX** tab appears. Open **Settings** → **VOICEVOX**, enable speech, and choose a speaker. Changes are saved automatically.
 
 <p align="right">(<a href="#top">トップへ</a>)</p>
 
 ## よくある質問
 
 **Q. 会話や資料はインターネットに送信されますか。**  
-A. 送信されません。会話・RAG・添付の処理は PC 内で完結します（Web ページの URL を読み込む機能を使った場合のみ、その URL へアクセスします）。
+A. 会話・RAG・添付の本文処理は PC 内で完結します。任意の更新確認で GitHub にアクセスすることがあり、URL 読み込み時はその URL へアクセスします。音声入力は Windows の音声認識を使うため、環境によってはオンライン認識になることがあります。
 
 **Q. 起動時に「Windows によって PC が保護されました」と出ます。**  
 A. コード署名を行っていないため、初回に表示されることがあります。「詳細情報」→「実行」で起動できます。
@@ -206,7 +205,7 @@ A. ネットワーク環境や、短時間に何度も起動し直したこと�
 A. 初回セットアップ、または **設定 → モデル** の「追加モデルフォルダ」で指定できます。指定フォルダは読み取り専用で、mmproj はアプリ側の `models\` に取得します。
 
 **Q. 読み上げが動きません。**  
-A. VOICEVOX のインストールと、設定画面での有効化が必要です。タブが無い場合は VOICEVOX を入れたあとアプリを再起動してください。設定変更後は **「VOICEVOX 設定を保存」** を押してください。読み上げが不要なら、インストールしなくても問題ありません。
+A. VOICEVOX のインストールと、設定画面での有効化が必要です。タブが無い場合は VOICEVOX を入れたあとアプリを再起動してください。設定の変更は自動で保存されます。読み上げが不要なら、インストールしなくても問題ありません。
 
 <p align="right">(<a href="#top">トップへ</a>)</p>
 

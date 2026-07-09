@@ -97,40 +97,15 @@ public sealed class ChatSearchService
         return LoadHits(conn, fused);
     }
 
-    public void BackfillIfNeeded()
+    /// <summary>セッション削除時に FTS / vec の孤立行を掃除します。</summary>
+    public void DeleteIndexedMessages(SqliteConnection conn, IReadOnlyList<long> messageIds, SqliteTransaction? transaction = null)
     {
-        if (!IsEnabled)
-            return;
-
-        using var conn = _db.Open();
-        conn.Open();
-
-        var check = conn.CreateCommand();
-        check.CommandText = "SELECT value FROM app_metadata WHERE key = 'chat_search_backfilled' LIMIT 1";
-        if (check.ExecuteScalar()?.ToString() == "1")
+        if (messageIds.Count == 0)
             return;
 
         PrepareIndexes(conn);
-        var select = conn.CreateCommand();
-        select.CommandText = """
-            SELECT id, content FROM chat_messages
-            WHERE length(trim(content)) > 0
-            ORDER BY id
-            """;
-        using var reader = select.ExecuteReader();
-        while (reader.Read())
-        {
-            var id = reader.GetInt64(0);
-            var content = reader.GetString(1);
-            _index.IndexContent(conn, id, content.Trim());
-        }
-
-        var flag = conn.CreateCommand();
-        flag.CommandText = """
-            INSERT INTO app_metadata (key, value) VALUES ('chat_search_backfilled', '1')
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-            """;
-        flag.ExecuteNonQuery();
+        foreach (var id in messageIds)
+            _index.DeleteRow(conn, id, transaction);
     }
 
     internal void PrepareIndexes(SqliteConnection conn)

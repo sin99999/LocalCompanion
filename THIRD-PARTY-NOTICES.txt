@@ -34,6 +34,8 @@ This application uses the following third-party software and models.
 - Microsoft.Extensions.DependencyInjection / Configuration.Json / Http — MIT License
   https://github.com/dotnet/runtime
 - Microsoft.Windows.SDK.BuildTools — Microsoft Software License Terms
+- UglyToad.PdfPig — Apache License 2.0
+  https://github.com/UglyToad/PdfPig
 
 -------------------------------------------------------------
 5. SQLite / sqlite-vec（vec0.dll）

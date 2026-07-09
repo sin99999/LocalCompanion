@@ -212,6 +212,19 @@ public sealed class ChatService
         conn.Open();
         using var tx = conn.BeginTransaction();
 
+        var idCmd = conn.CreateCommand();
+        idCmd.Transaction = tx;
+        idCmd.CommandText = "SELECT id FROM chat_messages WHERE session_id = $s";
+        idCmd.Parameters.AddWithValue("$s", sessionId);
+        var messageIds = new List<long>();
+        using (var reader = idCmd.ExecuteReader())
+        {
+            while (reader.Read())
+                messageIds.Add(reader.GetInt64(0));
+        }
+
+        _chatSearch.DeleteIndexedMessages(conn, messageIds, tx);
+
         var delMessages = conn.CreateCommand();
         delMessages.Transaction = tx;
         delMessages.CommandText = "DELETE FROM chat_messages WHERE session_id = $s";
@@ -452,8 +465,9 @@ public sealed class ChatService
         var session = GetSession(req.SessionId);
         if (session is null)
             return new(false, false, sessionKey, req.SessionId);
+        // キャラ切替後に旧セッション ID が残っていても、別 preset へ混在保存しない
         if (!string.Equals(session.PresetKey, sessionKey, StringComparison.OrdinalIgnoreCase))
-            return new(false, true, sessionKey, req.SessionId);
+            return new(false, false, sessionKey, req.SessionId);
 
         return new(true, true, sessionKey, req.SessionId);
     }

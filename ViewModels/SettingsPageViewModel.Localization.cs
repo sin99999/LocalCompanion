@@ -54,7 +54,6 @@ public partial class SettingsPageViewModel
     [ObservableProperty] public partial string UiVoicevoxSpeakInJapanesePronunciationHint { get; set; }
     [ObservableProperty] public partial string UiVoicevoxSpeaker { get; set; }
     [ObservableProperty] public partial string UiVoicevoxSpeakerPlaceholder { get; set; }
-    [ObservableProperty] public partial string UiVoicevoxSave { get; set; }
     [ObservableProperty] public partial string VoicevoxPoweredByNoteText { get; set; } = "";
 
     private sealed record LocalizedStatusEntry(string Key, object[]? Args);
@@ -208,6 +207,7 @@ public partial class SettingsPageViewModel
         UiGeneralUserDisplayNameHint = _loc.Get("Settings.General.UserDisplayName.Hint");
         UiGeneralConfirmHistoryDelete = _loc.Get("Settings.General.ConfirmHistoryDelete");
         UiGeneralConfirmHistoryDeleteHint = _loc.Get("Settings.General.ConfirmHistoryDelete.Hint");
+        ApplySpeechInputLocalizedUi();
         UiGeneralPreview = _loc.Get("Settings.General.Preview");
         UiGeneralSave = _loc.Get("Common.Save");
         UiGeneralReset = _loc.Get("Settings.General.Reset");
@@ -263,7 +263,6 @@ public partial class SettingsPageViewModel
         UiVoicevoxSpeakInJapanesePronunciationHint = _loc.Get("Settings.Voicevox.SpeakInJapanesePronunciation.Hint");
         UiVoicevoxSpeaker = _loc.Get("Settings.Voicevox.Speaker");
         UiVoicevoxSpeakerPlaceholder = _loc.Get("Settings.Voicevox.SpeakerPlaceholder");
-        UiVoicevoxSave = _loc.Get("Settings.Voicevox.Save");
         ApplyLocalizedAboutUi();
         RefreshSliderLabels();
         UpdateGeneralPreview();

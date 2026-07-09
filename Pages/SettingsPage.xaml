@@ -228,6 +228,12 @@
 
                         <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiGeneralConfirmHistoryDeleteHint, Mode=OneWay}" />
 
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabled, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabledHint, Mode=OneWay}" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.SpeechInputEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
+                        </StackPanel>
+
                         <StackPanel Style="{StaticResource SettingsTabButtonRowStyle}">
 
                             <Button
@@ -761,12 +767,6 @@
                             <ToggleSwitch IsOn="{x:Bind ViewModel.MemoryAutoExtractOnClose, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         </StackPanel>
 
-                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
-                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabled, Mode=OneWay}" />
-                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabledHint, Mode=OneWay}" />
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.SpeechInputEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
-                        </StackPanel>
-
                     </StackPanel>
 
                 </ScrollViewer>
@@ -875,8 +875,6 @@
                                 </Border>
 
                             </StackPanel>
-
-                            <Button Command="{x:Bind ViewModel.SaveVoicevoxCommand}" Content="{x:Bind ViewModel.UiVoicevoxSave, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" Style="{StaticResource AccentButtonStyle}" />
 
                             <TextBlock Style="{StaticResource SettingsSectionLabelStyle}" Text="{x:Bind ViewModel.VoicevoxStatusText, Mode=OneWay}" TextWrapping="Wrap" />
 

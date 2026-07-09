@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
@@ -22,6 +22,12 @@ public partial class SettingsPageViewModel
 
     [ObservableProperty]
     public partial string UserDisplayName { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool SpeechInputEnabled { get; set; }
+
+    public string UiSpeechInputEnabled { get; private set; } = "";
+    public string UiSpeechInputEnabledHint { get; private set; } = "";
 
     [ObservableProperty]
     public partial string GeneralStatusText { get; set; } = "";
@@ -71,12 +77,21 @@ public partial class SettingsPageViewModel
     {
         ConfirmHistoryDelete = settings.ConfirmHistoryDelete;
         UserDisplayName = settings.UserDisplayName;
+        SpeechInputEnabled = settings.SpeechInputEnabled;
         GeneralChatFontSize = settings.ChatFontSize;
         SelectedChatFontFamily = ChatFontChoices.FirstOrDefault(f =>
             string.Equals(f, settings.ChatFontFamily, StringComparison.OrdinalIgnoreCase))
             ?? settings.ChatFontFamily;
         RefreshSliderLabels();
         UpdateGeneralPreview();
+    }
+
+    private void ApplySpeechInputLocalizedUi()
+    {
+        UiSpeechInputEnabled = _loc.Get("Settings.SpeechInput.Enabled");
+        UiSpeechInputEnabledHint = _loc.Get("Settings.SpeechInput.Enabled.Hint");
+        OnPropertyChanged(nameof(UiSpeechInputEnabled));
+        OnPropertyChanged(nameof(UiSpeechInputEnabledHint));
     }
 
     private void UpdateGeneralPreview()
@@ -120,6 +135,6 @@ public partial class SettingsPageViewModel
         MemoryEnabled = _appearance.Current.MemoryEnabled,
         MemoryAutoExtractOnClose = _appearance.Current.MemoryAutoExtractOnClose,
         ChatSearchEnabled = false,
-        SpeechInputEnabled = _appearance.Current.SpeechInputEnabled,
+        SpeechInputEnabled = SpeechInputEnabled,
     };
 }

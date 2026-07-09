@@ -41,10 +41,7 @@ public static class CompanionStartup
             StartupProgress.ReportKey("Startup.Ready", 100);
 
             if (AppServices.Provider is not null)
-            {
                 AppServices.Get<VoicevoxLifecycleService>().EnsureInBackground();
-                _ = Task.Run(() => AppServices.Get<ChatSearchService>().BackfillIfNeeded());
-            }
         }
         finally
         {

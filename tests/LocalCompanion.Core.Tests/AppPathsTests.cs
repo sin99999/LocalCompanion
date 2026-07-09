@@ -7,9 +7,9 @@ public sealed class AppPathsTests
     [Theory]
     [InlineData(@"D:\bin\LocalCompanion\", false)]
     [InlineData(@"C:\work\bin\tools", false)]
-    [InlineData(@"H:\pg\Cursor\LocalCompanionWinUI\bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64\", true)]
-    [InlineData(@"H:\pg\Cursor\LocalCompanionWinUI\bin\Release\net10.0\win-x64\", true)]
-    [InlineData(@"H:\pg\Cursor\LocalCompanionWinUI\obj\Debug\", true)]
+    [InlineData(@"C:\src\MyApp\bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64\", true)]
+    [InlineData(@"C:\src\MyApp\bin\Release\net10.0\win-x64\", true)]
+    [InlineData(@"C:\src\MyApp\obj\Debug\", true)]
     public void IsDevelopmentOutputPath_ClassifiesBuildOutputs(string path, bool expectedDev)
     {
         Assert.Equal(expectedDev, AppPaths.IsDevelopmentOutputPath(path));

@@ -29,8 +29,9 @@ public sealed class AppSettingsStore
                 var dto = JsonSerializer.Deserialize<AppSettingsDto>(json, JsonOpts) ?? new AppSettingsDto();
                 return Normalize(dto);
             }
-            catch
+            catch (Exception ex)
             {
+                TryBackupCorruptSettings(ex);
                 return new AppSettingsDto();
             }
         }
@@ -47,6 +48,21 @@ public sealed class AppSettingsStore
         }
 
         return normalized;
+    }
+
+    private void TryBackupCorruptSettings(Exception ex)
+    {
+        try
+        {
+            var bak = _path + ".bak-" + DateTime.Now.ToString("yyyyMMddHHmmss");
+            if (File.Exists(_path))
+                File.Copy(_path, bak, overwrite: true);
+            StartupLog.Write(ex, $"App settings corrupt; reset to defaults. backup={bak}");
+        }
+        catch (Exception backupEx)
+        {
+            StartupLog.Write(backupEx, "App settings corrupt; backup failed");
+        }
     }
 
     private static AppSettingsDto Normalize(AppSettingsDto dto)

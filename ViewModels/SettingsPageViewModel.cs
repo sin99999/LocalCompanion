@@ -28,6 +28,7 @@ public partial class SettingsPageViewModel : ObservableObject
     private readonly RuntimeHealthService _health;
     private readonly MemoryService _memory;
     private int _voicevoxLoadGeneration;
+    private bool _suppressVoicevoxSave;
 
     public SettingsPageViewModel(
         AppPaths paths,
@@ -288,6 +289,7 @@ public partial class SettingsPageViewModel : ObservableObject
         }
 
         IsVoicevoxInstalled = _voicevoxLocator.DescribeInstall().Installed;
+        _suppressVoicevoxSave = true;
         var vv = _voicevoxSettings.Load();
         VoicevoxEnabled = vv.Enabled;
         VoicevoxAutoSpeak = vv.AutoSpeak;
@@ -296,6 +298,7 @@ public partial class SettingsPageViewModel : ObservableObject
         VoicevoxPitchScale = vv.PitchScale;
         VoicevoxIntonationScale = vv.IntonationScale;
         VoicevoxVolumeScale = vv.VolumeScale;
+        _suppressVoicevoxSave = false;
         RefreshSliderLabels();
         _ = RefreshRuntimeHealthAsync();
     }
@@ -337,12 +340,14 @@ public partial class SettingsPageViewModel : ObservableObject
                 return;
             RunOnUi(() =>
             {
+                _suppressVoicevoxSave = true;
                 VoicevoxSpeakers.Clear();
                 foreach (var s in speakers)
                     VoicevoxSpeakers.Add(new VoicevoxSpeakerChoiceViewModel(s.Id, s.SpeakerName, s.StyleName));
 
                 var saved = _voicevoxSettings.Load();
                 SelectVoicevoxSpeaker(saved);
+                _suppressVoicevoxSave = false;
             });
             _speakerCache.Save(speakers);
 
@@ -574,9 +579,11 @@ public partial class SettingsPageViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private void SaveVoicevox()
+    private void PersistVoicevoxSettings(bool showStatus = false)
     {
+        if (_suppressVoicevoxSave)
+            return;
+
         var speakerId = SelectedVoicevoxSpeaker?.Id ?? VoicevoxSpeakers.FirstOrDefault()?.Id ?? 0;
         var saved = _voicevoxSettings.Save(new VoicevoxSettingsDto
         {
@@ -584,12 +591,13 @@ public partial class SettingsPageViewModel : ObservableObject
             AutoSpeak = VoicevoxAutoSpeak,
             SpeakInJapanesePronunciation = VoicevoxSpeakInJapanesePronunciation,
             SpeakerId = speakerId,
-            SpeakerChosenByUser = true,
+            SpeakerChosenByUser = SelectedVoicevoxSpeaker is not null,
             SpeedScale = VoicevoxSpeedScale,
             PitchScale = VoicevoxPitchScale,
             IntonationScale = VoicevoxIntonationScale,
             VolumeScale = VoicevoxVolumeScale,
         });
+        _suppressVoicevoxSave = true;
         VoicevoxEnabled = saved.Enabled;
         VoicevoxAutoSpeak = saved.AutoSpeak;
         VoicevoxSpeakInJapanesePronunciation = saved.SpeakInJapanesePronunciation;
@@ -598,7 +606,9 @@ public partial class SettingsPageViewModel : ObservableObject
         VoicevoxIntonationScale = saved.IntonationScale;
         VoicevoxVolumeScale = saved.VolumeScale;
         SelectVoicevoxSpeaker(saved);
-        SetVoicevoxStatus("Settings.Voicevox.Saved");
+        _suppressVoicevoxSave = false;
+        if (showStatus)
+            SetVoicevoxStatus("Settings.Voicevox.Saved");
     }
 
     [RelayCommand]
@@ -654,10 +664,30 @@ public partial class SettingsPageViewModel : ObservableObject
         RefreshSliderLabels();
     }
     partial void OnCharacterMaxOutputTokensChanged(double value) => RefreshSliderLabels();
-    partial void OnVoicevoxSpeedScaleChanged(double value) => RefreshSliderLabels();
-    partial void OnVoicevoxPitchScaleChanged(double value) => RefreshSliderLabels();
-    partial void OnVoicevoxIntonationScaleChanged(double value) => RefreshSliderLabels();
-    partial void OnVoicevoxVolumeScaleChanged(double value) => RefreshSliderLabels();
+    partial void OnVoicevoxEnabledChanged(bool value) => PersistVoicevoxSettings(showStatus: true);
+    partial void OnVoicevoxAutoSpeakChanged(bool value) => PersistVoicevoxSettings(showStatus: true);
+    partial void OnVoicevoxSpeakInJapanesePronunciationChanged(bool value) => PersistVoicevoxSettings(showStatus: true);
+    partial void OnSelectedVoicevoxSpeakerChanged(VoicevoxSpeakerChoiceViewModel? value) => PersistVoicevoxSettings(showStatus: true);
+    partial void OnVoicevoxSpeedScaleChanged(double value)
+    {
+        RefreshSliderLabels();
+        PersistVoicevoxSettings();
+    }
+    partial void OnVoicevoxPitchScaleChanged(double value)
+    {
+        RefreshSliderLabels();
+        PersistVoicevoxSettings();
+    }
+    partial void OnVoicevoxIntonationScaleChanged(double value)
+    {
+        RefreshSliderLabels();
+        PersistVoicevoxSettings();
+    }
+    partial void OnVoicevoxVolumeScaleChanged(double value)
+    {
+        RefreshSliderLabels();
+        PersistVoicevoxSettings();
+    }
 
     private void ClampCharacterMaxOutputTokens()
     {
