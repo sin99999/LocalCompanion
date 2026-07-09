@@ -1,4 +1,4 @@
-using LocalCompanion.Localization;
+﻿using LocalCompanion.Localization;
 
 namespace LocalCompanion.Services.DocumentReading;
 
@@ -6,9 +6,11 @@ internal sealed class RagDocumentReaderRegistry
 {
     private readonly Dictionary<string, IDocumentReader> _byExt;
     private readonly TextUtf8DocumentReader _textReader;
+    private readonly long _maxFileBytes;
 
-    public RagDocumentReaderRegistry(bool usePdfLayoutReader)
+    public RagDocumentReaderRegistry(bool usePdfLayoutReader, long maxFileBytes = 0)
     {
+        _maxFileBytes = maxFileBytes;
         _textReader = new TextUtf8DocumentReader(RagDocumentReader.TextExtensionSet);
         var pdfReader = usePdfLayoutReader
             ? (IDocumentReader)new PdfLayoutDocumentReader()
@@ -53,12 +55,15 @@ internal sealed class RagDocumentReaderRegistry
         return reader.ReadFromStream(stream, fileName);
     }
 
-    private static void ValidateSize(string label, long length, string pathOrName)
+    private void ValidateSize(string label, long length, string pathOrName)
     {
-        if (length > RagDocumentReader.MaxFileBytes)
-            throw new LocalizedServiceException(
-                "Settings.Rag.Error.FileTooLargeNamed",
-                RagDocumentReader.MaxFileBytes / (1024 * 1024),
-                pathOrName);
+        if (_maxFileBytes <= 0 || length <= _maxFileBytes)
+            return;
+
+        var limitMb = Math.Max(1, _maxFileBytes / (1024 * 1024));
+        throw new LocalizedServiceException(
+            "Settings.Rag.Error.FileTooLargeNamed",
+            limitMb,
+            pathOrName);
     }
 }

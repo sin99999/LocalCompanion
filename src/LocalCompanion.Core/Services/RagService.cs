@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
@@ -9,7 +9,6 @@ namespace LocalCompanion.Services;
 
 public sealed class RagService
 {
-    private const int MaxFolderFiles = 200;
     private static readonly HashSet<string> SkipDirNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "bin", "obj", "node_modules", ".git", ".vs", "packages", "dist", "build", "runtimes",
@@ -46,8 +45,8 @@ public sealed class RagService
         if (!await _llama.EmbeddingsSupportedAsync(ct))
             throw new LocalizedServiceException("Settings.Rag.Error.EmbeddingsUnavailable");
 
+        EnsureReaderConfigured();
         var options = LoadIngestOptions();
-        RagDocumentReader.Configure(options.UsePdfLayoutReader);
         text = RagIngestPreprocessor.Preprocess(source, text, options);
         text = RagDocumentNormalizer.Normalize(text);
         var docKind = RagDocumentProfileDetector.Detect(source, text);
@@ -300,6 +299,7 @@ public sealed class RagService
         IEnumerable<(string FileName, Stream Content)> files,
         CancellationToken ct)
     {
+        EnsureReaderConfigured();
         var fileCount = 0;
         var chunkCount = 0;
         var skipped = new List<string>();
@@ -344,6 +344,7 @@ public sealed class RagService
         string path,
         CancellationToken ct)
     {
+        EnsureReaderConfigured();
         if (!RagDocumentReader.IsSupported(path))
             throw new LocalizedServiceException("Settings.Rag.Error.UnsupportedFormat", Path.GetExtension(path));
 
@@ -377,16 +378,18 @@ public sealed class RagService
 
     private async Task<RagIngestResult> IngestDirectoryAsync(string directory, CancellationToken ct)
     {
+        EnsureReaderConfigured();
         var fileCount = 0;
         var chunkCount = 0;
         var skipped = new List<string>();
         RagIngestStats? lastDirStats = null;
 
+        var folderLimit = _opt.RagMaxFolderFiles;
         foreach (var file in EnumerateIngestFiles(directory))
         {
-            if (fileCount >= MaxFolderFiles)
+            if (folderLimit > 0 && fileCount >= folderLimit)
             {
-                skipped.Add(LocalizationService.Instance.Format("Settings.Rag.Error.SkippedFolderLimit", MaxFolderFiles));
+                skipped.Add(LocalizationService.Instance.Format("Settings.Rag.Error.SkippedFolderLimit", folderLimit));
                 break;
             }
 
@@ -857,5 +860,11 @@ public sealed class RagService
             s.RagUseLlmStructurer,
             s.RagSaveStructurerCache,
             s.RagUsePdfLayoutReader);
+    }
+
+    private void EnsureReaderConfigured()
+    {
+        var options = LoadIngestOptions();
+        RagDocumentReader.Configure(options.UsePdfLayoutReader, _opt.RagMaxFileBytes);
     }
 }

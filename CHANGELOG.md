@@ -22,6 +22,7 @@ v1.1.0 公開後の不具合修正と、記憶・音声入力まわりの使い�
 - 手動の記憶追加・保存済み一覧を設定から撤去。記憶は内部保存のみで、会話中に自然に思い出して触れる
 - .NET 10 で不要になった `System.Text.Encoding.CodePages` の PackageReference を削除（NU1510 警告解消）
 - 開発向け: `appsettings.local.json` で VOICEVOX 未導入時の UI テストが可能（`HideInstallForTesting`）
+- RAG 取込のファイル数・ファイルサイズ上限を撤廃（`appsettings.json` の `RagMaxFileBytes` / `RagMaxFolderFiles` で任意に制限可能。0 以下は無制限）
 
 ### ドキュメント
 

@@ -44,4 +44,8 @@ public sealed class LlamaOptions
     public int MaxReplyOutputTokens { get; set; } = 6144;
     /// <summary>AI 構造化取込の1ウィンドウあたり最大文字数。</summary>
     public int RagStructurerWindowChars { get; set; } = 3500;
+    /// <summary>RAG 取込の1ファイル最大バイト数（0 以下で無制限。大きいファイルは取込時のメモリ使用量が増えます）。</summary>
+    public long RagMaxFileBytes { get; set; }
+    /// <summary>フォルダー一括取込の最大ファイル数（0 以下で無制限）。</summary>
+    public int RagMaxFolderFiles { get; set; }
 }

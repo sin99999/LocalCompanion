@@ -629,15 +629,15 @@
 
                         <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagSourceUseHint, Mode=OneWay}" />
 
-                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagHtmlMarkdown, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUseHtmlMarkdown, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagHtmlMarkdown, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUseHtmlMarkdown, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagHtmlMarkdownHint, Mode=OneWay}" />
 
-                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagLlmStructurer, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUseLlmStructurer, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagLlmStructurer, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUseLlmStructurer, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagLlmStructurerHint, Mode=OneWay}" />
 
-                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagSaveCache, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagSaveStructurerCache, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagSaveCache, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagSaveStructurerCache, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
 
-                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagPdfLayoutReader, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUsePdfLayoutReader, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        <ToggleSwitch Header="{x:Bind ViewModel.UiRagPdfLayoutReader, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUsePdfLayoutReader, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagPdfLayoutReaderHint, Mode=OneWay}" />
 
                         <TextBlock Style="{StaticResource SettingsSectionLabelStyle}">

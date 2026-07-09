@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.Services.DocumentReading;
@@ -7,8 +7,6 @@ namespace LocalCompanion.Services;
 
 public static class RagDocumentReader
 {
-    public const int MaxFileBytes = 20 * 1024 * 1024;
-
     public const string FileDialogFilter =
         "Supported files|*.txt;*.md;*.markdown;*.pdf;*.docx;*.html;*.htm;*.json;*.csv;*.xml;*.log;*.yaml;*.yml";
 
@@ -22,20 +20,22 @@ public static class RagDocumentReader
 
     private static RagDocumentReaderRegistry? _registry;
     private static bool _usePdfLayout;
+    private static long _maxFileBytes;
 
     public static string GetLocalizedFileDialogFilter() =>
         LocalizationService.Instance.Get("Settings.Rag.Picker.Filter");
 
-    public static void Configure(bool usePdfLayoutReader)
+    public static void Configure(bool usePdfLayoutReader, long maxFileBytes = 0)
     {
-        if (_registry is not null && _usePdfLayout == usePdfLayoutReader)
+        if (_registry is not null && _usePdfLayout == usePdfLayoutReader && _maxFileBytes == maxFileBytes)
             return;
         _usePdfLayout = usePdfLayoutReader;
-        _registry = new RagDocumentReaderRegistry(usePdfLayoutReader);
+        _maxFileBytes = maxFileBytes;
+        _registry = new RagDocumentReaderRegistry(usePdfLayoutReader, maxFileBytes);
     }
 
     private static RagDocumentReaderRegistry Registry =>
-        _registry ??= new RagDocumentReaderRegistry(_usePdfLayout);
+        _registry ??= new RagDocumentReaderRegistry(_usePdfLayout, _maxFileBytes);
 
     public static bool IsSupported(string path) => Registry.IsSupported(path);
 

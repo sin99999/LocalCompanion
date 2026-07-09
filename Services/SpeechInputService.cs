@@ -1,4 +1,4 @@
-using LocalCompanion.Localization;
+﻿using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using Windows.Foundation;
 using Windows.Media.Capture;
@@ -84,13 +84,9 @@ public sealed class SpeechInputService
 
         try
         {
-            var languageTag = LocalizationService.Instance.Current == AppLanguage.Japanese
-                ? "ja-JP"
-                : "en-US";
-            recognizer = new SpeechRecognizer(new Windows.Globalization.Language(languageTag));
-            await recognizer.CompileConstraintsAsync();
-
             sessionCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            recognizer = await CreateRecognizerAsync(sessionCts.Token);
+
             lock (_gate)
             {
                 _recognizer = recognizer;
@@ -143,6 +139,56 @@ public sealed class SpeechInputService
 
             TryDispose(recognizer);
             ListeningChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private static async Task<SpeechRecognizer> CreateRecognizerAsync(CancellationToken ct)
+    {
+        Exception? lastError = null;
+        foreach (var languageTag in EnumerateRecognizerLanguageCandidates())
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var recognizer = new SpeechRecognizer(new Windows.Globalization.Language(languageTag));
+                await recognizer.CompileConstraintsAsync();
+                return recognizer;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastError = ex;
+            }
+        }
+
+        if (lastError is not null)
+            throw lastError;
+
+        throw new LocalizedServiceException("Chat.SpeechInput.Failed");
+    }
+
+    /// <summary>
+    /// UI 言語を優先し、未インストールの音声パック（例: en-US）なら ja-JP 等へフォールバックする。
+    /// </summary>
+    private static IEnumerable<string> EnumerateRecognizerLanguageCandidates()
+    {
+        var preferred = LocalizationService.Instance.Current == AppLanguage.Japanese
+            ? "ja-JP"
+            : "en-US";
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var tag in new[] { preferred, "ja-JP", "en-US" })
+        {
+            if (string.IsNullOrWhiteSpace(tag) || !seen.Add(tag))
+                continue;
+            yield return tag;
+        }
+
+        foreach (var language in SpeechRecognizer.SupportedGrammarLanguages)
+        {
+            var tag = language.LanguageTag;
+            if (string.IsNullOrWhiteSpace(tag) || !seen.Add(tag))
+                continue;
+            yield return tag;
         }
     }
 

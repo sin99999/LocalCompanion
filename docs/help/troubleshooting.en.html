@@ -120,7 +120,7 @@
       <li>Conversations with the <strong>default AI</strong> (no character selected) are <strong>not</strong> listed in the left history pane.</li>
       <li>Under chat <strong>Options</strong>, turning off <strong>Reasoning</strong> may stabilize replies.</li>
       <li>With <strong>History</strong> off, prior turns are not sent to the model.</li>
-      <li>URL attachments are limited to <strong>2 MB</strong> (separate from the 20 MB RAG file limit).</li>
+      <li>URL attachments are limited to <strong>2 MB</strong> (separate from RAG import limits).</li>
     </ul>
 
     <h2>Vision / image input fails</h2>
@@ -133,7 +133,7 @@
     <h2>RAG (document search) does not work</h2>
     <ul>
       <li>Ingestion and search use the llama-server embedding API. Wait until status is OK.</li>
-      <li>Maximum 20 MB per file; folder import supports up to 200 files.</li>
+      <li>There is no default limit on import file count or file size. Optionally set <code>RagMaxFileBytes</code> (bytes) and <code>RagMaxFolderFiles</code> (count) in <code>appsettings.json</code> (0 or less means unlimited).</li>
     </ul>
 
     <h2>Log and data locations</h2>

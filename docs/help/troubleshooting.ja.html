@@ -121,7 +121,7 @@
       <li><strong>デフォルト AI</strong>（キャラ未選択）の会話は、左の履歴一覧に表示されません。</li>
       <li>チャットの <strong>オプション</strong> で <strong>推論</strong> をオフにすると、応答が安定しやすい場合があります。</li>
       <li><strong>履歴</strong> をオフにすると、過去のやり取りをモデルに渡しません。</li>
-      <li>URL 添付の取得上限は <strong>2 MB</strong> です（RAG の 20 MB とは別です）。</li>
+      <li>URL 添付の取得上限は <strong>2 MB</strong> です（RAG 取込とは別の上限です）。</li>
     </ul>
 
     <h2>画像入力（Vision）が失敗する</h2>
@@ -134,7 +134,7 @@
     <h2>RAG（資料検索）が動かない</h2>
     <ul>
       <li>資料の登録・検索には llama-server の埋め込み API を使用します。状態が「OK」になってからお試しください。</li>
-      <li>1 ファイル最大 20 MB、フォルダー取り込みは最大 200 ファイルまでです。</li>
+      <li>取込件数・ファイルサイズに既定の上限はありません。必要なら <code>appsettings.json</code> の <code>RagMaxFileBytes</code>（バイト）と <code>RagMaxFolderFiles</code>（件数）で制限できます（0 以下は無制限）。</li>
     </ul>
 
     <h2>ログの場所</h2>
