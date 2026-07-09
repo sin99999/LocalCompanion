@@ -9,6 +9,8 @@ namespace LocalCompanion.ViewModels;
 
 public partial class SettingsPageViewModel
 {
+    private bool _suppressGeneralOptionSave;
+
     public ObservableCollection<string> ChatFontChoices { get; } = new();
 
     [ObservableProperty]
@@ -56,6 +58,9 @@ public partial class SettingsPageViewModel
 
     partial void OnSelectedChatFontFamilyChanged(string? value) => UpdateGeneralPreview();
 
+    partial void OnConfirmHistoryDeleteChanged(bool value) => PersistGeneralToggles();
+    partial void OnSpeechInputEnabledChanged(bool value) => PersistGeneralToggles();
+
     private void LoadGeneralSettings()
     {
         ApplyGeneralForm(_appearance.Current);
@@ -75,6 +80,7 @@ public partial class SettingsPageViewModel
 
     private void ApplyGeneralForm(AppSettingsDto settings)
     {
+        _suppressGeneralOptionSave = true;
         ConfirmHistoryDelete = settings.ConfirmHistoryDelete;
         UserDisplayName = settings.UserDisplayName;
         SpeechInputEnabled = settings.SpeechInputEnabled;
@@ -82,6 +88,7 @@ public partial class SettingsPageViewModel
         SelectedChatFontFamily = ChatFontChoices.FirstOrDefault(f =>
             string.Equals(f, settings.ChatFontFamily, StringComparison.OrdinalIgnoreCase))
             ?? settings.ChatFontFamily;
+        _suppressGeneralOptionSave = false;
         RefreshSliderLabels();
         UpdateGeneralPreview();
     }
@@ -101,6 +108,30 @@ public partial class SettingsPageViewModel
         OnPropertyChanged(nameof(GeneralPreviewText));
         OnPropertyChanged(nameof(GeneralPreviewFontFamily));
         OnPropertyChanged(nameof(GeneralPreviewScale));
+    }
+
+    private void PersistGeneralToggles()
+    {
+        if (_suppressGeneralOptionSave)
+            return;
+
+        var c = _appearance.Current;
+        _appearance.Save(new AppSettingsDto
+        {
+            ConfirmHistoryDelete = ConfirmHistoryDelete,
+            ThemeMode = AppThemeModes.Dark,
+            ChatFontFamily = c.ChatFontFamily,
+            ChatFontSize = c.ChatFontSize,
+            UserDisplayName = c.UserDisplayName,
+            RagUseHtmlMarkdown = c.RagUseHtmlMarkdown,
+            RagUseLlmStructurer = c.RagUseLlmStructurer,
+            RagSaveStructurerCache = c.RagSaveStructurerCache,
+            RagUsePdfLayoutReader = c.RagUsePdfLayoutReader,
+            MemoryEnabled = c.MemoryEnabled,
+            MemoryAutoExtractOnClose = c.MemoryAutoExtractOnClose,
+            ChatSearchEnabled = c.ChatSearchEnabled,
+            SpeechInputEnabled = SpeechInputEnabled,
+        });
     }
 
     [RelayCommand]
@@ -134,7 +165,7 @@ public partial class SettingsPageViewModel
         RagUsePdfLayoutReader = _appearance.Current.RagUsePdfLayoutReader,
         MemoryEnabled = _appearance.Current.MemoryEnabled,
         MemoryAutoExtractOnClose = _appearance.Current.MemoryAutoExtractOnClose,
-        ChatSearchEnabled = false,
+        ChatSearchEnabled = _appearance.Current.ChatSearchEnabled,
         SpeechInputEnabled = SpeechInputEnabled,
     };
 }

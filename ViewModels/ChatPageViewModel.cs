@@ -28,6 +28,8 @@ public partial class ChatPageViewModel : ObservableObject
     private string? _syncedCharacterFileName;
     private CancellationTokenSource? _sendCts;
     private Exception? _lastErrorException;
+    private readonly SemaphoreSlim _sessionFinalizeGate = new(1, 1);
+    private int _sessionFinalizeGeneration;
 
     public bool ImageAttachEnabled { get; private set; } = true;
 
@@ -212,36 +214,48 @@ public partial class ChatPageViewModel : ObservableObject
         if (IsBusy)
             return;
 
-        await FinalizeCurrentSessionQuietlyAsync();
-        DeleteActiveDefaultAiSessionIfAny();
-        _activeSessionId = null;
-        _continueSession = false;
-        Messages.Clear();
-        RefreshWelcomeMessage();
-        ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
+        await _sessionFinalizeGate.WaitAsync();
+        var generation = Interlocked.Increment(ref _sessionFinalizeGeneration);
+        try
+        {
+            // 送信と競合しないよう、先にアクティブ ID を外してから終了処理する
+            var sessionId = _activeSessionId;
+            _activeSessionId = null;
+            _continueSession = false;
+            await FinalizeSessionQuietlyAsync(sessionId);
+            DeleteDefaultAiSessionIfAny(sessionId);
+            if (generation != _sessionFinalizeGeneration)
+                return;
+            Messages.Clear();
+            RefreshWelcomeMessage();
+            ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            _sessionFinalizeGate.Release();
+        }
     }
 
-    private void DeleteActiveDefaultAiSessionIfAny()
+    private void DeleteDefaultAiSessionIfAny(string? sessionId)
     {
-        if (string.IsNullOrWhiteSpace(_activeSessionId))
+        if (string.IsNullOrWhiteSpace(sessionId))
             return;
 
-        var session = _chat.GetSession(_activeSessionId);
+        var session = _chat.GetSession(sessionId);
         if (session is null || !CharacterPresetService.IsDefaultAiSession(session.PresetKey))
             return;
 
-        _chat.DeleteSession(_activeSessionId);
+        _chat.DeleteSession(sessionId);
     }
 
     /// <summary>長期記憶抽出＋タイトル確定。失敗しても新規会話は続行する。</summary>
-    private async Task FinalizeCurrentSessionQuietlyAsync()
+    private async Task FinalizeSessionQuietlyAsync(string? sessionId)
     {
-        if (string.IsNullOrWhiteSpace(_activeSessionId))
+        if (string.IsNullOrWhiteSpace(sessionId))
             return;
         if (!Messages.Any(m => !m.IsWelcomePlaceholder))
             return;
 
-        var sessionId = _activeSessionId;
         var savedMemories = 0;
         try
         {
@@ -259,9 +273,9 @@ public partial class ChatPageViewModel : ObservableObject
                 savedMemories = await _chat.FinalizeSessionWithMemoryCountAsync(sessionId, CancellationToken.None);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            /* 終了時の要約／記憶抽出失敗は無視 */
+            StartupLog.Write(ex, "Session finalize failed");
         }
 
         if (savedMemories > 0)
@@ -270,35 +284,61 @@ public partial class ChatPageViewModel : ObservableObject
 
     public async Task FinalizeActiveSessionOnCloseAsync()
     {
-        await FinalizeCurrentSessionQuietlyAsync();
-        _activeSessionId = null;
-        _continueSession = false;
+        await _sessionFinalizeGate.WaitAsync();
+        try
+        {
+            var sessionId = _activeSessionId;
+            _activeSessionId = null;
+            _continueSession = false;
+            await FinalizeSessionQuietlyAsync(sessionId);
+        }
+        finally
+        {
+            _sessionFinalizeGate.Release();
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanMutateConversation))]
     private async Task ClearHistoryAsync()
     {
-        // 消去前に事実を拾える場合は拾う
-        await FinalizeCurrentSessionQuietlyAsync();
-
-        var historyDeleted = false;
-        if (!string.IsNullOrWhiteSpace(_activeSessionId))
+        await _sessionFinalizeGate.WaitAsync();
+        try
         {
-            _chat.DeleteSession(_activeSessionId);
-            historyDeleted = true;
-        }
+            // 消去前に事実を拾える場合は拾う
+            var sessionId = _activeSessionId;
+            _activeSessionId = null;
+            _continueSession = false;
+            await FinalizeSessionQuietlyAsync(sessionId);
 
-        _activeSessionId = null;
-        _continueSession = false;
-        Messages.Clear();
-        RefreshWelcomeMessage();
-        if (historyDeleted)
-            SetStatusByKey("Chat.Status.HistoryCleared", 1);
-        else
-            SetStatusByKey("Chat.Status.NewConversation");
-        HasError = false;
-        ErrorText = string.Empty;
-        ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
+            var historyDeleted = false;
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                // Finalize で既に削除済みの場合もある
+                if (_chat.GetSession(sessionId) is not null)
+                {
+                    _chat.DeleteSession(sessionId);
+                    historyDeleted = true;
+                }
+                else
+                {
+                    historyDeleted = true;
+                }
+            }
+
+            Messages.Clear();
+            RefreshWelcomeMessage();
+            if (historyDeleted)
+                SetStatusByKey("Chat.Status.HistoryCleared", 1);
+            else
+                SetStatusByKey("Chat.Status.NewConversation");
+            HasError = false;
+            ErrorText = string.Empty;
+            ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            _sessionFinalizeGate.Release();
+        }
     }
 
     public event EventHandler? ConversationThreadsChanged;
@@ -312,8 +352,20 @@ public partial class ChatPageViewModel : ObservableObject
         if (IsBusy || string.IsNullOrWhiteSpace(sessionId))
             return;
 
-        if (!string.Equals(_activeSessionId, sessionId, StringComparison.Ordinal))
-            await FinalizeCurrentSessionQuietlyAsync();
+        await _sessionFinalizeGate.WaitAsync();
+        try
+        {
+            if (!string.Equals(_activeSessionId, sessionId, StringComparison.Ordinal))
+            {
+                var previous = _activeSessionId;
+                _activeSessionId = null;
+                await FinalizeSessionQuietlyAsync(previous);
+            }
+        }
+        finally
+        {
+            _sessionFinalizeGate.Release();
+        }
 
         var session = _chat.GetSession(sessionId);
         if (session is null)

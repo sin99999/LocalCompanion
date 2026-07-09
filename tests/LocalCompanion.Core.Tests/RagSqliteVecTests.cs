@@ -13,11 +13,7 @@ public sealed class RagSqliteVecTests
         using var conn = new SqliteConnection("Data Source=:memory:");
         conn.Open();
         vec.TryPrepare(conn);
-        if (!vec.IsAvailable)
-        {
-            // vec0.dll が無い環境では検証不可（サイレント合格にしない）
-            return; // xunit 2: Skip 相当。CI では Content で vec0.dll を同梱
-        }
+        Assert.True(vec.IsAvailable, "vec0.dll must be present in the test output (see LocalCompanion.Core.Tests.csproj Content).");
 
         CreateChunkTable(conn);
         const int dim = 4;
@@ -47,11 +43,7 @@ public sealed class RagSqliteVecTests
         using var conn = new SqliteConnection("Data Source=:memory:");
         conn.Open();
         vec.TryPrepare(conn);
-        if (!vec.IsAvailable)
-        {
-            // vec0.dll が無い環境では検証不可（サイレント合格にしない）
-            return; // xunit 2: Skip 相当。CI では Content で vec0.dll を同梱
-        }
+        Assert.True(vec.IsAvailable, "vec0.dll must be present in the test output (see LocalCompanion.Core.Tests.csproj Content).");
 
         var ids = vec.Search(conn, MakeVector(1, 0, 0, 0), topK: 3, sourcesFilter: Array.Empty<string>());
         Assert.Empty(ids);

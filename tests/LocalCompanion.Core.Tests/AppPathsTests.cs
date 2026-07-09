@@ -22,9 +22,8 @@ public sealed class AppPathsTests
         while (!File.Exists(Path.Combine(root, "LocalCompanion.csproj")))
         {
             var parent = Directory.GetParent(root);
-            if (parent is null)
-                return;
-            root = parent.FullName;
+            Assert.NotNull(parent);
+            root = parent!.FullName;
         }
 
         var found = AppPaths.FindDistributionRoot(root, root);

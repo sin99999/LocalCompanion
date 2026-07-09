@@ -36,6 +36,7 @@ function Test-DistributionFolder {
         "LICENSE",
         "THIRD-PARTY-NOTICES.txt",
         "CHANGELOG.md",
+        "README.md",
         "docs\Troubleshooting.md",
         "docs\code-signing.md",
         "docs\help\help.css",

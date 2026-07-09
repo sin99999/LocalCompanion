@@ -230,8 +230,8 @@
 
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabled, Mode=OneWay}" />
-                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabledHint, Mode=OneWay}" />
                             <ToggleSwitch IsOn="{x:Bind ViewModel.SpeechInputEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabledHint, Mode=OneWay}" />
                         </StackPanel>
 
                         <StackPanel Style="{StaticResource SettingsTabButtonRowStyle}">

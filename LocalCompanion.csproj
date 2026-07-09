@@ -6,9 +6,9 @@
     <RootNamespace>LocalCompanion</RootNamespace>
     <AssemblyName>LocalCompanion</AssemblyName>
     <!-- 製品バージョン（公開 ZIP 名・アプリ内表示・exe プロパティで共通利用） -->
-    <Version>1.1.2</Version>
-    <FileVersion>1.1.2.0</FileVersion>
-    <AssemblyVersion>1.1.2.0</AssemblyVersion>
+    <Version>1.1.3</Version>
+    <FileVersion>1.1.3.0</FileVersion>
+    <AssemblyVersion>1.1.3.0</AssemblyVersion>
     <Product>LocalCompanion</Product>
     <Company>LocalCompanion Project</Company>
     <Copyright>© 2026 LocalCompanion Project</Copyright>
@@ -81,6 +81,7 @@
     <Content Include="scripts\stop-llama.ps1" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="models\README.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="characters\README.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\help\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\Troubleshooting.md" CopyToOutputDirectory="PreserveNewest" Link="docs\Troubleshooting.md" />
     <Content Include="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />

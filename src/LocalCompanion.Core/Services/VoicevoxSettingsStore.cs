@@ -47,8 +47,9 @@ public sealed class VoicevoxSettingsStore
                 var json = File.ReadAllText(_path);
                 return JsonSerializer.Deserialize<VoicevoxSettingsDto>(json, JsonOpts) ?? new VoicevoxSettingsDto();
             }
-            catch
+            catch (Exception ex)
             {
+                TryBackupCorruptSettings(ex);
                 return new VoicevoxSettingsDto();
             }
         }
@@ -62,6 +63,21 @@ public sealed class VoicevoxSettingsStore
             AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(normalized, JsonOpts));
         }
         return normalized;
+    }
+
+    private void TryBackupCorruptSettings(Exception ex)
+    {
+        try
+        {
+            var bak = _path + ".bak-" + DateTime.Now.ToString("yyyyMMddHHmmss");
+            if (File.Exists(_path))
+                File.Copy(_path, bak, overwrite: true);
+            StartupLog.Write(ex, $"VOICEVOX settings corrupt; reset to defaults. backup={bak}");
+        }
+        catch (Exception backupEx)
+        {
+            StartupLog.Write(backupEx, "VOICEVOX settings corrupt; backup failed");
+        }
     }
 
     private static VoicevoxSettingsDto Normalize(VoicevoxSettingsDto dto)

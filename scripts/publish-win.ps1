@@ -53,12 +53,18 @@ function Remove-PublishArtifacts {
 function Copy-DistributionDocs {
     param([string]$PublishRoot)
 
-    foreach ($rel in @("LICENSE", "THIRD-PARTY-NOTICES.txt", "CHANGELOG.md")) {
+    foreach ($rel in @("LICENSE", "THIRD-PARTY-NOTICES.txt", "CHANGELOG.md", "README.md")) {
         $src = Join-Path $Root $rel
         if (-not (Test-Path $src)) {
             throw "配布用ドキュメントがありません: $rel"
         }
         Copy-Item $src (Join-Path $PublishRoot $rel) -Force
+    }
+
+    $localSettings = Join-Path $PublishRoot "appsettings.local.json"
+    if (Test-Path $localSettings) {
+        Remove-Item -LiteralPath $localSettings -Force
+        Write-Host "[OK] removed appsettings.local.json from publish output" -ForegroundColor DarkGray
     }
 
     $docsSrc = Join-Path $Root "docs\Troubleshooting.md"

@@ -1,4 +1,4 @@
-using LocalCompanion.Models;
+﻿using LocalCompanion.Models;
 using Microsoft.UI.Xaml;
 
 namespace LocalCompanion.Services;
@@ -48,7 +48,7 @@ public sealed class AppAppearanceService
             RagUsePdfLayoutReader = Current.RagUsePdfLayoutReader,
             MemoryEnabled = Current.MemoryEnabled,
             MemoryAutoExtractOnClose = Current.MemoryAutoExtractOnClose,
-            ChatSearchEnabled = false,
+            ChatSearchEnabled = Current.ChatSearchEnabled,
             SpeechInputEnabled = Current.SpeechInputEnabled,
         });
     }

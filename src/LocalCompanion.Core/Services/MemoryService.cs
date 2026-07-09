@@ -286,9 +286,9 @@ public sealed class MemoryService
                     saved++;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            /* optional extraction */
+            StartupLog.Write(ex, "Memory extract failed");
         }
 
         return saved;

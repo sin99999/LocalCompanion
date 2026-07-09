@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
@@ -70,7 +70,7 @@ public partial class SettingsPageViewModel
             RagUsePdfLayoutReader = RagUsePdfLayoutReader,
             MemoryEnabled = _appearance.Current.MemoryEnabled,
             MemoryAutoExtractOnClose = _appearance.Current.MemoryAutoExtractOnClose,
-            ChatSearchEnabled = false,
+            ChatSearchEnabled = _appearance.Current.ChatSearchEnabled,
             SpeechInputEnabled = _appearance.Current.SpeechInputEnabled,
         });
     }

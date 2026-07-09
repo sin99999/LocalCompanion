@@ -452,24 +452,33 @@ public sealed class ChatService
         return sb.ToString();
     }
 
-    private readonly record struct HistoryMode(bool Load, bool Save, string? PresetKey, string? SessionId);
+    internal readonly record struct HistoryMode(bool Load, bool Save, string? PresetKey, string? SessionId);
 
     private HistoryMode ResolveHistory(ChatRequestDto req)
     {
         var sessionKey = CharacterPresetService.ResolveSessionPresetKey(_presets.GetActivePresetFileName());
-        if (string.IsNullOrWhiteSpace(req.SessionId))
-            return new(false, false, sessionKey, null);
-        if (!req.UseHistory)
-            return new(false, false, sessionKey, req.SessionId);
+        var session = string.IsNullOrWhiteSpace(req.SessionId) ? null : GetSession(req.SessionId);
+        return ResolveHistoryCore(sessionKey, req.SessionId, req.UseHistory, session?.PresetKey);
+    }
 
-        var session = GetSession(req.SessionId);
-        if (session is null)
-            return new(false, false, sessionKey, req.SessionId);
+    /// <summary>キャラ切替後の履歴混在防止ロジック（単体テスト用）。</summary>
+    internal static HistoryMode ResolveHistoryCore(
+        string activeSessionKey,
+        string? requestSessionId,
+        bool useHistory,
+        string? sessionPresetKey)
+    {
+        if (string.IsNullOrWhiteSpace(requestSessionId))
+            return new(false, false, activeSessionKey, null);
+        if (!useHistory)
+            return new(false, false, activeSessionKey, requestSessionId);
+        if (sessionPresetKey is null)
+            return new(false, false, activeSessionKey, requestSessionId);
         // キャラ切替後に旧セッション ID が残っていても、別 preset へ混在保存しない
-        if (!string.Equals(session.PresetKey, sessionKey, StringComparison.OrdinalIgnoreCase))
-            return new(false, false, sessionKey, req.SessionId);
+        if (!string.Equals(sessionPresetKey, activeSessionKey, StringComparison.OrdinalIgnoreCase))
+            return new(false, false, activeSessionKey, requestSessionId);
 
-        return new(true, true, sessionKey, req.SessionId);
+        return new(true, true, activeSessionKey, requestSessionId);
     }
 
     public async Task<ChatResponseDto> ChatAsync(ChatRequestDto req, CancellationToken ct)

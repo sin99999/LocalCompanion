@@ -59,7 +59,7 @@ public partial class SettingsPageViewModel
             RagUsePdfLayoutReader = c.RagUsePdfLayoutReader,
             MemoryEnabled = MemoryEnabled,
             MemoryAutoExtractOnClose = MemoryAutoExtractOnClose,
-            ChatSearchEnabled = false,
+            ChatSearchEnabled = c.ChatSearchEnabled,
             SpeechInputEnabled = c.SpeechInputEnabled,
         });
     }

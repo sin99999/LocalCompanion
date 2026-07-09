@@ -29,6 +29,7 @@ public partial class SettingsPageViewModel : ObservableObject
     private readonly MemoryService _memory;
     private int _voicevoxLoadGeneration;
     private bool _suppressVoicevoxSave;
+    private CancellationTokenSource? _voicevoxSliderSaveCts;
 
     public SettingsPageViewModel(
         AppPaths paths,
@@ -611,6 +612,33 @@ public partial class SettingsPageViewModel : ObservableObject
             SetVoicevoxStatus("Settings.Voicevox.Saved");
     }
 
+    private void ScheduleVoicevoxSliderSave()
+    {
+        if (_suppressVoicevoxSave)
+            return;
+
+        _voicevoxSliderSaveCts?.Cancel();
+        _voicevoxSliderSaveCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _voicevoxSliderSaveCts = cts;
+        _ = DebouncedVoicevoxSliderSaveAsync(cts.Token);
+    }
+
+    private async Task DebouncedVoicevoxSliderSaveAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(400, ct);
+            if (ct.IsCancellationRequested)
+                return;
+            PersistVoicevoxSettings();
+        }
+        catch (OperationCanceledException)
+        {
+            /* 次のスライダー操作で上書き */
+        }
+    }
+
     [RelayCommand]
     private void DeleteRagSource(string? source)
     {
@@ -671,22 +699,22 @@ public partial class SettingsPageViewModel : ObservableObject
     partial void OnVoicevoxSpeedScaleChanged(double value)
     {
         RefreshSliderLabels();
-        PersistVoicevoxSettings();
+        ScheduleVoicevoxSliderSave();
     }
     partial void OnVoicevoxPitchScaleChanged(double value)
     {
         RefreshSliderLabels();
-        PersistVoicevoxSettings();
+        ScheduleVoicevoxSliderSave();
     }
     partial void OnVoicevoxIntonationScaleChanged(double value)
     {
         RefreshSliderLabels();
-        PersistVoicevoxSettings();
+        ScheduleVoicevoxSliderSave();
     }
     partial void OnVoicevoxVolumeScaleChanged(double value)
     {
         RefreshSliderLabels();
-        PersistVoicevoxSettings();
+        ScheduleVoicevoxSliderSave();
     }
 
     private void ClampCharacterMaxOutputTokens()
