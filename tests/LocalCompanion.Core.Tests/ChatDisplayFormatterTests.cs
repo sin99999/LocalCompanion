@@ -1,4 +1,4 @@
-using LocalCompanion.Services;
+﻿using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -32,5 +32,31 @@ public sealed class ChatDisplayFormatterTests
     {
         var raw = "お疲れ！今日はどう？";
         Assert.Equal(raw, ChatDisplayFormatter.FormatForDisplay(raw, sentenceBreaks: false));
+    }
+
+    [Fact]
+    public void FormatForDisplay_LetteredOptionsAfterEmoji_StartsOptionOnNewLine()
+    {
+        var raw = "しんちゃんは、もっとどの辺を知りたい？💕A. 窃盗罪について聞きたい！";
+        var actual = ChatDisplayFormatter.FormatForDisplay(raw);
+        Assert.Contains("💕\nA.", actual);
+        Assert.DoesNotContain("💕A.", actual);
+    }
+
+    [Fact]
+    public void FormatForDisplay_QuestionInsideHalfWidthParens_DoesNotOrphanClosingParen()
+    {
+        var raw = "A. 窃盗罪の例(例：「拾ったモノ」はどうなるの？)B. 強盗罪の定義を知りたい！";
+        var actual = ChatDisplayFormatter.FormatForDisplay(raw);
+        Assert.Contains("(例：「拾ったモノ」はどうなるの？)", actual);
+        Assert.DoesNotContain("の？\n)", actual);
+    }
+
+    [Fact]
+    public void FormatForDisplay_LetteredOptions_AreNotSplitByWesternPeriodRule()
+    {
+        var raw = "A. 窃盗罪 B. 強盗罪 C. 罰則";
+        var actual = ChatDisplayFormatter.FormatForDisplay(raw);
+        Assert.Equal(raw, actual);
     }
 }

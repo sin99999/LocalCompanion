@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -53,6 +53,9 @@ public static partial class ChatDisplayFormatter
             });
             t = WesternSentenceEndRegex().Replace(t, "$1\n");
 
+            // ？💕A. のように絵文字の直後に選択肢ラベルが付くときはラベルを次行へ
+            t = InsertNewlineBeforeLetteredOptions(t);
+
             for (var i = 0; i < protectedSegments.Count; i++)
                 t = t.Replace($"{QuotePlaceholderPrefix}{i}\uE001", protectedSegments[i]);
         }
@@ -75,8 +78,52 @@ public static partial class ChatDisplayFormatter
         return category is UnicodeCategory.OtherSymbol or UnicodeCategory.ModifierSymbol;
     }
 
-    /// <summary>句点改行の対象外: 「…」、（…）内。</summary>
-    [GeneratedRegex(@"(「[^」]*」|（[^）]*）)")]
+    /// <summary>絵文字・装飾記号の直後の A. B. などの前に改行を入れる。</summary>
+    private static string InsertNewlineBeforeLetteredOptions(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        var matches = LetteredOptionMarkerRegex().Matches(text);
+        if (matches.Count == 0)
+            return text;
+
+        var sb = new StringBuilder(text.Length + matches.Count);
+        var last = 0;
+        foreach (Match match in matches)
+        {
+            var start = match.Index;
+            if (start > last)
+                sb.Append(text, last, start - last);
+
+            if (start > 0 && sb.Length > 0 && sb[^1] != '\n'
+                && IsEmojiOrSymbolDecoration(text, IndexBeforeLetteredOption(text, start)))
+                sb.Append('\n');
+
+            sb.Append(match.Value);
+            last = start + match.Length;
+        }
+
+        if (last < text.Length)
+            sb.Append(text, last, text.Length - last);
+
+        return sb.ToString();
+    }
+
+    private static int IndexBeforeLetteredOption(string text, int letterIndex)
+    {
+        if (letterIndex <= 0)
+            return 0;
+
+        var index = letterIndex - 1;
+        if (char.IsLowSurrogate(text[index]) && index > 0)
+            index--;
+
+        return index;
+    }
+
+    /// <summary>句点改行の対象外: 「…」、（…）内、半角 (…) 内。</summary>
+    [GeneratedRegex(@"(「[^」]*」|（[^）]*）|\([^)\n]*\))")]
     private static partial Regex ProtectedSegmentRegex();
 
     [GeneratedRegex(@"`[^`\n]+`")]
@@ -88,9 +135,12 @@ public static partial class ChatDisplayFormatter
     [GeneratedRegex(@"([。！？]+)(?!\n)")]
     private static partial Regex JapaneseSentenceEndRegex();
 
-    /// <summary>英語等: 小数点・略語（ver.）の直後は改行しない。句読点の後は空白・改行・文末のときだけ改行。</summary>
-    [GeneratedRegex(@"(?<![0-9])([.!?]+)(?=\s|$|\n)(?!\n)")]
+    /// <summary>英語等: 小数点・略語（ver.）・選択肢 A. の直後は改行しない。</summary>
+    [GeneratedRegex(@"(?<![0-9A-Za-z])([.!?]+)(?=\s|$|\n)(?!\n)")]
     private static partial Regex WesternSentenceEndRegex();
+
+    [GeneratedRegex(@"[A-Z]\.\s")]
+    private static partial Regex LetteredOptionMarkerRegex();
 
     [GeneratedRegex(@"[ \t]+\n")]
     private static partial Regex TrailingWhitespaceBeforeNewlineRegex();
