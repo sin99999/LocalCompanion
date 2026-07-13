@@ -90,7 +90,7 @@ public sealed class AppSettingsStore
             RagUsePdfLayoutReader = dto.RagUsePdfLayoutReader,
             MemoryEnabled = dto.MemoryEnabled,
             MemoryAutoExtractOnClose = dto.MemoryAutoExtractOnClose,
-            ChatSearchEnabled = dto.ChatSearchEnabled,
+            ChatSearchEnabled = false,
             SpeechInputEnabled = dto.SpeechInputEnabled,
         };
     }

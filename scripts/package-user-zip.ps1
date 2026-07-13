@@ -54,17 +54,24 @@ function Test-DistributionFolder {
         }
     }
 
-    foreach ($rel in @("AGENTS.md", ".cursor", "appsettings.local.json")) {
+    foreach ($rel in @("AGENTS.md", ".cursor", "appsettings.local.json", "data", "tools")) {
         $full = Join-Path $Folder $rel
         if (Test-Path $full) {
-            throw "配布フォルダに開発者向けファイルが含まれています: $rel"
+            throw "配布フォルダに開発者向けファイル／個人データが含まれています: $rel"
         }
+    }
+
+    $selectionJson = Join-Path $Folder "models\selection.json"
+    if (Test-Path $selectionJson) {
+        throw "配布フォルダに個人モデル選択が含まれています: models\selection.json"
     }
 
     Get-ChildItem -Path (Join-Path $Folder "models") -Filter "*.gguf" -ErrorAction SilentlyContinue |
         ForEach-Object { throw "配布フォルダに個人モデルが含まれています: models\$($_.Name)" }
     Get-ChildItem -Path (Join-Path $Folder "characters") -Filter "*.json" -ErrorAction SilentlyContinue |
         ForEach-Object { throw "配布フォルダに個人キャラ設定が含まれています: characters\$($_.Name)" }
+    Get-ChildItem -Path $Folder -Filter "rag.db" -Recurse -ErrorAction SilentlyContinue |
+        ForEach-Object { throw "配布フォルダに個人 RAG DB が含まれています: $($_.FullName.Substring($Folder.Length).TrimStart('\','/'))" }
 }
 
 Write-Host "=== package user ZIP ===" -ForegroundColor Cyan

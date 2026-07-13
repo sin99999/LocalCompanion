@@ -34,4 +34,28 @@ public sealed class AppSettingsStoreTests
             try { Directory.Delete(dir, true); } catch { /* ignore */ }
         }
     }
+
+    [Fact]
+    public void Save_ChatSearchEnabledTrue_IsForcedOff()
+    {
+        var relative = Path.Combine("obj", "lc-test-" + Guid.NewGuid().ToString("N"));
+        var db = new RagDatabase(Options.Create(new LlamaOptions
+        {
+            DataDirectory = relative,
+        }));
+        var dir = db.DataDirectory;
+        try
+        {
+            var store = new AppSettingsStore(db);
+            var saved = store.Save(new AppSettingsDto { ChatSearchEnabled = true });
+            Assert.False(saved.ChatSearchEnabled);
+
+            var loaded = store.Load();
+            Assert.False(loaded.ChatSearchEnabled);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* ignore */ }
+        }
+    }
 }

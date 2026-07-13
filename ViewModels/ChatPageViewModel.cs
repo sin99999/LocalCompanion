@@ -212,7 +212,10 @@ public partial class ChatPageViewModel : ObservableObject
     public async Task FinalizeAndBeginNewConversationAsync()
     {
         if (IsBusy)
+        {
+            NotifyBusyMutationBlocked();
             return;
+        }
 
         await _sessionFinalizeGate.WaitAsync();
         var generation = Interlocked.Increment(ref _sessionFinalizeGeneration);
@@ -350,9 +353,14 @@ public partial class ChatPageViewModel : ObservableObject
     public async Task SwitchToConversationSessionAsync(string sessionId)
     {
         if (IsBusy || string.IsNullOrWhiteSpace(sessionId))
+        {
+            if (IsBusy)
+                NotifyBusyMutationBlocked();
             return;
+        }
 
         await _sessionFinalizeGate.WaitAsync();
+        var generation = Interlocked.Increment(ref _sessionFinalizeGeneration);
         try
         {
             if (!string.Equals(_activeSessionId, sessionId, StringComparison.Ordinal))
@@ -361,55 +369,58 @@ public partial class ChatPageViewModel : ObservableObject
                 _activeSessionId = null;
                 await FinalizeSessionQuietlyAsync(previous);
             }
+
+            if (generation != _sessionFinalizeGeneration)
+                return;
+
+            var session = _chat.GetSession(sessionId);
+            if (session is null)
+                return;
+
+            _suppressCharacterChangeReset = true;
+            try
+            {
+                Messages.Clear();
+                var assistantLabel = GetAssistantDisplayName(session.PresetKey);
+                foreach (var (role, content) in _chat.LoadSessionMessages(sessionId))
+                {
+                    var line = new ChatLineViewModel(role, content, role == "assistant" ? assistantLabel : null);
+                    if (role == "user")
+                        ApplyUserDisplayName(line);
+                    Messages.Add(line);
+                }
+
+                var match = CharacterChoices.FirstOrDefault(c =>
+                    string.Equals(c.FileName, session.PresetKey, StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                    SelectedCharacter = match;
+                else if (CharacterPresetService.IsDefaultAiSession(session.PresetKey))
+                    SelectedCharacter = CharacterChoices.First(c =>
+                        c.FileName == CharacterPresetService.NoneSelection);
+                else
+                {
+                    try { _characters.Select(session.PresetKey); } catch { /* ignore */ }
+                }
+
+                _activeSessionId = sessionId;
+                _continueSession = true;
+                _syncedCharacterFileName = CharacterPresetService.IsDefaultAiSession(session.PresetKey)
+                    ? CharacterPresetService.NoneSelection
+                    : session.PresetKey;
+            }
+            finally
+            {
+                _suppressCharacterChangeReset = false;
+            }
+
+            SetStatusByKey(Messages.Count > 0 ? "Chat.Status.ThreadLoaded" : "Chat.Status.ThreadEmpty");
+            HasError = false;
+            ErrorText = string.Empty;
         }
         finally
         {
             _sessionFinalizeGate.Release();
         }
-
-        var session = _chat.GetSession(sessionId);
-        if (session is null)
-            return;
-
-        _suppressCharacterChangeReset = true;
-        try
-        {
-            Messages.Clear();
-            var assistantLabel = GetAssistantDisplayName(session.PresetKey);
-            foreach (var (role, content) in _chat.LoadSessionMessages(sessionId))
-            {
-                var line = new ChatLineViewModel(role, content, role == "assistant" ? assistantLabel : null);
-                if (role == "user")
-                    ApplyUserDisplayName(line);
-                Messages.Add(line);
-            }
-
-            var match = CharacterChoices.FirstOrDefault(c =>
-                string.Equals(c.FileName, session.PresetKey, StringComparison.OrdinalIgnoreCase));
-            if (match is not null)
-                SelectedCharacter = match;
-            else if (CharacterPresetService.IsDefaultAiSession(session.PresetKey))
-                SelectedCharacter = CharacterChoices.First(c =>
-                    c.FileName == CharacterPresetService.NoneSelection);
-            else
-            {
-                try { _characters.Select(session.PresetKey); } catch { /* ignore */ }
-            }
-
-            _activeSessionId = sessionId;
-            _continueSession = true;
-            _syncedCharacterFileName = CharacterPresetService.IsDefaultAiSession(session.PresetKey)
-                ? CharacterPresetService.NoneSelection
-                : session.PresetKey;
-        }
-        finally
-        {
-            _suppressCharacterChangeReset = false;
-        }
-
-        SetStatusByKey(Messages.Count > 0 ? "Chat.Status.ThreadLoaded" : "Chat.Status.ThreadEmpty");
-        HasError = false;
-        ErrorText = string.Empty;
     }
 
     public bool RecallPreviousInput()

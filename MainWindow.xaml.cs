@@ -1,4 +1,4 @@
-using LocalCompanion.Localization;
+﻿using LocalCompanion.Localization;
 using LocalCompanion.Pages;
 using LocalCompanion.Services;
 using LocalCompanion.Services.LlamaNative;
@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Windows.Foundation;
 using Windows.Graphics;
 using Windows.UI;
@@ -73,15 +74,49 @@ public sealed partial class MainWindow : Window
 
         StartupStatusText.Text = LocalizationService.Instance.Get("Splash.Wait");
         Activated += OnFirstActivated;
-        AppWindow.Closing += (_, _) => CompanionStartup.ShutdownInBackground();
+        AppWindow.Closing += OnAppWindowClosing;
         Closed += (_, _) =>
         {
             AppWindow.Changed -= OnAppWindowChanged;
             LocalizationService.Instance.Changed -= OnLocalizationChanged;
             AppServices.Get<AppAppearanceService>().Changed -= OnAppAppearanceChanged;
-            _ = FinalizeChatSessionOnCloseAsync();
             Instance = null;
         };
+    }
+
+    private int _closeFinalizeStarted;
+
+    private void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+    {
+        // 1回目: 記憶抽出を待ってから llama 停止。2回目以降は通常クローズ。
+        if (Interlocked.Exchange(ref _closeFinalizeStarted, 1) != 0)
+        {
+            CompanionStartup.ShutdownInBackground();
+            return;
+        }
+
+        args.Cancel = true;
+        _ = CloseAfterSessionFinalizeAsync();
+    }
+
+    private async Task CloseAfterSessionFinalizeAsync()
+    {
+        try
+        {
+            var finalize = FinalizeChatSessionOnCloseAsync();
+            var winner = await Task.WhenAny(finalize, Task.Delay(TimeSpan.FromSeconds(20)));
+            if (winner == finalize)
+                await finalize;
+        }
+        catch (Exception ex)
+        {
+            try { StartupLog.Write(ex, "Close finalize"); } catch { /* ignore */ }
+        }
+        finally
+        {
+            CompanionStartup.ShutdownInBackground();
+            try { Close(); } catch { /* ignore */ }
+        }
     }
 
     private void OnLocalizationChanged(object? sender, EventArgs e) =>
@@ -564,9 +599,9 @@ public sealed partial class MainWindow : Window
         {
             await AppServices.Get<ChatPageViewModel>().FinalizeActiveSessionOnCloseAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            /* ignore */
+            StartupLog.Write(ex, "FinalizeChatSessionOnClose");
         }
     }
 

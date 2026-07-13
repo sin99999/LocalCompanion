@@ -1,4 +1,4 @@
-using LocalCompanion.Localization;
+﻿using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using Microsoft.Extensions.Options;
 
@@ -183,7 +183,9 @@ public sealed class VoicevoxLifecycleService
             }
         }
 
-        _log.LogDebug("VOICEVOX installed but engine not ready yet");
+        lock (_startLock)
+            _startAttempted = false;
+        _log.LogDebug("VOICEVOX installed but engine not ready yet; will retry next ensure");
         return new VoicevoxStatusDto(false, true, true, _client.BaseUrl, null, null);
     }
 
@@ -191,7 +193,10 @@ public sealed class VoicevoxLifecycleService
     {
         var exe = _locator.FindLauncher();
         if (exe is null)
+        {
+            _startAttempted = false;
             return;
+        }
 
         try
         {
@@ -216,6 +221,7 @@ public sealed class VoicevoxLifecycleService
         }
         catch (Exception ex)
         {
+            _startAttempted = false;
             _log.LogDebug(ex, "VOICEVOX launch failed");
         }
     }
