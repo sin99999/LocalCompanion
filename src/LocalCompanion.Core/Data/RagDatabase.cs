@@ -126,12 +126,72 @@ public sealed class RagDatabase
               content TEXT NOT NULL,
               memory_path TEXT NOT NULL DEFAULT '',
               source_session_id TEXT NOT NULL DEFAULT '',
+              preset_key TEXT NOT NULL DEFAULT '',
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_user_memories_updated ON user_memories(updated_at DESC);
             """;
         cmd.ExecuteNonQuery();
+
+        // 既存 DB は CREATE IF NOT EXISTS では列が増えないので、INDEX より先に ALTER する
+        EnsureUserMemoriesPresetKey(conn);
+        BackfillUserMemoryPresetKeys(conn);
+    }
+
+    private static void EnsureUserMemoriesPresetKey(SqliteConnection conn)
+    {
+        if (!ColumnExists(conn, "user_memories", "preset_key"))
+        {
+            var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE user_memories ADD COLUMN preset_key TEXT NOT NULL DEFAULT ''";
+            alter.ExecuteNonQuery();
+        }
+
+        var idx = conn.CreateCommand();
+        idx.CommandText =
+            "CREATE INDEX IF NOT EXISTS idx_user_memories_preset_updated ON user_memories(preset_key, updated_at DESC)";
+        idx.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// 既存行へ conversation_sessions.preset_key を埋める。プレーンAI（__default_ai__）由来は削除する。
+    /// </summary>
+    private static void BackfillUserMemoryPresetKeys(SqliteConnection conn)
+    {
+        var check = conn.CreateCommand();
+        check.CommandText = "SELECT value FROM app_metadata WHERE key = 'user_memories_preset_backfill_v1' LIMIT 1";
+        if (check.ExecuteScalar()?.ToString() == "1")
+            return;
+
+        var fill = conn.CreateCommand();
+        fill.CommandText = """
+            UPDATE user_memories
+            SET preset_key = COALESCE((
+                SELECT s.preset_key
+                FROM conversation_sessions s
+                WHERE s.id = user_memories.source_session_id
+                LIMIT 1
+            ), '')
+            WHERE IFNULL(preset_key, '') = ''
+              AND IFNULL(source_session_id, '') != ''
+            """;
+        fill.ExecuteNonQuery();
+
+        var dropDefault = conn.CreateCommand();
+        dropDefault.CommandText = """
+            DELETE FROM user_memories
+            WHERE preset_key = $defaultAi
+            """;
+        dropDefault.Parameters.AddWithValue("$defaultAi", CharacterPresetService.DefaultAiPresetKey);
+        dropDefault.ExecuteNonQuery();
+
+        var mark = conn.CreateCommand();
+        mark.CommandText = """
+            INSERT INTO app_metadata(key, value) VALUES ('user_memories_preset_backfill_v1', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """;
+        mark.ExecuteNonQuery();
     }
 
     private static void EnsureChatMessageSearch(SqliteConnection conn)

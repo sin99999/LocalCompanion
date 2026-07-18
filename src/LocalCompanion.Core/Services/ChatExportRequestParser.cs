@@ -23,11 +23,11 @@ internal static class ChatExportRequestParser
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTail = new(
-        @"[、,]?\s*(?:(?:結果|内容|まとめ|レポート|報告)(?:を|の)?)?\s*(?:デスクトップ|desktop)(?:上|に)?(?:へ|に)?(?:[^\n。!?]{0,80}?(?:置いといて|置いておいて|置いて|保存して|書いといて|書き出して|出力して|残して|おいて|作って|書いて|ください|お願い))[^\n。!?]{0,40}?(?:\.(?:txt|md|markdown|mdx|rst|csv|json|xml|html?|ya?ml|log|ini|cfg)|txt|md)?(?:形式|ファイル)?(?:で)?[。!?]?\s*$",
+        @"[、,]?\s*(?:(?:結果|内容|まとめ|レポート|報告)(?:を|の)?)?\s*(?:デスクトップ|desktop)(?:上|に)?(?:へ|に)?(?:[^\n。!?]{0,80}?(?:置いといて|置いておいて|置いて|保存して|書いといて|書き出して|書きだして|出力して|残して|おいて|作って|書いて|ください|お願い))[^\n。!?]{0,40}?(?:\.(?:txt|md|markdown|mdx|rst|csv|json|xml|html?|ya?ml|log|ini|cfg)|txt|md)?(?:形式|ファイル)?(?:で)?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTailFile = new(
-        @"[、,]?\s*(?:(?:結果|内容|まとめ|レポート|報告)(?:を|の)?)?\s*(?:テキスト|text)?\s*ファイル(?:に|へ|として|で)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|作って|残して))?[。!?]?\s*$",
+        @"[、,]?\s*(?:(?:結果|内容|まとめ|レポート|報告)(?:を|の)?)?\s*(?:テキスト|text)?\s*ファイル(?:に|へ|として|で)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ|書いて|作って|残して))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTailLoose = new(
@@ -39,7 +39,7 @@ internal static class ChatExportRequestParser
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTextFile = new(
-        @"[、,]?\s*(?:テキスト|text)\s*ファイル(?:として|で)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出))?[。!?]?\s*$",
+        @"[、,]?\s*(?:テキスト|text)\s*ファイル(?:として|で)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex WindowsAbsolutePath = new(
@@ -59,15 +59,15 @@ internal static class ChatExportRequestParser
         RegexOptions.Compiled);
 
     private static readonly Regex StripTailPath = new(
-        @"[、,]?\s*(?:[A-Za-z]:\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*)|\\\\[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*|\.\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*))(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|残して|おいて))?[。!?]?\s*$",
+        @"[、,]?\s*(?:[A-Za-z]:\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*)|\\\\[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*|\.\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*))(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ|書いて|残して|おいて))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTailUsb = new(
-        @"[、,]?\s*(?:USB(?:メモリ)?|usb(?:メモリ)?|外付け(?:メモリ|ドライブ)?|リムーバブル(?:ディスク|ドライブ)?|removable(?:\s+storage)?|flash\s+drive)(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|残して))?[。!?]?\s*$",
+        @"[、,]?\s*(?:USB(?:メモリ)?|usb(?:メモリ)?|外付け(?:メモリ|ドライブ)?|リムーバブル(?:ディスク|ドライブ)?|removable(?:\s+storage)?|flash\s+drive)(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ|書いて|残して))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTailSpecialFolder = new(
-        @"[、,]?\s*(?:ドキュメント(?:フォルダ)?|書類フォルダ|downloads?|ダウンロード(?:フォルダ)?|data(?:フォルダ)?|データフォルダー?|ユーザーデータ|アプリ(?:の)?(?:フォルダ|ディレクトリ)|exe(?:の)?横|インストール(?:先|フォルダ)|カレント(?:ディレクトリ)?)(?:に|へ|の中に)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書いて|残して))?[。!?]?\s*$",
+        @"[、,]?\s*(?:ドキュメント(?:フォルダ)?|書類フォルダ|downloads?|ダウンロード(?:フォルダ)?|data(?:フォルダ)?|データフォルダー?|ユーザーデータ|アプリ(?:の)?(?:フォルダ|ディレクトリ)|exe(?:の)?横|インストール(?:先|フォルダ)|カレント(?:ディレクトリ)?)(?:に|へ|の中に)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ|書いて|残して))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static bool TryParse(string message, out ChatExportRequest request)
@@ -413,6 +413,7 @@ internal static class ChatExportRequestParser
         || message.Contains("置いて", StringComparison.Ordinal)
         || message.Contains("保存", StringComparison.Ordinal)
         || message.Contains("書き出", StringComparison.Ordinal)
+        || message.Contains("書きだ", StringComparison.Ordinal) // ひらがな表記（書き出して）
         || message.Contains("書いと", StringComparison.Ordinal)
         || message.Contains("書いて", StringComparison.Ordinal)
         || message.Contains("作って", StringComparison.Ordinal)

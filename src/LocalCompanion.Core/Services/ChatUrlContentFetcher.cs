@@ -9,12 +9,14 @@ namespace LocalCompanion.Services;
 public static class ChatUrlContentFetcher
 {
     public const int MaxDownloadBytes = 2 * 1024 * 1024;
+    private const int MaxRedirects = 5;
 
     private static readonly HttpClient Http = CreateClient();
 
     private static HttpClient CreateClient()
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("LocalCompanion/1.0");
         client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,text/plain,application/json,text/markdown,*/*;q=0.8");
         return client;
@@ -23,36 +25,67 @@ public static class ChatUrlContentFetcher
     public static async Task<(string DisplayName, string Text)> FetchAsync(string urlInput, CancellationToken ct = default)
     {
         var uri = ParseHttpUrl(urlInput);
-        var displayName = BuildDisplayName(uri);
+        EnsureHostAllowed(uri);
 
-        HttpResponseMessage response;
-        try
+        for (var hop = 0; hop <= MaxRedirects; hop++)
         {
-            response = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
+            HttpResponseMessage response;
+            try
+            {
+                response = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                throw new LocalizedServiceException("Chat.Url.NetworkError");
+            }
+
+            if (IsRedirect(response.StatusCode))
+            {
+                var location = response.Headers.Location;
+                response.Dispose();
+                if (location is null)
+                    throw new LocalizedServiceException("Chat.Url.NetworkError");
+
+                uri = location.IsAbsoluteUri ? location : new Uri(uri, location);
+                EnsureHostAllowed(uri);
+                continue;
+            }
+
+            using (response)
+            {
+                if (!response.IsSuccessStatusCode)
+                    throw new LocalizedServiceException("Chat.Url.DownloadFailed", (int)response.StatusCode);
+
+                var bytes = await ReadLimitedBytesAsync(response, ct);
+                var encoding = ResolveEncoding(response.Content.Headers.ContentType?.CharSet, bytes);
+                var raw = encoding.GetString(bytes).Trim();
+                if (raw.Length == 0)
+                    throw new LocalizedServiceException("Chat.Url.Empty");
+
+                var mediaType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
+                var text = ExtractText(raw, mediaType, uri);
+                if (string.IsNullOrWhiteSpace(text))
+                    throw new LocalizedServiceException("Chat.Url.Empty");
+
+                return (BuildDisplayName(uri), text);
+            }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            throw new LocalizedServiceException("Chat.Url.NetworkError");
-        }
 
-        using (response)
-        {
-            if (!response.IsSuccessStatusCode)
-                throw new LocalizedServiceException("Chat.Url.DownloadFailed", (int)response.StatusCode);
+        throw new LocalizedServiceException("Chat.Url.NetworkError");
+    }
 
-            var bytes = await ReadLimitedBytesAsync(response, ct);
-            var encoding = ResolveEncoding(response.Content.Headers.ContentType?.CharSet, bytes);
-            var raw = encoding.GetString(bytes).Trim();
-            if (raw.Length == 0)
-                throw new LocalizedServiceException("Chat.Url.Empty");
+    private static bool IsRedirect(HttpStatusCode status) =>
+        status is HttpStatusCode.Moved
+            or HttpStatusCode.Redirect
+            or HttpStatusCode.RedirectMethod
+            or HttpStatusCode.RedirectKeepVerb
+            or HttpStatusCode.TemporaryRedirect
+            or HttpStatusCode.PermanentRedirect;
 
-            var mediaType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
-            var text = ExtractText(raw, mediaType, uri);
-            if (string.IsNullOrWhiteSpace(text))
-                throw new LocalizedServiceException("Chat.Url.Empty");
-
-            return (displayName, text);
-        }
+    private static void EnsureHostAllowed(Uri uri)
+    {
+        if (ChatUrlHostGuard.IsBlocked(uri))
+            throw new LocalizedServiceException("Chat.Url.HostNotAllowed");
     }
 
     private static Uri ParseHttpUrl(string urlInput)

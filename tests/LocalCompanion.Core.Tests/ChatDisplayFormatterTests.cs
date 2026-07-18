@@ -37,7 +37,7 @@ public sealed class ChatDisplayFormatterTests
     [Fact]
     public void FormatForDisplay_LetteredOptionsAfterEmoji_StartsOptionOnNewLine()
     {
-        var raw = "しんちゃんは、もっとどの辺を知りたい？💕A. 窃盗罪について聞きたい！";
+        var raw = "ユーザーは、もっとどの辺を知りたい？💕A. 窃盗罪について聞きたい！";
         var actual = ChatDisplayFormatter.FormatForDisplay(raw);
         Assert.Contains("💕\nA.", actual);
         Assert.DoesNotContain("💕A.", actual);

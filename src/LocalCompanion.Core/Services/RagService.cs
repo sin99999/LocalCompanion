@@ -54,7 +54,7 @@ public sealed class RagService
         text = RagDocumentNormalizer.Normalize(text);
         var drafts = RagStructuralChunker.CreateChunks(text, source, _opt.ChunkSize, _opt.ChunkOverlap, docKind);
         var stats = BuildIngestStats(drafts, docKind, 0);
-        var prepared = new List<(RagChunkDraft Draft, float[] Embedding)>();
+        var prepared = new List<(RagChunkDraft Draft, float[]? Embedding)>();
         var embedSkipped = 0;
 
         foreach (var draft in drafts)
@@ -63,6 +63,7 @@ public sealed class RagService
             if (emb is null || emb.Length == 0)
             {
                 embedSkipped++;
+                prepared.Add((draft, null));
                 continue;
             }
 
@@ -80,13 +81,15 @@ public sealed class RagService
             _db.PrepareVectors(conn);
             _db.PrepareFts(conn);
 
-            var embeddingDim = prepared[0].Embedding.Length;
+            var firstEmb = prepared.Select(p => p.Embedding).FirstOrDefault(e => e is { Length: > 0 });
+            var embeddingDim = firstEmb?.Length ?? 0;
 
             await using var tx = await conn.BeginTransactionAsync(ct);
             var sqliteTx = (SqliteTransaction)tx;
             try
             {
-                _db.Vector.EnsureVectorTable(conn, embeddingDim, sqliteTx);
+                if (embeddingDim > 0)
+                    _db.Vector.EnsureVectorTable(conn, embeddingDim, sqliteTx);
 
                 DeleteSourceChunks(conn, source, sqliteTx);
 
@@ -108,7 +111,7 @@ public sealed class RagService
                         """;
                     cmd.Parameters.AddWithValue("$s", source);
                     cmd.Parameters.AddWithValue("$t", draft.Text);
-                    cmd.Parameters.AddWithValue("$e", JsonSerializer.Serialize(emb));
+                    cmd.Parameters.AddWithValue("$e", emb is { Length: > 0 } ? JsonSerializer.Serialize(emb) : "[]");
                     cmd.Parameters.AddWithValue("$at", DateTime.UtcNow.ToString("O"));
                     cmd.Parameters.AddWithValue("$cid", draft.ChunkId);
                     cmd.Parameters.AddWithValue("$ht", draft.HeaderText);
@@ -133,7 +136,8 @@ public sealed class RagService
                         continue;
 
                     var chunkId = Convert.ToInt64(idObj);
-                    _db.Vector.InsertVector(conn, chunkId, emb, sqliteTx);
+                    if (emb is { Length: > 0 })
+                        _db.Vector.InsertVector(conn, chunkId, emb, sqliteTx);
                     _db.Fts.IndexChunk(
                         conn,
                         chunkId,

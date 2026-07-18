@@ -38,6 +38,11 @@ public partial class SettingsPageViewModel
         UiMemoryEnabledHint = _loc.Get("Settings.Memory.Enabled.Hint");
         UiMemoryAutoExtract = _loc.Get("Settings.Memory.AutoExtract");
         UiMemoryAutoExtractHint = _loc.Get("Settings.Memory.AutoExtract.Hint");
+        OnPropertyChanged(nameof(UiTabMemory));
+        OnPropertyChanged(nameof(UiMemoryEnabled));
+        OnPropertyChanged(nameof(UiMemoryEnabledHint));
+        OnPropertyChanged(nameof(UiMemoryAutoExtract));
+        OnPropertyChanged(nameof(UiMemoryAutoExtractHint));
     }
 
     private void SaveMemorySearchOptions()

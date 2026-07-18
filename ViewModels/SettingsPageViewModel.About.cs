@@ -13,6 +13,7 @@ namespace LocalCompanion.ViewModels;
 public partial class SettingsPageViewModel
 {
     [ObservableProperty] public partial string UiAboutSection { get; set; } = "";
+    [ObservableProperty] public partial string UiAboutPrivacyHeader { get; set; } = "";
     [ObservableProperty] public partial string UiAboutPrivacyNote { get; set; } = "";
     [ObservableProperty] public partial string UiAboutLicenses { get; set; } = "";
     [ObservableProperty] public partial string UiAboutOpenLogFolder { get; set; } = "";
@@ -38,6 +39,7 @@ public partial class SettingsPageViewModel
     private void ApplyLocalizedAboutUi()
     {
         UiAboutSection = _loc.Get("Settings.About.Section");
+        UiAboutPrivacyHeader = _loc.Get("Settings.About.PrivacyHeader");
         UiAboutPrivacyNote = _loc.Get("Settings.About.PrivacyNote");
         UiAboutLicenses = _loc.Get("Settings.About.Licenses");
         UiAboutOpenLogFolder = _loc.Get("Settings.About.OpenLogFolder");

@@ -1,4 +1,5 @@
 ﻿using LocalCompanion.Models;
+using LocalCompanion.Services.LlamaNative;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -53,5 +54,11 @@ public sealed class CharacterSamplingLimitsTests
         Assert.Equal(CharacterSamplingLimits.TopKMax, normalized.TopK);
         Assert.True(normalized.ContextLength <= CharacterSamplingLimits.ContextLengthMax);
         Assert.True(normalized.MaxOutputTokens <= CharacterSamplingLimits.MaxOutputTokensCapForContext(normalized.ContextLength));
+    }
+
+    [Fact]
+    public void ContextLengthMax_MatchesLlamaStandardCap()
+    {
+        Assert.Equal(LlamaContextPolicy.StandardCap, CharacterSamplingLimits.ContextLengthMax);
     }
 }

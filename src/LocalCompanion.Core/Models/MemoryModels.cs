@@ -5,7 +5,8 @@ public sealed record UserMemoryRecord(
     string Content,
     string MemoryPath,
     string SourceSessionId,
-    string CreatedAt);
+    string CreatedAt,
+    string PresetKey = "");
 
 public sealed record ChatSearchHit(
     long MessageId,

@@ -265,10 +265,7 @@ public partial class ChatPageViewModel : ObservableObject
             var session = _chat.GetSession(sessionId);
             if (session is not null && CharacterPresetService.IsDefaultAiSession(session.PresetKey))
             {
-                // サイドバーに載せないデフォルトAIでも、終了時は事実だけ記憶へ残す
-                var messages = _chat.LoadSessionMessages(sessionId, 40);
-                if (messages.Count > 0)
-                    savedMemories = await _chat.ExtractMemoriesFromSessionAsync(sessionId, messages, CancellationToken.None);
+                // プレーンAIは長期記憶を持たない（会話セッション内の履歴のみ）
                 _chat.DeleteSession(sessionId);
             }
             else
@@ -562,7 +559,9 @@ public partial class ChatPageViewModel : ObservableObject
         {
             IsBusy = true;
             NotifySendStopButtonLabelChanged();
-            SetStatusByKey("Chat.Status.Generating");
+            var mayFetchWeb = ChatMessageUrlExtractor.Extract(message, 1).Count > 0
+                || ChatAgentResearchEnricher.LooksLikeResearchIntent(message);
+            SetStatusByKey(mayFetchWeb ? "Chat.Status.FetchingWeb" : "Chat.Status.Generating");
             SendCommand.NotifyCanExecuteChanged();
             StopGenerationCommand.NotifyCanExecuteChanged();
         });

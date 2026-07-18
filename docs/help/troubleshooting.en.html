@@ -84,17 +84,17 @@
 
     <h2>Settings tabs</h2>
     <ul>
-      <li><strong>General</strong>, <strong>Model</strong>, <strong>Character</strong>, <strong>RAG</strong>, and <strong>Memory</strong> are always shown.</li>
+      <li><strong>General</strong>, <strong>Model</strong>, <strong>Character</strong>, <strong>RAG</strong>, and <strong>About</strong> are always shown. Long-term memory toggles live under General.</li>
       <li>The <strong>VOICEVOX</strong> tab appears only when VOICEVOX is installed on this PC.</li>
       <li>Version, licenses, logs, and backup are under <strong>About &amp; maintenance</strong> at the bottom of the General tab.</li>
     </ul>
 
     <h2>Long-term memory</h2>
     <ul>
-      <li>Turn on <strong>Use long-term memory</strong> under <strong>Settings → Memory</strong>.</li>
-      <li>Short facts are stored on this PC and may be recalled naturally during chat. <strong>There is no on-screen list or manual add</strong> (internal storage only).</li>
-      <li>With <strong>Auto-extract memories when a chat ends</strong> enabled, the local AI may save up to 3 short facts when you <strong>start a new conversation</strong> or <strong>close the app</strong>. Recent turns in the <em>same</em> conversation are handled by the chat <strong>History</strong> option.</li>
-      <li>If memory never appears, check that memory is enabled and that the conversation has enough back-and-forth (especially with a character selected).</li>
+      <li>Turn on <strong>Use long-term memory</strong> under <strong>Settings → General</strong>. Memories are stored <strong>per named character</strong>; the default AI has no long-term memory.</li>
+      <li>Short facts are stored on this PC and may be recalled naturally in that character's chats. <strong>There is no on-screen list or manual add</strong> (internal storage only).</li>
+      <li>With <strong>Auto-extract memories when a chat ends</strong> enabled, the local AI may save up to 3 short facts for that character when you <strong>end a named character's chat</strong> or <strong>close the app</strong>. Recent turns in the <em>same</em> conversation are handled by the chat <strong>History</strong> option.</li>
+      <li>If memory never appears, check that memory is enabled and that a named character conversation has enough back-and-forth.</li>
     </ul>
 
     <h2>When you switch characters</h2>
@@ -148,7 +148,7 @@
       <li>Conversation, RAG, and attachment text are processed on this PC.</li>
       <li>Optional update checks may contact GitHub; when VOICEVOX is installed, VOICEVOX update checks may also contact GitHub.</li>
       <li>First-time setup and mmproj download may access Hugging Face and similar hosts.</li>
-      <li>Loading a URL accesses that URL.</li>
+      <li>Loading a URL, URLs written in a message, or research-style web search may access those remote sites. The default web search uses DuckDuckGo (HTML) and sends the query to that service. Set <code>WebSearchEnabled</code> to <code>false</code> in <code>appsettings.json</code> to turn it off.</li>
       <li>Speech input uses Windows speech recognition, which may be online depending on your environment.</li>
     </ul>
 

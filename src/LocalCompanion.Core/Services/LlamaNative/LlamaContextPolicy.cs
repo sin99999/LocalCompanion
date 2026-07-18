@@ -30,4 +30,43 @@ public static class LlamaContextPolicy
             context = LargeMultimodalCap;
         return context;
     }
+
+    /// <summary>UI スライダーで見せてよい最大値（ポリシーの標準上限）。</summary>
+    public static int UiContextSliderMaximum => StandardCap;
+
+    /// <summary>tools/.last-ctx から実行中の -c を読む。</summary>
+    public static int? TryReadRunningContext(string toolsDirectory)
+    {
+        try
+        {
+            var marker = Path.Combine(toolsDirectory, ".last-ctx");
+            if (File.Exists(marker)
+                && int.TryParse(File.ReadAllText(marker).Trim(), out var running)
+                && running >= 2048)
+            {
+                return running;
+            }
+        }
+        catch
+        {
+            /* ignore */
+        }
+
+        return null;
+    }
+
+    /// <summary>希望値に対する実効コンテキスト（実行中 -c があればそれも考慮）。</summary>
+    public static int EffectiveContext(
+        int requested,
+        string? toolsDirectory,
+        double modelSizeGb = 0,
+        bool hasMmproj = false)
+    {
+        var capped = CapForModel(requested, modelSizeGb, hasMmproj);
+        if (string.IsNullOrWhiteSpace(toolsDirectory))
+            return capped;
+
+        var running = TryReadRunningContext(toolsDirectory);
+        return running is int r ? Math.Min(capped, r) : capped;
+    }
 }

@@ -10,6 +10,8 @@ public sealed class ChatExportRequestParserTests
     [InlineData("労基法の残業について調べてデスクトップにテキストファイルで保存して", true, "労基法の残業について調べて", ".txt")]
     [InlineData("刑法を調べて結果をtxtで書いておいて", true, "刑法を調べて", ".txt")]
     [InlineData("内容をファイルに保存して", true, "内容を", ".md")]
+    [InlineData("今回のビッグマック指数について会話の内容をデスクトップにテキストファイルで書きだしてくれる？", true, "ビッグマック指数", ".txt")]
+    [InlineData("会話の内容をデスクトップにテキストファイルで書き出して", true, "会話", ".txt")]
     [InlineData("hello world", false, "", "")]
     [InlineData("刑法第8条は？", false, "", "")]
     public void TryParse_DetectsDesktopExportIntent(string message, bool expected, string expectedQuery, string expectedExt)

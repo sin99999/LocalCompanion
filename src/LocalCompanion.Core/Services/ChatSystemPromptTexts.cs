@@ -1,4 +1,4 @@
-namespace LocalCompanion.Services;
+﻿namespace LocalCompanion.Services;
 
 /// <summary>チャット用システムプロンプトの日英文言。</summary>
 internal static class ChatSystemPromptTexts
@@ -137,8 +137,8 @@ internal static class ChatSystemPromptTexts
 
     internal static string AttachmentInstruction(bool japanese) =>
         japanese
-            ? "ユーザーがテキストファイルまたは Web ページ（URL 読み込み）を添付した場合は、【添付】の全文を読んで質問に答えてください（RAG登録とは別）。"
-            : "If the user attached a text file or loaded a web page (URL), read the full [Attachment] section and answer (separate from RAG registration).";
+            ? "ユーザーがテキストファイル・URL・Web検索結果を添付した場合は、【添付】の全文を読んで質問に答えてください（RAG登録とは別）。ローカル環境から届かない情報は、添付に無い内容を断定しないでください。添付に【参考URL】がある場合は、回答の末尾に「参考:」としてその URL を短く列挙してください（添付に無い URL を作らない）。"
+            : "If the user attached a text file, URL content, or web search results, read the full [Attachment] section and answer (separate from RAG registration). Do not invent facts that are not in the attachment when the answer depends on remote pages. When the attachment includes [Reference URLs], end with a short \"Sources:\" list of those URLs (do not invent URLs).";
 
     internal static string ImageInstruction(bool japanese) =>
         japanese
@@ -225,6 +225,7 @@ internal static class ChatSystemPromptTexts
               - 堅い法律文書口調・説教は禁止。相棒として会話の温度感を最優先
               - 資料名（規程ファイル名など）を会話にさりげなく入れてよい
               - 資料に該当がなければ無理に引用せず、普段どおり雑談する
+              - 「【資料記載の回答】」のような定型見出しで資料を押しつけない
               """.Trim()
             : """
               [RAG — character conversation mode]
@@ -233,6 +234,29 @@ internal static class ChatSystemPromptTexts
               - Use penalty amounts and numbers exactly as in the materials; do not invent article numbers
               - Avoid stiff legal-document tone; prioritize the conversational vibe
               - You may mention file names naturally; skip forced citations when materials are irrelevant
+              - Do not force document templates like "[Answer from materials]"
+              """.Trim();
+
+    /// <summary>犯罪・危険行為の気配がある雑談向け。注意＋根拠条を自然に。</summary>
+    internal static string RagRiskCautionInstruction(bool japanese) =>
+        japanese
+            ? """
+              【危険・法令注意モード】
+              ユーザーの発言に犯罪や危険行為の気配がある。
+              - 相棒として優しく注意する（例:「それ犯罪かもだから気を付けてね」）
+              - 参考資料に根拠があれば、条文番号や要点を短く添えてよい
+              - 条文の全文コピペや「【資料記載の回答】」形式は使わない。雑談の流れを壊さない
+              - 資料に無い条番号・罰則を推測で断定しない。説教や威圧は禁止
+              - 実行方法の具体的な手助けはしない
+              """.Trim()
+            : """
+              [Risk / legal caution mode]
+              The user's message may involve crime or dangerous conduct.
+              - Gently caution them as a companion (e.g. that it may be illegal)
+              - If the materials support it, briefly add an article number or key point
+              - Do not dump full statutes or "[Answer from materials]" templates; keep the chat natural
+              - Do not invent article numbers or penalties not in the materials; no lecturing
+              - Do not help with how to commit a crime
               """.Trim();
 
     internal static string RagAdvisoryInstruction(bool japanese) =>

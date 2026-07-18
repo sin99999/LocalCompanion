@@ -14,7 +14,15 @@ public partial class SettingsPageViewModel
     [ObservableProperty] public partial string UiTabCharacter { get; set; }
     [ObservableProperty] public partial string UiTabRag { get; set; }
     [ObservableProperty] public partial string UiTabMemory { get; set; }
+    [ObservableProperty] public partial string UiTabAbout { get; set; }
     [ObservableProperty] public partial string UiTabVoicevox { get; set; }
+    [ObservableProperty] public partial string UiGeneralSaveSemantics { get; set; }
+    [ObservableProperty] public partial string UiSectionMemory { get; set; }
+    [ObservableProperty] public partial string UiCharacterSectionGeneration { get; set; }
+    [ObservableProperty] public partial string UiCharacterContextApplyTitle { get; set; }
+    [ObservableProperty] public partial string UiCharacterSaveSemantics { get; set; }
+    [ObservableProperty] public partial string UiRagIngestOptions { get; set; }
+    [ObservableProperty] public partial string UiModelAdvanced { get; set; }
     [ObservableProperty] public partial string UiGeneralFontFamily { get; set; }
     [ObservableProperty] public partial string UiGeneralUserDisplayName { get; set; }
     [ObservableProperty] public partial string UiGeneralUserDisplayNameHint { get; set; }
@@ -201,7 +209,15 @@ public partial class SettingsPageViewModel
         UiTabCharacter = _loc.Get("Settings.Tab.Character");
         UiTabRag = _loc.Get("Settings.Tab.Rag");
         UiTabMemory = _loc.Get("Settings.Tab.Memory");
+        UiTabAbout = _loc.Get("Settings.Tab.About");
         UiTabVoicevox = _loc.Get("Settings.Tab.Voicevox");
+        UiGeneralSaveSemantics = _loc.Get("Settings.General.SaveSemantics");
+        UiSectionMemory = _loc.Get("Settings.Section.Memory");
+        UiCharacterSectionGeneration = _loc.Get("Settings.Character.Section.Generation");
+        UiCharacterContextApplyTitle = _loc.Get("Settings.Character.ContextApplyTitle");
+        UiCharacterSaveSemantics = _loc.Get("Settings.Character.SaveSemantics");
+        UiRagIngestOptions = _loc.Get("Settings.Rag.Section.IngestOptions");
+        UiModelAdvanced = _loc.Get("Settings.Model.Section.Advanced");
         UiGeneralFontFamily = _loc.Get("Settings.General.FontFamily");
         UiGeneralUserDisplayName = _loc.Get("Settings.General.UserDisplayName");
         UiGeneralUserDisplayNameHint = _loc.Get("Settings.General.UserDisplayName.Hint");

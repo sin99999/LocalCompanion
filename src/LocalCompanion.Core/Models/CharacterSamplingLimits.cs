@@ -1,4 +1,6 @@
-﻿namespace LocalCompanion.Models;
+﻿using LocalCompanion.Services.LlamaNative;
+
+namespace LocalCompanion.Models;
 
 /// <summary>キャラ設定の温度・Top P（UI スライダーと API 保存で共通）。</summary>
 public static class CharacterSamplingLimits
@@ -17,8 +19,8 @@ public static class CharacterSamplingLimits
     public const int TopKStep = 1;
 
     public const int ContextLengthMin = 2048;
-    /// <summary>UI・保存で許容する上限（256K）。実際に載る量は VRAM とモデル依存。</summary>
-    public const int ContextLengthMax = 262144;
+    /// <summary>UI・保存で許容する上限。サーバー実効の標準キャップと揃える。</summary>
+    public const int ContextLengthMax = LlamaContextPolicy.StandardCap;
     public const int ContextLengthStep = 1024;
 
     public const int MaxOutputTokensMin = 128;

@@ -39,6 +39,18 @@ public sealed class LlamaOptions
     public int MaxAttachTextChars { get; set; } = 8000;
     /// <summary>この文字数以下のテキスト添付では RAG 検索も併用する。</summary>
     public int RagLightAttachMaxChars { get; set; } = 3000;
+    /// <summary>メッセージ内 URL を自動取得する最大件数。</summary>
+    public int InlineUrlMaxCount { get; set; } = 3;
+    /// <summary>インライン URL 1件あたりの最大文字数。</summary>
+    public int InlineUrlMaxChars { get; set; } = 12000;
+    /// <summary>調査意図時に Web 検索してコンテキストを足す。</summary>
+    public bool WebSearchEnabled { get; set; } = true;
+    /// <summary>検索エンドポイント（空なら DuckDuckGo HTML）。SearXNG 等を指定可。</summary>
+    public string WebSearchBaseUrl { get; set; } = "";
+    /// <summary>Web 検索で返す件数。</summary>
+    public int WebSearchTopK { get; set; } = 3;
+    /// <summary>検索ヒットのうち本文取得する件数。</summary>
+    public int WebSearchFetchTopK { get; set; } = 2;
     /// <summary>AI返答の最大文字数（表示・読み上げの上限）</summary>
     public int MaxReplyChars { get; set; } = 10_000;
     /// <summary>長文返答用の出力トークン上限（MaxReplyChars に合わせて調整）</summary>

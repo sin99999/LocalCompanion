@@ -123,7 +123,7 @@ public sealed partial class SettingsPage : Page
     }
 
     /// <summary>
-    /// VOICEVOX タブの出し入れのみ。順序は XAML 固定（基本→モデル→キャラ→RAG→記憶→VOICEVOX）。
+    /// VOICEVOX タブの出し入れのみ。順序は XAML 固定（基本→モデル→キャラ→RAG→このアプリについて→VOICEVOX）。
     /// </summary>
     private void SyncVoicevoxTab()
     {

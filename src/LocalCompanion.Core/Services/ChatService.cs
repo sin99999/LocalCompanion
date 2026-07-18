@@ -17,7 +17,8 @@ public sealed record ChatRequestDto(
     bool UseReasoning = false,
     bool UseHistory = true,
     string? SessionId = null,
-    bool ContinueSession = false);
+    bool ContinueSession = false,
+    IReadOnlyList<string>? WebSourceUrls = null);
 
 public sealed record ClearHistoryRequest(string? PresetKey = null);
 
@@ -506,6 +507,7 @@ public sealed class ChatService
                 conflictRuntime.StatusMessage);
         }
 
+        req = await EnrichRequestWithWebContextAsync(req, ct);
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -528,11 +530,13 @@ public sealed class ChatService
         if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-            var ragResult = await TrySearchRagWithPlanAsync(effectiveMessage, previousUser, ct);
-            if (TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out var verbatimReply, out ragSources))
+            var (ragResult, ragMode) = await TrySearchRagForChatAsync(effectiveMessage, previousUser, ct);
+            if (ragMode != RagConversationMode.Skip
+                && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out var verbatimReply, out ragSources))
             {
                 var finalVerbatim = await FinalizeReplyWithExportAsync(
                     verbatimReply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
+                finalVerbatim = ChatWebSourceCitation.AppendIfMissing(finalVerbatim, req.WebSourceUrls, japaneseReply);
                 if (historyMode.Save
                     && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                     && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
@@ -557,8 +561,9 @@ public sealed class ChatService
                     runtime.StatusMessage);
             }
 
-            if (ragResult is not null)
-                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply);
+            if (ragResult is not null && ragMode != RagConversationMode.Skip)
+                ragSources = TryAppendRagHits(
+                    systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply, ragMode);
         }
         else if (!req.UseRag)
         {
@@ -622,6 +627,7 @@ public sealed class ChatService
         reply = ChatReplyLimitHelper.FinishReply(reply, _opt.MaxReplyChars, hitStreamCap: false, japaneseReply);
         reply = await FinalizeReplyWithExportAsync(
             reply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
+        reply = ChatWebSourceCitation.AppendIfMissing(reply, req.WebSourceUrls, japaneseReply);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -676,6 +682,7 @@ public sealed class ChatService
             yield break;
         }
 
+        req = await EnrichRequestWithWebContextAsync(req, ct);
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -699,14 +706,16 @@ public sealed class ChatService
         if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-            var ragResult = await TrySearchRagWithPlanAsync(effectiveMessage, previousUser, ct);
-            if (TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out verbatimReply, out ragSources))
+            var (ragResult, ragMode) = await TrySearchRagForChatAsync(effectiveMessage, previousUser, ct);
+            if (ragMode != RagConversationMode.Skip
+                && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out verbatimReply, out ragSources))
             {
                 // handled below
             }
-            else if (ragResult is not null)
+            else if (ragResult is not null && ragMode != RagConversationMode.Skip)
             {
-                ragSources = TryAppendRagHits(systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply);
+                ragSources = TryAppendRagHits(
+                    systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply, ragMode);
             }
         }
         else if (!req.UseRag)
@@ -718,6 +727,7 @@ public sealed class ChatService
         {
             var finalVerbatim = await FinalizeReplyWithExportAsync(
                 verbatimReply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
+            finalVerbatim = ChatWebSourceCitation.AppendIfMissing(finalVerbatim, req.WebSourceUrls, japaneseReply);
             if (historyMode.Save
                 && !string.IsNullOrWhiteSpace(historyMode.SessionId)
                 && !string.IsNullOrWhiteSpace(historyMode.PresetKey))
@@ -876,6 +886,7 @@ public sealed class ChatService
 
         reply = await FinalizeReplyWithExportAsync(
             reply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
+        reply = ChatWebSourceCitation.AppendIfMissing(reply, req.WebSourceUrls, japaneseReply);
 
         if (historyMode.Save
             && !string.IsNullOrWhiteSpace(historyMode.SessionId)
@@ -1023,9 +1034,10 @@ public sealed class ChatService
             parts.Add(ChatSystemPromptTexts.UserNameLine(userDisplayName, japaneseReply));
 
         var memoryInjected = false;
+        var sessionPresetKey = CharacterPresetService.ResolveSessionPresetKey(_presets.GetActivePresetFileName());
         try
         {
-            var memories = await _memory.GetRelevantForPromptAsync(userMessage, ct);
+            var memories = await _memory.GetRelevantForPromptAsync(userMessage, sessionPresetKey, ct);
             var memoryBlock = MemoryService.FormatForSystemPrompt(memories, japaneseReply);
             if (!string.IsNullOrWhiteSpace(memoryBlock))
             {
@@ -1108,6 +1120,30 @@ public sealed class ChatService
             parts.Add("（画像が添付されています。描写と、写っている文字の読み取り（OCR）の両方を答えてください）");
         parts.Add(messageOverride ?? req.Message);
         return string.Join("\n\n", parts);
+    }
+
+    private async Task<ChatRequestDto> EnrichRequestWithWebContextAsync(ChatRequestDto req, CancellationToken ct)
+    {
+        // 1) メッセージ内 URL を自動取得
+        req = await ChatInlineWebContextBuilder.EnrichAsync(
+            req,
+            Math.Max(1, _opt.InlineUrlMaxCount),
+            Math.Max(1000, _opt.InlineUrlMaxChars),
+            Math.Max(1000, _opt.MaxAttachTextChars),
+            ct);
+
+        // 2) URL が無く調査意図があるときだけ Web 検索
+        req = await ChatAgentResearchEnricher.EnrichAsync(
+            req,
+            _opt.WebSearchEnabled,
+            _opt.WebSearchBaseUrl,
+            Math.Clamp(_opt.WebSearchTopK, 1, 8),
+            Math.Clamp(_opt.WebSearchFetchTopK, 0, 4),
+            Math.Max(1000, _opt.InlineUrlMaxChars),
+            Math.Max(1000, _opt.MaxAttachTextChars),
+            ct);
+
+        return req;
     }
 
     private (string EffectiveMessage, ChatExportRequest? Export) ResolveExportRequest(
@@ -1351,20 +1387,24 @@ public sealed class ChatService
         RagQueryPlan plan,
         bool isCharacter,
         string userMessage,
-        bool japanese)
+        bool japanese,
+        RagConversationMode conversationMode = RagConversationMode.Structured)
     {
         if (hits.Count == 0)
             return null;
 
         var ragSources = hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
-        var usePersonaMode = isCharacter && (
+        var useSoftChatMode = conversationMode is RagConversationMode.SoftTopic or RagConversationMode.RiskCaution;
+        var usePersonaMode = useSoftChatMode || (isCharacter && (
             plan.ResponseMode == RagResponseMode.PersonaSynthesis
             || plan.Intent == RagQueryIntent.Advisory
-            || !RagFormalLegalCue.IsFormalLegalQuery(userMessage));
+            || !RagFormalLegalCue.IsFormalLegalQuery(userMessage)));
 
         if (usePersonaMode)
         {
             systemParts.Add(ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese));
+            if (conversationMode == RagConversationMode.RiskCaution)
+                systemParts.Add(ChatSystemPromptTexts.RagRiskCautionInstruction(japanese));
             if (plan.Intent == RagQueryIntent.Advisory)
                 systemParts.Add(ChatSystemPromptTexts.RagAdvisoryInstruction(japanese));
         }
@@ -1471,6 +1511,23 @@ public sealed class ChatService
         }
 
         return false;
+    }
+
+    private async Task<(RagSearchResult? Result, RagConversationMode Mode)> TrySearchRagForChatAsync(
+        string currentMessage,
+        string? previousUserMessage,
+        CancellationToken ct)
+    {
+        var plan = RagQueryPlanner.Plan(currentMessage, previousUserMessage);
+        var mode = RagConversationGate.Resolve(plan, currentMessage);
+        if (mode == RagConversationMode.Skip)
+            return (null, mode);
+
+        var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, ct);
+        if (result is null)
+            return (null, mode);
+
+        return (RagConversationGate.ApplyHitPolicy(result, currentMessage, mode), mode);
     }
 
     private async Task<RagSearchResult?> TrySearchRagWithPlanAsync(

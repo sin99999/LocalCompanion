@@ -188,8 +188,8 @@ public partial class SettingsPageViewModel : ObservableObject
     [ObservableProperty]
     public partial string CharacterStatusText { get; set; } = "";
 
-    /// <summary>性格・指示入力欄の高さ（約3行）。保存メッセージ行は下段で常に確保する。</summary>
-    public double CharacterPersonaBoxHeight => 72;
+    /// <summary>性格・指示入力欄の高さ（約8行）。下の余白を使って編集しやすくする。</summary>
+    public double CharacterPersonaBoxHeight => 192;
 
     [ObservableProperty]
     public partial string RagStatusText { get; set; } = "";
@@ -232,6 +232,25 @@ public partial class SettingsPageViewModel : ObservableObject
 
     public double CharacterMaxOutputTokensSliderMaximum =>
         CharacterSamplingLimits.MaxOutputTokensCapForContext((int)Math.Round(CharacterContextLength));
+
+    public double CharacterContextSliderMaximum => LlamaContextPolicy.UiContextSliderMaximum;
+
+    /// <summary>デフォルトAI（名前なし）ではサンプリングをいじれない。名前を付けるか既存キャラを選ぶ。</summary>
+    public bool IsCharacterSamplingEditable =>
+        (SelectedCharacterPreset is not null
+         && !CharacterPresetService.IsNoneSelection(SelectedCharacterPreset.FileName))
+        || !string.IsNullOrWhiteSpace(CharacterName);
+
+    public string CharacterEffectiveContextText { get; private set; } = "";
+    public string CharacterEffectiveMaxOutputText { get; private set; } = "";
+    public string CharacterSamplingLockedHint { get; private set; } = "";
+    public bool CharacterContextNeedsApply { get; private set; }
+    public string CharacterContextApplyMessage { get; private set; } = "";
+    public Microsoft.UI.Xaml.Visibility CharacterSamplingLockedHintVisibility =>
+        IsCharacterSamplingEditable
+            ? Microsoft.UI.Xaml.Visibility.Collapsed
+            : Microsoft.UI.Xaml.Visibility.Visible;
+
     public string VoicevoxSpeedScaleLabel { get; private set; } = "";
     public string VoicevoxPitchScaleLabel { get; private set; } = "";
     public string VoicevoxIntonationScaleLabel { get; private set; } = "";
@@ -511,11 +530,23 @@ public partial class SettingsPageViewModel : ObservableObject
         CharacterMaxOutputTokens = profile.MaxOutputTokens;
         ClampCharacterMaxOutputTokens();
         RefreshSliderLabels();
+        NotifyCharacterSamplingUi();
+    }
+
+    partial void OnCharacterNameChanged(string value) => NotifyCharacterSamplingUi();
+
+    private void NotifyCharacterSamplingUi()
+    {
+        OnPropertyChanged(nameof(IsCharacterSamplingEditable));
+        OnPropertyChanged(nameof(CharacterSamplingLockedHintVisibility));
     }
 
     [RelayCommand]
     private void ApplyCharacterDefaults()
     {
+        if (!IsCharacterSamplingEditable)
+            return;
+
         CharacterTemperature = CharacterDefaults.Temperature;
         CharacterTopP = CharacterDefaults.TopP;
         CharacterTopK = CharacterDefaults.TopK;
@@ -739,6 +770,32 @@ public partial class SettingsPageViewModel : ObservableObject
         VoicevoxIntonationScaleLabel = loc.Format("Settings.Voicevox.Slider.Intonation", VoicevoxIntonationScale.ToString("0.##"));
         VoicevoxVolumeScaleLabel = loc.Format("Settings.Voicevox.Slider.Volume", VoicevoxVolumeScale.ToString("0.##"));
 
+        var requestedCtx = (int)Math.Round(CharacterContextLength);
+        var effectiveCtx = LlamaContextPolicy.EffectiveContext(requestedCtx, _paths.ToolsDirectory);
+        CharacterEffectiveContextText = loc.Format(
+            "Settings.Character.EffectiveContext",
+            requestedCtx.ToString("0"),
+            effectiveCtx.ToString("0"));
+
+        var replyCap = 6144;
+        var effectiveMaxOut = Math.Min(
+            (int)Math.Round(CharacterMaxOutputTokens),
+            Math.Min(replyCap, (int)CharacterMaxOutputTokensSliderMaximum));
+        CharacterEffectiveMaxOutputText = loc.Format(
+            "Settings.Character.EffectiveMaxOutput",
+            Math.Round(CharacterMaxOutputTokens).ToString("0"),
+            effectiveMaxOut.ToString("0"),
+            replyCap.ToString("0"));
+
+        CharacterSamplingLockedHint = loc.Get("Settings.Character.SamplingLockedHint");
+
+        var running = LlamaContextPolicy.TryReadRunningContext(_paths.ToolsDirectory);
+        CharacterContextNeedsApply = running is int r && r != LlamaContextPolicy.CapForServer(requestedCtx)
+            && IsCharacterSamplingEditable;
+        CharacterContextApplyMessage = CharacterContextNeedsApply
+            ? loc.Get("Settings.Character.ContextNeedsApply")
+            : "";
+
         OnPropertyChanged(nameof(GeneralChatFontSizeLabel));
         OnPropertyChanged(nameof(CharacterTemperatureLabel));
         OnPropertyChanged(nameof(CharacterTopPLabel));
@@ -746,6 +803,14 @@ public partial class SettingsPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CharacterContextLengthLabel));
         OnPropertyChanged(nameof(CharacterMaxOutputTokensLabel));
         OnPropertyChanged(nameof(CharacterMaxOutputTokensSliderMaximum));
+        OnPropertyChanged(nameof(CharacterContextSliderMaximum));
+        OnPropertyChanged(nameof(CharacterEffectiveContextText));
+        OnPropertyChanged(nameof(CharacterEffectiveMaxOutputText));
+        OnPropertyChanged(nameof(CharacterSamplingLockedHint));
+        OnPropertyChanged(nameof(CharacterContextNeedsApply));
+        OnPropertyChanged(nameof(CharacterContextApplyMessage));
+        OnPropertyChanged(nameof(IsCharacterSamplingEditable));
+        OnPropertyChanged(nameof(CharacterSamplingLockedHintVisibility));
         OnPropertyChanged(nameof(VoicevoxSpeedScaleLabel));
         OnPropertyChanged(nameof(VoicevoxPitchScaleLabel));
         OnPropertyChanged(nameof(VoicevoxIntonationScaleLabel));

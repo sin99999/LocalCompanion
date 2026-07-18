@@ -1,4 +1,4 @@
-using LocalCompanion.Models;
+﻿using LocalCompanion.Models;
 using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
@@ -42,6 +42,18 @@ public sealed class ChatSystemPromptTextsTests
         var en = ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: false);
         Assert.Contains("occasionally", en, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Do not mention databases", en);
+    }
+
+    [Fact]
+    public void AttachmentInstruction_AsksToCiteReferenceUrls()
+    {
+        var ja = ChatSystemPromptTexts.AttachmentInstruction(japanese: true);
+        Assert.Contains("参考URL", ja);
+        Assert.Contains("参考:", ja);
+
+        var en = ChatSystemPromptTexts.AttachmentInstruction(japanese: false);
+        Assert.Contains("Reference URLs", en);
+        Assert.Contains("Sources:", en);
     }
 
     [Fact]

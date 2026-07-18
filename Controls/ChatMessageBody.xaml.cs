@@ -3,7 +3,10 @@ using LocalCompanion.Services;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
+using DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue;
+using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
 namespace LocalCompanion.Controls;
 
@@ -37,9 +40,12 @@ public sealed partial class ChatMessageBody : UserControl
             typeof(ChatMessageBody),
             new PropertyMetadata(false, OnDisplayPropertyChanged));
 
-    private static readonly FontFamily ChatBodyFont = new("Segoe UI");
     private static readonly FontFamily CodeFontFamily = new("Cascadia Mono, Consolas, Courier New");
     private static readonly TimeSpan RebuildThrottle = TimeSpan.FromMilliseconds(80);
+
+    private static string ConversationFontFamily = "Segoe UI";
+    private static double ConversationFontSize = 14;
+    private static event Action? ConversationAppearanceChanged;
 
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private DispatcherQueueTimer? _rebuildTimer;
@@ -53,13 +59,33 @@ public sealed partial class ChatMessageBody : UserControl
         InitializeComponent();
         Loaded += (_, _) =>
         {
+            ConversationAppearanceChanged += OnConversationAppearanceChanged;
             _latestSourceText = SourceText;
             _latestHeaderText = HeaderText;
             _applySentenceBreaks = ApplySentenceBreaks;
             _useSecondaryForeground = UseSecondaryForeground;
             RebuildContentNow();
         };
-        Unloaded += (_, _) => StopRebuildTimer();
+        Unloaded += (_, _) =>
+        {
+            ConversationAppearanceChanged -= OnConversationAppearanceChanged;
+            StopRebuildTimer();
+        };
+    }
+
+    public static void SetConversationAppearance(string fontFamily, double fontSize)
+    {
+        var family = string.IsNullOrWhiteSpace(fontFamily) ? "Segoe UI" : fontFamily.Trim();
+        var size = fontSize > 0 ? fontSize : 14;
+        if (string.Equals(ConversationFontFamily, family, StringComparison.Ordinal)
+            && Math.Abs(ConversationFontSize - size) < 0.01)
+        {
+            return;
+        }
+
+        ConversationFontFamily = family;
+        ConversationFontSize = size;
+        ConversationAppearanceChanged?.Invoke();
     }
 
     public string SourceText
@@ -85,6 +111,8 @@ public sealed partial class ChatMessageBody : UserControl
         get => (bool)GetValue(UseSecondaryForegroundProperty);
         set => SetValue(UseSecondaryForegroundProperty, value);
     }
+
+    private void OnConversationAppearanceChanged() => ScheduleRebuildContent();
 
     private static void OnDisplayPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -159,7 +187,7 @@ public sealed partial class ChatMessageBody : UserControl
                 Background = (Brush)Application.Current.Resources["ControlFillColorDefaultBrush"],
                 BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"],
                 BorderThickness = new Thickness(1),
-                Child = CreateTextBlock(block.CodeText, monospace: true),
+                Child = CreateTextBlock(block.CodeText, monospace: true, linkify: false),
             };
         }
 
@@ -180,15 +208,52 @@ public sealed partial class ChatMessageBody : UserControl
         return $"{_latestHeaderText}\n\n{_latestSourceText}";
     }
 
-    private TextBlock CreateTextBlock(string text, bool monospace = false)
+    private TextBlock CreateTextBlock(string text, bool monospace = false, bool linkify = true)
     {
         var block = new TextBlock
         {
-            Text = text,
-            FontFamily = monospace ? CodeFontFamily : ChatBodyFont,
+            FontFamily = monospace ? CodeFontFamily : new FontFamily(ConversationFontFamily),
+            FontSize = monospace ? Math.Max(12, ConversationFontSize - 1) : ConversationFontSize,
             TextWrapping = TextWrapping.WrapWholeWords,
             IsTextSelectionEnabled = true,
         };
+
+        if (!linkify || text.IndexOf("http", StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            block.Text = text;
+        }
+        else
+        {
+            foreach (var segment in ChatMessageUrlExtractor.SplitByUrls(text))
+            {
+                if (segment.IsUrl
+                    && Uri.TryCreate(segment.Text, UriKind.Absolute, out var uri)
+                    && uri.Scheme is "http" or "https")
+                {
+                    // NavigateUri と Launcher の二重起動を避けるため、Click + Launcher のみ使う
+                    var link = new Hyperlink();
+                    link.Inlines.Add(new Run { Text = segment.Text });
+                    var target = uri;
+                    link.Click += async (_, _) =>
+                    {
+                        try
+                        {
+                            await Windows.System.Launcher.LaunchUriAsync(target);
+                        }
+                        catch
+                        {
+                            /* 起動失敗は無視 */
+                        }
+                    };
+                    block.Inlines.Add(link);
+                }
+                else
+                {
+                    block.Inlines.Add(new Run { Text = segment.Text });
+                }
+            }
+        }
+
         ApplyVisualStyle(block);
         return block;
     }
@@ -199,6 +264,6 @@ public sealed partial class ChatMessageBody : UserControl
             return;
 
         block.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-        block.FontSize = 12;
+        block.FontSize = Math.Max(12, ConversationFontSize - 2);
     }
 }
