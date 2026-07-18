@@ -49,6 +49,7 @@ description: >-
 - [ ] `.cursor/rules` と skills が矛盾していない
 - [ ] 触った領域に対応スキルがある
 - [ ] `AGENTS.md` と `localcompanion.mdc` のコマンド・データパス一致
+- [ ] 直近でホストを荒らす／惊吓せる操作があったら、個人 skill `host-safe-ops` または本スキルへ **再発防止を1項目追記した**（PDCA）
 
 ## 出力フォーマット（レン → しんちゃん）
 
@@ -62,3 +63,9 @@ description: >-
 - 最小 diff。監査で見つけたら **テスト or スキル or 1 ファイル修正** で閉じる
 - 履歴書き換え・force push はユーザー依頼まで提案止まり
 - 製品文案とチャット口調を混ぜない
+- しんちゃんはコードを読めない前提 → **壊す操作より診断**。レガシーソフト連打・画面モード互換・Program Files 改変は `host-safe-ops` に従う
+
+## 配布ドキュメント（ZIP）
+
+- `CONTRIBUTING.md` は `publish-win.ps1` / `package-user-zip.ps1` で同梱必須（README 相対リンク切れ防止）
+- Web 検索プライバシーは README / About / help で **DuckDuckGo・クエリ送信・WebSearchEnabled** を揃える

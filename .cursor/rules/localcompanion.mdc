@@ -32,6 +32,7 @@ dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 | RAG・ingest・vec 検索 | `.cursor/skills/localcompanion-rag/` |
 | テスト追加・修正 | `.cursor/skills/localcompanion-core-tests/` |
 | 公開前監査・妹作戦・横断レビュー | `.cursor/skills/localcompanion-agent-audit/` |
+| レガシーソフト診断・互換フラグ・窓が消えた | 個人 skill `host-safe-ops`（PCを壊さない） |
 
 ## 妹作戦（ユーザーが依頼したとき）
 
@@ -43,6 +44,12 @@ Task を並列で起動（explore）。親 Agent が統合して **最小修正 
 2. 触った範囲は `dotnet test`（可能なら全件）
 3. 再現手順 or 確認手順を 1〜3 行
 4. commit は **明示的な依頼時のみ**（セーブ≠commit）
+
+## ホスト安全（短く）
+
+- しんちゃんはコードを読めない前提。**推測連打で PC／画面を荒らさない**
+- クラッシュする旧アプリの互換実験・Explorer 再起動・Program Files 改変は `host-safe-ops` を Read してから
+- 吓人な出来事のあと → skill / rule に再発防止を1項目追記（PDCA）
 
 ## 製品文案
 

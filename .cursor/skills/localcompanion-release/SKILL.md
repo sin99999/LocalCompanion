@@ -79,3 +79,9 @@ Release を Publish しても **リポが Private のまま** ならログイン
 
 - [docs/公開前チェックリスト.md](docs/公開前チェックリスト.md)
 - [docs/Troubleshooting.md](docs/Troubleshooting.md)
+
+## 配布ドキュメント（欠けると恥ずかしい）
+
+- ZIP に `CONTRIBUTING.md` が入ること（`publish-win.ps1` がコピー、`package-user-zip.ps1` が検証）
+- Web 検索のプライバシー（DuckDuckGo / クエリ送信 / `WebSearchEnabled`）を README・About・help で揃える
+- 設定タブ説明は実 UI と一致（長期記憶は基本設定内。独立「記憶」タブはない）

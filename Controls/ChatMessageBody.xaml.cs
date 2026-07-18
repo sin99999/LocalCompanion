@@ -156,45 +156,136 @@ public sealed partial class ChatMessageBody : UserControl
 
     private void RebuildContentNow()
     {
-        ContentPanel.Children.Clear();
+        ContentHost.Blocks.Clear();
+        ApplyHostStyle();
 
         try
         {
             if (!string.IsNullOrWhiteSpace(_latestHeaderText))
-                ContentPanel.Children.Add(CreateTextBlock(_latestHeaderText));
+                ContentHost.Blocks.Add(CreateParagraph(_latestHeaderText, linkify: false));
 
             var blocks = ChatRichContentParser.ParseBlocks(_latestSourceText, _applySentenceBreaks);
             foreach (var block in blocks)
-                ContentPanel.Children.Add(CreateBlockElement(block));
+                AddDisplayBlock(block);
+
+            if (ContentHost.Blocks.Count == 0
+                && (!string.IsNullOrWhiteSpace(_latestSourceText) || !string.IsNullOrWhiteSpace(_latestHeaderText)))
+            {
+                ContentHost.Blocks.Add(CreateParagraph(BuildFallbackText(), linkify: true));
+            }
         }
         catch
         {
-            ContentPanel.Children.Clear();
+            ContentHost.Blocks.Clear();
             if (!string.IsNullOrWhiteSpace(_latestSourceText) || !string.IsNullOrWhiteSpace(_latestHeaderText))
-                ContentPanel.Children.Add(CreateTextBlock(BuildFallbackText()));
+                ContentHost.Blocks.Add(CreateParagraph(BuildFallbackText(), linkify: false));
         }
     }
 
-    private UIElement CreateBlockElement(ChatDisplayBlock block)
+    private void AddDisplayBlock(ChatDisplayBlock block)
     {
         if (block.Kind == ChatDisplayBlockKind.Code)
         {
-            return new Border
-            {
-                Margin = new Thickness(0, 4, 0, 4),
-                Padding = new Thickness(10, 8, 10, 8),
-                CornerRadius = new CornerRadius(6),
-                Background = (Brush)Application.Current.Resources["ControlFillColorDefaultBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"],
-                BorderThickness = new Thickness(1),
-                Child = CreateTextBlock(block.CodeText, monospace: true, linkify: false),
-            };
+            ContentHost.Blocks.Add(CreateCodeParagraph(block.CodeText));
+            return;
         }
 
         var text = ChatRichContentPlainText.FormatBlock(block);
-        return string.IsNullOrWhiteSpace(text)
-            ? new Border { Height = 0 }
-            : CreateTextBlock(text);
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        ContentHost.Blocks.Add(CreateParagraph(text, linkify: true));
+    }
+
+    private Paragraph CreateCodeParagraph(string codeText)
+    {
+        var paragraph = new Paragraph
+        {
+            Margin = new Thickness(0, 4, 0, 4),
+        };
+
+        var border = new Border
+        {
+            Padding = new Thickness(10, 8, 10, 8),
+            CornerRadius = new CornerRadius(6),
+            Background = (Brush)Application.Current.Resources["ControlFillColorDefaultBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = codeText,
+                FontFamily = CodeFontFamily,
+                FontSize = Math.Max(12, ConversationFontSize - 1),
+                TextWrapping = TextWrapping.WrapWholeWords,
+                IsTextSelectionEnabled = true,
+            },
+        };
+
+        // コード枠は InlineUIContainer（本文 RichTextBlock 内に置き、上下の選択は本文側で連続）
+        paragraph.Inlines.Add(new InlineUIContainer { Child = border });
+        return paragraph;
+    }
+
+    private Paragraph CreateParagraph(string text, bool linkify)
+    {
+        var paragraph = new Paragraph();
+        AppendTextInlines(paragraph.Inlines, text, linkify, monospace: false);
+        return paragraph;
+    }
+
+    private void AppendTextInlines(InlineCollection inlines, string text, bool linkify, bool monospace)
+    {
+        var fontFamily = monospace ? CodeFontFamily : new FontFamily(ConversationFontFamily);
+        var fontSize = monospace ? Math.Max(12, ConversationFontSize - 1) : ConversationFontSize;
+
+        if (!linkify || text.IndexOf("http", StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            inlines.Add(new Run
+            {
+                Text = text,
+                FontFamily = fontFamily,
+                FontSize = fontSize,
+            });
+            return;
+        }
+
+        foreach (var segment in ChatMessageUrlExtractor.SplitByUrls(text))
+        {
+            if (segment.IsUrl
+                && Uri.TryCreate(segment.Text, UriKind.Absolute, out var uri)
+                && uri.Scheme is "http" or "https")
+            {
+                var link = new Hyperlink();
+                link.Inlines.Add(new Run
+                {
+                    Text = segment.Text,
+                    FontFamily = fontFamily,
+                    FontSize = fontSize,
+                });
+                var target = uri;
+                link.Click += async (_, _) =>
+                {
+                    try
+                    {
+                        await Windows.System.Launcher.LaunchUriAsync(target);
+                    }
+                    catch
+                    {
+                        /* 起動失敗は無視 */
+                    }
+                };
+                inlines.Add(link);
+            }
+            else
+            {
+                inlines.Add(new Run
+                {
+                    Text = segment.Text,
+                    FontFamily = fontFamily,
+                    FontSize = fontSize,
+                });
+            }
+        }
     }
 
     private string BuildFallbackText()
@@ -208,62 +299,18 @@ public sealed partial class ChatMessageBody : UserControl
         return $"{_latestHeaderText}\n\n{_latestSourceText}";
     }
 
-    private TextBlock CreateTextBlock(string text, bool monospace = false, bool linkify = true)
+    private void ApplyHostStyle()
     {
-        var block = new TextBlock
+        ContentHost.FontFamily = new FontFamily(ConversationFontFamily);
+        ContentHost.FontSize = ConversationFontSize;
+        if (_useSecondaryForeground)
         {
-            FontFamily = monospace ? CodeFontFamily : new FontFamily(ConversationFontFamily),
-            FontSize = monospace ? Math.Max(12, ConversationFontSize - 1) : ConversationFontSize,
-            TextWrapping = TextWrapping.WrapWholeWords,
-            IsTextSelectionEnabled = true,
-        };
-
-        if (!linkify || text.IndexOf("http", StringComparison.OrdinalIgnoreCase) < 0)
-        {
-            block.Text = text;
+            ContentHost.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            ContentHost.FontSize = Math.Max(12, ConversationFontSize - 2);
         }
         else
         {
-            foreach (var segment in ChatMessageUrlExtractor.SplitByUrls(text))
-            {
-                if (segment.IsUrl
-                    && Uri.TryCreate(segment.Text, UriKind.Absolute, out var uri)
-                    && uri.Scheme is "http" or "https")
-                {
-                    // NavigateUri と Launcher の二重起動を避けるため、Click + Launcher のみ使う
-                    var link = new Hyperlink();
-                    link.Inlines.Add(new Run { Text = segment.Text });
-                    var target = uri;
-                    link.Click += async (_, _) =>
-                    {
-                        try
-                        {
-                            await Windows.System.Launcher.LaunchUriAsync(target);
-                        }
-                        catch
-                        {
-                            /* 起動失敗は無視 */
-                        }
-                    };
-                    block.Inlines.Add(link);
-                }
-                else
-                {
-                    block.Inlines.Add(new Run { Text = segment.Text });
-                }
-            }
+            ContentHost.ClearValue(RichTextBlock.ForegroundProperty);
         }
-
-        ApplyVisualStyle(block);
-        return block;
-    }
-
-    private void ApplyVisualStyle(TextBlock block)
-    {
-        if (!_useSecondaryForeground)
-            return;
-
-        block.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-        block.FontSize = Math.Max(12, ConversationFontSize - 2);
     }
 }

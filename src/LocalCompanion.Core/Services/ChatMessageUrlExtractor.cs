@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace LocalCompanion.Services;
 
@@ -11,12 +12,16 @@ internal readonly record struct ChatTextSegment(bool IsUrl, string Text);
 /// <summary>チャット文面から http(s) URL を抽出する。</summary>
 internal static class ChatMessageUrlExtractor
 {
-    // 末尾の日本語句読点・閉じ括弧は URL に含めない
+    // 空白・山括弧・典型的な閉じ括弧で区切る（日本語は後段で切除）
     private static readonly Regex UrlRegex = new(
         @"https?://[^\s<>""'）】」』>]+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly char[] TrailingJunk = ['.', ',', ';', ':', '!', '?', '。', '、', '）', ')', '】', '」', '』', ']'];
+    private static readonly char[] TrailingJunk =
+    [
+        '.', ',', ';', ':', '!', '?', '。', '、', '）', ')', '】', '」', '』', ']',
+        '！', '？', '：', '；',
+    ];
 
     public static IReadOnlyList<string> Extract(string? message, int maxCount = 5)
     {
@@ -35,7 +40,7 @@ internal static class ChatMessageUrlExtractor
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (Match match in UrlRegex.Matches(message))
         {
-            var raw = TrimTrailingJunk(match.Value);
+            var raw = SanitizeUrlMatch(match.Value);
             if (raw.Length < 8)
                 continue;
             if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri))
@@ -79,7 +84,7 @@ internal static class ChatMessageUrlExtractor
         var index = 0;
         foreach (Match match in UrlRegex.Matches(text))
         {
-            var raw = TrimTrailingJunk(match.Value);
+            var raw = SanitizeUrlMatch(match.Value);
             if (raw.Length < 8
                 || !Uri.TryCreate(raw, UriKind.Absolute, out var uri)
                 || uri.Scheme is not ("http" or "https"))
@@ -91,6 +96,7 @@ internal static class ChatMessageUrlExtractor
                 segments.Add(new ChatTextSegment(false, text[index..match.Index]));
 
             segments.Add(new ChatTextSegment(true, uri.AbsoluteUri));
+            // マッチ全体ではなく Sanitize 後の長さで進める（「だよ？」等は本文側へ）
             index = match.Index + raw.Length;
         }
 
@@ -102,11 +108,57 @@ internal static class ChatMessageUrlExtractor
             : segments;
     }
 
-    private static string TrimTrailingJunk(string value)
+    /// <summary>
+    /// 末尾句読点を除き、スペースなしで続く日本語（だよ？等）を URL から切り離す。
+    /// </summary>
+    internal static string SanitizeUrlMatch(string value)
     {
+        if (string.IsNullOrEmpty(value))
+            return value;
+
         var end = value.Length;
+        for (var i = 0; i < end; i++)
+        {
+            if (IsUrlBodyStopChar(value[i]))
+            {
+                end = i;
+                break;
+            }
+        }
+
         while (end > 0 && TrailingJunk.Contains(value[end - 1]))
             end--;
+
         return end == value.Length ? value : value[..end];
+    }
+
+    /// <summary>
+    /// 貼り付け URL の直後に打った日本語・全角記号で URL を切る。
+    /// ASCII・パーセントエンコード・よく使う URL 記号は残す。
+    /// </summary>
+    private static bool IsUrlBodyStopChar(char c)
+    {
+        if (c < 0x80)
+            return false;
+
+        // ひらがな・カタカナ・CJK・互換漢字・半角カナ
+        if (c is >= '\u3040' and <= '\u30FF'
+            or >= '\u31F0' and <= '\u31FF'
+            or >= '\u3400' and <= '\u9FFF'
+            or >= '\uF900' and <= '\uFAFF'
+            or >= '\uFF66' and <= '\uFF9D')
+        {
+            return true;
+        }
+
+        // 全角英数・全角句読点（？！など）— スペースなし「だよ？」対策
+        if (c is >= '\uFF00' and <= '\uFFEF')
+            return true;
+
+        var cat = CharUnicodeInfo.GetUnicodeCategory(c);
+        return cat is UnicodeCategory.OtherLetter
+            or UnicodeCategory.OtherPunctuation
+            or UnicodeCategory.InitialQuotePunctuation
+            or UnicodeCategory.FinalQuotePunctuation;
     }
 }

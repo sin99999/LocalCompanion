@@ -88,23 +88,23 @@ public sealed partial class MainWindow : Window
 
     private void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
     {
-        // 1回目: 記憶抽出を待ってから llama 停止。2回目以降は通常クローズ。
+        // ウィンドウはすぐ閉じる（キビキビUX）。記憶抽出は短時間だけ裏で試し、その後 llama 等を止める。
+        // ※ 1.1.5 で Cancel+最大20秒待ちにして閉じがもっさりした経緯あり → 戻さない。
         if (Interlocked.Exchange(ref _closeFinalizeStarted, 1) != 0)
         {
             CompanionStartup.ShutdownInBackground();
             return;
         }
 
-        args.Cancel = true;
-        _ = CloseAfterSessionFinalizeAsync();
+        _ = FinalizeThenShutdownInBackgroundAsync();
     }
 
-    private async Task CloseAfterSessionFinalizeAsync()
+    private async Task FinalizeThenShutdownInBackgroundAsync()
     {
         try
         {
             var finalize = FinalizeChatSessionOnCloseAsync();
-            var winner = await Task.WhenAny(finalize, Task.Delay(TimeSpan.FromSeconds(20)));
+            var winner = await Task.WhenAny(finalize, Task.Delay(TimeSpan.FromSeconds(3)));
             if (winner == finalize)
                 await finalize;
         }
@@ -115,7 +115,6 @@ public sealed partial class MainWindow : Window
         finally
         {
             CompanionStartup.ShutdownInBackground();
-            try { Close(); } catch { /* ignore */ }
         }
     }
 

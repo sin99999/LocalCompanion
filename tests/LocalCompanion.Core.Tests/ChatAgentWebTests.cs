@@ -77,6 +77,37 @@ public sealed class ChatMessageUrlExtractorTests
             maxCount: 2);
         Assert.Equal(2, urls.Count);
     }
+
+    [Fact]
+    public void Extract_StopsBeforeTrailingJapaneseWithoutSpace()
+    {
+        var urls = ChatMessageUrlExtractor.Extract(
+            "https://github.com/sin99999/LocalCompanionだよ？");
+
+        Assert.Equal(1, urls.Count);
+        Assert.Equal("https://github.com/sin99999/LocalCompanion", urls[0]);
+    }
+
+    [Fact]
+    public void SanitizeUrlMatch_RemovesFullwidthQuestionGlue()
+    {
+        Assert.Equal(
+            "https://example.com/path",
+            ChatMessageUrlExtractor.SanitizeUrlMatch("https://example.com/pathこれだよ？"));
+    }
+
+    [Fact]
+    public void SplitByUrls_KeepsJapaneseAfterUrlAsPlainText()
+    {
+        var segments = ChatMessageUrlExtractor.SplitByUrls(
+            "https://example.com/aだよ？続き");
+
+        Assert.Equal(2, segments.Count);
+        Assert.True(segments[0].IsUrl);
+        Assert.Equal("https://example.com/a", segments[0].Text);
+        Assert.False(segments[1].IsUrl);
+        Assert.Equal("だよ？続き", segments[1].Text);
+    }
 }
 
 public sealed class ChatUrlHostGuardTests
