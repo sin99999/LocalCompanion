@@ -55,6 +55,7 @@ public static class AppServices
         services.AddSingleton<AppUpdateDismissStore>();
         services.AddSingleton<AppUpdateService>();
         services.AddSingleton<AppUpdateStartupCoordinator>();
+        services.AddSingleton<WebView2StartupCoordinator>();
         services.AddSingleton(languageStore);
         services.AddSingleton(LocalizationService.Instance);
         services.AddSingleton<RagDatabase>();

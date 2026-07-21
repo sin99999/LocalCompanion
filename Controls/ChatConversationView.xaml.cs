@@ -2,6 +2,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Text.Json;
+using LocalCompanion.Localization;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
 using Microsoft.UI.Dispatching;
@@ -33,6 +34,7 @@ public sealed partial class ChatConversationView : UserControl
     private DispatcherQueueTimer? _rebuildTimer;
     private bool _webReady;
     private bool _shellLoaded;
+    private bool _runtimeUnavailable;
     private string _fontFamily = "Segoe UI";
     private double _fontSize = 14;
     private string? _webUserDataFolder;
@@ -76,6 +78,12 @@ public sealed partial class ChatConversationView : UserControl
     {
         try
         {
+            if (!WebView2RuntimeAvailability.IsInstalled())
+            {
+                ShowRuntimeMissingPlaceholder();
+                return;
+            }
+
             await EnsureWebAsync();
             ScheduleRebuild(RebuildThrottle);
             ScheduleScrollToEnd();
@@ -83,7 +91,23 @@ public sealed partial class ChatConversationView : UserControl
         catch (Exception ex)
         {
             StartupLog.Write($"ChatConversationView WebView2 init failed: {ex.Message}");
+            if (!WebView2RuntimeAvailability.IsInstalled())
+                ShowRuntimeMissingPlaceholder();
         }
+    }
+
+    private void ShowRuntimeMissingPlaceholder()
+    {
+        _runtimeUnavailable = true;
+        WebHost.Children.Clear();
+        _conversationWeb = null;
+        WebHost.Children.Add(new TextBlock
+        {
+            Text = LocalizationService.Instance.Get("WebView2.Missing.Placeholder"),
+            TextWrapping = TextWrapping.WrapWholeWords,
+            Margin = new Thickness(8, 12, 8, 8),
+            Opacity = 0.85,
+        });
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -110,8 +134,14 @@ public sealed partial class ChatConversationView : UserControl
 
     private async Task EnsureWebAsync()
     {
-        if (_webReady)
+        if (_webReady || _runtimeUnavailable)
             return;
+
+        if (!WebView2RuntimeAvailability.IsInstalled())
+        {
+            ShowRuntimeMissingPlaceholder();
+            return;
+        }
 
         _webUserDataFolder ??= Path.Combine(
             AppPaths.ResolveUserDataDirectory(null),
@@ -316,7 +346,7 @@ public sealed partial class ChatConversationView : UserControl
 
     private async Task PushLogAsync(bool scroll)
     {
-        if (!_webReady || _conversationWeb?.CoreWebView2 is null)
+        if (_runtimeUnavailable || !_webReady || _conversationWeb?.CoreWebView2 is null)
             return;
 
         if (!_shellLoaded)

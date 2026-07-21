@@ -181,6 +181,7 @@ public sealed partial class MainWindow : Window
             ContentFrame.Navigate(typeof(ChatPage));
             ReloadConversationThreads();
             UpdateConversationHistoryLayout();
+            await OfferWebView2IfNeededAsync();
             await OfferAppUpdateIfNeededAsync();
             _ = OfferVoicevoxUpdateIfNeededAsync();
         }
@@ -740,6 +741,19 @@ public sealed partial class MainWindow : Window
         };
         block.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         return block.DesiredSize.Width;
+    }
+
+    private async Task OfferWebView2IfNeededAsync()
+    {
+        try
+        {
+            var coordinator = AppServices.Get<WebView2StartupCoordinator>();
+            await coordinator.OfferInstallIfMissingAsync(Content.XamlRoot);
+        }
+        catch
+        {
+            /* 案内失敗は起動を妨げない */
+        }
     }
 
     private async Task OfferAppUpdateIfNeededAsync()
