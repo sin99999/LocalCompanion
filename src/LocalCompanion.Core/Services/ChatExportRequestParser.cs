@@ -42,8 +42,9 @@ internal static class ChatExportRequestParser
         @"[、,]?\s*(?:テキスト|text)\s*ファイル(?:として|で)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    // バックスラッシュ／スラッシュ混在の Windows 絶対パス（例: C:\work と C:/work）
     private static readonly Regex WindowsAbsolutePath = new(
-        @"[A-Za-z]:\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*)",
+        @"[A-Za-z]:(?:\\|/)(?:[^\\/:*?""<>|\r\n]+(?:[\\/][^\\/:*?""<>|\r\n]+)*)",
         RegexOptions.Compiled);
 
     private static readonly Regex UncPath = new(
@@ -59,7 +60,7 @@ internal static class ChatExportRequestParser
         RegexOptions.Compiled);
 
     private static readonly Regex StripTailPath = new(
-        @"[、,]?\s*(?:[A-Za-z]:\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*)|\\\\[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*|\.\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*))(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ|書いて|残して|おいて))?[。!?]?\s*$",
+        @"[、,]?\s*(?:[A-Za-z]:(?:\\|/)(?:[^\\/:*?""<>|\r\n]+(?:[\\/][^\\/:*?""<>|\r\n]+)*)|\\\\[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*|\.\\(?:[^\\/:*?""<>|\r\n]+(?:\\[^\\/:*?""<>|\r\n]+)*))(?:の中)?(?:に|へ)?(?:[^\n。!?]{0,40}?(?:保存|置|出力|書き出|書きだ|書いて|残して|おいて))?[。!?]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex StripTailUsb = new(
@@ -231,6 +232,23 @@ internal static class ChatExportRequestParser
                 trimmed = trimmed[..^1].TrimEnd();
             else
                 break;
+        }
+
+        // C:/work → C:\work（以降の Path API と一致させる）
+        if (trimmed.Length >= 2 && trimmed[1] == ':')
+            trimmed = trimmed.Replace('/', '\\');
+
+        // 「C:\work\exports に txt で保存」→ 空白＋助詞以降を落とす
+        var spaceIdx = trimmed.IndexOf(' ');
+        if (spaceIdx > 0)
+        {
+            var rest = trimmed[(spaceIdx + 1)..];
+            if (rest.StartsWith('に')
+                || rest.StartsWith('へ')
+                || rest.StartsWith("の中", StringComparison.Ordinal))
+            {
+                trimmed = trimmed[..spaceIdx];
+            }
         }
 
         return trimmed;

@@ -27,7 +27,15 @@ This application uses the following third-party software and models.
 - 配布元: https://learn.microsoft.com/windows/apps/windows-app-sdk/
 
 -------------------------------------------------------------
-4. .NET ライブラリ（NuGet パッケージ）
+4. Microsoft Edge WebView2 Runtime（必須・ZIP 非同梱）
+-------------------------------------------------------------
+- 用途: 会話ログ画面の表示（Chromium ベース）
+- 配布: Evergreen Runtime（Windows 11 では通常 OS に含まれる）
+- ライセンス: Microsoft Software License Terms
+- 配布元: https://developer.microsoft.com/microsoft-edge/webview2/
+
+-------------------------------------------------------------
+5. .NET ライブラリ（NuGet パッケージ）
 -------------------------------------------------------------
 - CommunityToolkit.Mvvm — MIT License
   https://github.com/CommunityToolkit/dotnet
@@ -42,7 +50,7 @@ This application uses the following third-party software and models.
   https://github.com/UglyToad/PdfPig
 
 -------------------------------------------------------------
-5. SQLite / sqlite-vec（vec0.dll）
+6. SQLite / sqlite-vec（vec0.dll）
 -------------------------------------------------------------
 - 用途: RAG のベクトル検索（アプリに同梱）
 - SQLite: Public Domain — https://www.sqlite.org/
@@ -50,7 +58,7 @@ This application uses the following third-party software and models.
   https://github.com/asg017/sqlite-vec
 
 -------------------------------------------------------------
-6. 既定モデル（Google Gemma 4 E2B・初回起動時に自動取得）
+7. 既定モデル（Google Gemma 4 E2B・初回起動時に自動取得）
 -------------------------------------------------------------
 - 用途: 既定のチャットモデル gemma-4-E2B_q4_0-it.gguf（models\ が空で、
   初回セットアップで自動セットアップを選んだ場合）
@@ -64,7 +72,7 @@ This application uses the following third-party software and models.
 ライセンス・利用規約に従ってください。
 
 -------------------------------------------------------------
-7. VOICEVOX（別途インストール・任意）
+8. VOICEVOX（別途インストール・任意）
 -------------------------------------------------------------
 - 用途: 読み上げ（インストールされている場合のみ連携）
 - VOICEVOX は本アプリには同梱されていません。利用規約・クレジット表記は

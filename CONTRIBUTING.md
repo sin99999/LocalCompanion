@@ -27,6 +27,7 @@ dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 ```
 
 - ビルドは `Platform=x64` 必須。`dotnet build` だけでは llama / GGUF は初回起動時に取得されます
+- 実行・配布確認には [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0) と [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)（必須）が必要です
 - コミットに `models/*.gguf`・`bin/`・`dist/`・個人キャラ JSON は含めないでください
 
 ## プルリクエスト

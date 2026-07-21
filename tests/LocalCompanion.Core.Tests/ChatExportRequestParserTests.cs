@@ -72,6 +72,25 @@ public sealed class ChatExportRequestParserTests
     }
 
     [Fact]
+    public void TryExtractExplicitDirectory_AcceptsForwardSlashWindowsPath()
+    {
+        var path = ChatExportRequestParser.TryExtractExplicitDirectory(
+            "メモを C:/work/exports に txt で保存して");
+        Assert.NotNull(path);
+        Assert.Equal(@"C:\work\exports", path, ignoreCase: true);
+    }
+
+    [Fact]
+    public void TryParse_ForwardSlashPath_IsDirectoryTargetNotDesktop()
+    {
+        Assert.True(ChatExportRequestParser.TryParse(
+            "刑法を調べて C:/work/exports に txt で保存して",
+            out var request));
+        Assert.Equal(ChatExportTargetKind.Directory, request.Target.Kind);
+        Assert.Equal(@"C:\work\exports", request.Target.DirectoryPath, ignoreCase: true);
+    }
+
+    [Fact]
     public void TryInheritRepeatExport_InheritsPriorDesktopRequest()
     {
         var prior = new[] { "刑法を調べて結果をデスクトップにtxtで保存して" };

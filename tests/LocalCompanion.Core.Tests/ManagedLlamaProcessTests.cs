@@ -1,4 +1,5 @@
-﻿using LocalCompanion.Services;
+﻿using System.Diagnostics;
+using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -63,6 +64,40 @@ public sealed class ManagedLlamaProcessTests
         try
         {
             Assert.False(ManagedLlamaProcess.StopManaged(dir, waitAfterKill: false));
+        }
+        finally
+        {
+            TryDeleteDir(dir);
+        }
+    }
+
+    [Fact]
+    public void StopManaged_WhenPidAliveButNotLlama_KeepsTracking()
+    {
+        var dir = CreateTempDir();
+        try
+        {
+            var selfPid = Environment.ProcessId;
+            ManagedLlamaProcess.WritePid(dir, selfPid);
+            File.WriteAllText(LlamaManagedMarker.ResolvePath(dir), "1");
+
+            Assert.False(ManagedLlamaProcess.StopManaged(dir, waitAfterKill: false));
+            Assert.Equal(selfPid, ManagedLlamaProcess.TryReadPid(dir));
+            Assert.True(File.Exists(LlamaManagedMarker.ResolvePath(dir)));
+        }
+        finally
+        {
+            TryDeleteDir(dir);
+        }
+    }
+
+    [Fact]
+    public void IsTrackedLlamaAlive_FalseWhenPidMissing()
+    {
+        var dir = CreateTempDir();
+        try
+        {
+            Assert.False(ManagedLlamaProcess.IsTrackedLlamaAlive(dir));
         }
         finally
         {

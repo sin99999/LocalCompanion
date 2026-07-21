@@ -67,8 +67,9 @@ Release を Publish しても **リポが Private のまま** ならログイン
 - 製品文案（です・ます）。ギャル口調・絵文字は **チャットのみ**
 - 貼り付けは **IME 英数モード** 推奨（「お手持ち」→「お急ぎ」等の誤変換防止）
 - 「リリースノートを生成する」は commit 一覧が混ざるので **基本使わない**
+- **必ず** [docs/release-notes-template.md](docs/release-notes-template.md) を使い、**WebView2 Runtime 必須**を動作環境に書く（.NET と同列）
 
-短いテンプレの要素: 動作環境 / インストール（ZIP 展開→exe）/ 初回 DL / 主な機能 / `data\` の場所 / 困ったときは ZIP 内 `README.md` と `docs\`
+短いテンプレの要素: 動作環境（**.NET 10 + WebView2 Runtime**） / インストール（ZIP 展開→exe）/ 初回 DL / 主な機能 / `data\` の場所 / 困ったときは ZIP 内 `README.md` と `docs\`
 
 ## note 記事
 

@@ -489,6 +489,8 @@ public partial class SettingsPageViewModel : ObservableObject
             _models.Select(new SelectModelRequest(SelectedChatModel.FileName, null, SelectedChatModel.FullPath));
 
             var code = await RestartManagedWithProgressAsync(CancellationToken.None);
+            if (code == 2)
+                throw new InvalidOperationException(LocalizationService.Instance.Get("Startup.PortInUseForeign"));
             if (code != 0)
                 throw new InvalidOperationException(LocalizationService.Instance.Get("Startup.LlamaFailed"));
 

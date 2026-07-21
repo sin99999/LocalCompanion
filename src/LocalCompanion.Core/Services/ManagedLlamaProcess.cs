@@ -37,7 +37,31 @@ public static class ManagedLlamaProcess
         LlamaManagedMarker.RemoveLegacyMarkers(toolsDir);
     }
 
+    /// <summary>記録 PID が生きた llama-server か。</summary>
+    public static bool IsTrackedLlamaAlive(string toolsDir)
+    {
+        if (TryReadPid(toolsDir) is not int pid)
+            return false;
+
+        return IsAliveLlamaServerPid(pid);
+    }
+
+    public static bool IsAliveLlamaServerPid(int pid)
+    {
+        try
+        {
+            using var proc = Process.GetProcessById(pid);
+            return !proc.HasExited
+                && proc.ProcessName.Equals("llama-server", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>管理マーカーまたは記録 PID に基づき、自アプリ起動分のみ停止する。</summary>
+    /// <returns>追跡を消してよい状態（プロセス停止済み／既に不在）なら true。</returns>
     public static bool StopManaged(string toolsDir, bool waitAfterKill = true, bool requireMarker = true)
     {
         var markerActive = LlamaManagedMarker.IsActiveInToolsDir(toolsDir);
@@ -45,13 +69,20 @@ public static class ManagedLlamaProcess
         if (requireMarker && !markerActive && pid is null)
             return false;
 
-        var stopped = false;
-        var trackedPid = pid ?? -1;
-        if (pid is int p)
-            stopped = TryKillLlamaPid(p);
+        if (pid is not int trackedPid)
+        {
+            // PID が無いと安全に殺せない。マーカーだけ残すと次回「自前」と誤認するので消す。
+            ClearTracking(toolsDir);
+            return false;
+        }
 
-        ClearTracking(toolsDir);
+        if (!IsTrackedPidAlive(trackedPid))
+        {
+            ClearTracking(toolsDir);
+            return true;
+        }
 
+        var stopped = TryKillLlamaPid(trackedPid);
         if (waitAfterKill && stopped)
         {
             var deadline = DateTime.UtcNow.AddSeconds(5);
@@ -61,10 +92,18 @@ public static class ManagedLlamaProcess
                     break;
                 Thread.Sleep(150);
             }
-            Thread.Sleep(waitAfterKill ? 500 : 0);
+
+            Thread.Sleep(500);
         }
 
-        return stopped;
+        // kill 失敗でプロセスが残っているときは追跡を残し、呼び出し側が PortInUse 扱いにできる
+        if (!IsTrackedPidAlive(trackedPid))
+        {
+            ClearTracking(toolsDir);
+            return true;
+        }
+
+        return false;
     }
 
     private static bool TryKillLlamaPid(int pid)

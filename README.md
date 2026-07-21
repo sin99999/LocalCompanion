@@ -57,10 +57,11 @@ Windows 向けのローカル AI チャットアプリケーションです。�
 |------|------|
 | OS | Windows 10 ビルド 17763 以降 |
 | ランタイム | [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0)（未導入の場合は 1 回インストール） |
+| WebView2 | [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)（**必須**。会話画面の表示に使用。Windows 11 では通常 OS に含まれます。Windows 10 でも多くの環境で導入済みですが、無い場合は Evergreen ランタイムをインストールしてください。ZIP には同梱しません） |
 | ネットワーク | 初回起動時（AI エンジンと既定モデルの DL。自前 GGUF 指定時はモデル DL をスキップ）。任意の更新確認で GitHub にアクセスすることがあります |
 | 読み上げ | 任意。[VOICEVOX](https://voicevox.hiroshiba.jp/) を別途インストール |
 
-WinUI の実行に必要なファイルはアプリに同梱されています。別途「開発者モード」をオンにする必要はありません。
+WinUI の実行に必要なファイルはアプリに同梱されています。別途「開発者モード」をオンにする必要はありません。**WebView2 Runtime は同梱されない**ため、上記のとおり別途必要です（Edge 本体とは別コンポーネントです）。
 
 <p align="right">(<a href="#top">トップへ</a>)</p>
 
@@ -199,6 +200,9 @@ A. コード署名を行っていないため、初回に表示されること�
 **Q. exe をダブルクリックしても起動しません。**  
 A. [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0) のインストールが必要な場合があります。
 
+**Q. チャット画面が真っ白／会話が表示されません。**  
+A. [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) が未導入の可能性があります（必須コンポーネントです。Edge ブラウザ本体とは別です）。Windows 11 では通常入っています。無い場合は上記公式ページから Evergreen ランタイムをインストールしてください。
+
 **Q. 初回のダウンロードが失敗します。**  
 A. ネットワーク環境や、短時間に何度も起動し直したことによる制限が考えられます。しばらく待ってから再試行してください。お手持ちの GGUF がある場合は、初回セットアップでフォルダを指定すると既定モデルの DL を省略できます。
 
@@ -217,6 +221,7 @@ A. VOICEVOX のインストールと、設定画面での有効化が必要で�
 | 症状 | まず確認すること |
 |------|------------------|
 | 起動しない | .NET 10 Desktop Runtime（x64）が入っているか |
+| チャット画面が空／真っ白 | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) が入っているか（必須） |
 | チャットが使えない | ⚙ **設定 → モデル** の状態が「OK」になるまで数分待つ。ポート 8080 が他アプリに使われていないか |
 | 初回 DL 失敗 | インターネット接続。しばらく時間をおいて再試行。自前 GGUF があればフォルダ指定でスキップ可 |
 | DLL エラー | [Visual C++ 再頒布可能パッケージ（x64）](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) のインストール |

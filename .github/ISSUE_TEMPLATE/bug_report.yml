@@ -70,3 +70,7 @@ body:
       options:
         - label: docs/Troubleshooting.md を読んだ
           required: false
+        - label: .NET 10 Desktop Runtime（x64）が入っている
+          required: false
+        - label: WebView2 Runtime が入っている（チャット画面が空のとき特に）
+          required: false

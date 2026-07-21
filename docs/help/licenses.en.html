@@ -44,7 +44,17 @@
     </div>
 
     <div class="license-block">
-      <h3>4. .NET libraries</h3>
+      <h3>4. Microsoft Edge WebView2 Runtime (required; not in the ZIP)</h3>
+      <ul>
+        <li>Purpose: Conversation log display (Chromium-based)</li>
+        <li>Distribution: Evergreen Runtime (usually included with Windows 11; install from Microsoft if missing)</li>
+        <li>License: Microsoft Software License Terms</li>
+        <li>Source: <a href="https://developer.microsoft.com/microsoft-edge/webview2/">https://developer.microsoft.com/microsoft-edge/webview2/</a></li>
+      </ul>
+    </div>
+
+    <div class="license-block">
+      <h3>5. .NET libraries</h3>
       <ul>
         <li>CommunityToolkit.Mvvm — MIT License (<a href="https://github.com/CommunityToolkit/dotnet">GitHub</a>)</li>
         <li>Microsoft.Extensions.DependencyInjection / Configuration.Json / Http — MIT License (<a href="https://github.com/dotnet/runtime">GitHub</a>)</li>
@@ -56,7 +66,7 @@
     </div>
 
     <div class="license-block">
-      <h3>5. SQLite / sqlite-vec (vec0.dll)</h3>
+      <h3>6. SQLite / sqlite-vec (vec0.dll)</h3>
       <ul>
         <li>Purpose: Vector search for RAG (shipped with the app)</li>
         <li>SQLite: Public Domain — <a href="https://www.sqlite.org/">https://www.sqlite.org/</a></li>
@@ -65,7 +75,7 @@
     </div>
 
     <div class="license-block">
-      <h3>6. Default model (Google Gemma 4 E2B, downloaded on first launch)</h3>
+      <h3>7. Default model (Google Gemma 4 E2B, downloaded on first launch)</h3>
       <ul>
         <li>Purpose: Default chat model <code>gemma-4-E2B_q4_0-it.gguf</code> when <code>models\</code> is empty and you choose default setup on first launch</li>
         <li>Skipped if you choose your own GGUF folder at first-time setup, or if a chat GGUF already exists in <code>models\</code></li>
@@ -76,7 +86,7 @@
     </div>
 
     <div class="license-block">
-      <h3>7. VOICEVOX (optional, separate install)</h3>
+      <h3>8. VOICEVOX (optional, separate install)</h3>
       <ul>
         <li>Purpose: Text-to-speech when VOICEVOX is installed</li>
         <li>VOICEVOX is not bundled with this app. See the official site and character terms for usage and credits.</li>

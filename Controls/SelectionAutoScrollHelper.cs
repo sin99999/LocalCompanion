@@ -5,13 +5,13 @@ using Microsoft.UI.Xaml.Media;
 
 namespace LocalCompanion.Controls;
 
-/// <summary>TextBlock 選択中に ScrollViewer を端方向へ自動スクロールする。</summary>
+/// <summary>テキスト選択中に ScrollViewer を端方向へ自動スクロールする。</summary>
 internal static class SelectionAutoScrollHelper
 {
     private const int VkLButton = 0x01;
-    private const double EdgePixels = 56;
-    private const double StepPixels = 28;
-    private const double MaxSpeedMultiplier = 6;
+    private const double EdgePixels = 72;
+    private const double StepPixels = 36;
+    private const double MaxSpeedMultiplier = 8;
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
@@ -31,17 +31,18 @@ internal static class SelectionAutoScrollHelper
 
     public static bool IsLeftButtonPressed() => (GetAsyncKeyState(VkLButton) & 0x8000) != 0;
 
-    public static void ScrollIfNeeded(ScrollViewer scrollHost, UIElement coordinateRoot, nint windowHandle)
+    public static void ScrollIfNeeded(ScrollViewer scrollHost, nint windowHandle)
     {
         if (scrollHost.ActualHeight <= 0 || scrollHost.ScrollableHeight <= 0)
             return;
 
-        if (!TryGetCursorYInElement(scrollHost, coordinateRoot, windowHandle, out var pointerY))
+        if (!TryGetCursorYInElement(scrollHost, windowHandle, out var pointerY))
             return;
 
         var viewportHeight = scrollHost.ActualHeight;
         double delta = 0;
 
+        // ビューポート外（上／下）に出ても端スクロールを継続
         if (pointerY < EdgePixels)
         {
             var depth = EdgePixels - pointerY;
@@ -65,14 +66,13 @@ internal static class SelectionAutoScrollHelper
         scrollHost.ChangeView(null, target, null, disableAnimation: true);
     }
 
-    private static bool TryGetCursorYInElement(
-        FrameworkElement element,
-        UIElement coordinateRoot,
-        nint windowHandle,
-        out double y)
+    private static bool TryGetCursorYInElement(FrameworkElement element, nint windowHandle, out double y)
     {
         y = 0;
         if (windowHandle == 0)
+            return false;
+
+        if (element.XamlRoot?.Content is not UIElement root)
             return false;
 
         if (!GetCursorPos(out var screen))
@@ -82,12 +82,9 @@ internal static class SelectionAutoScrollHelper
         if (!ScreenToClient(windowHandle, ref client))
             return false;
 
-        var windowPoint = new Windows.Foundation.Point(client.X, client.Y);
-        var transform = element.TransformToVisual(coordinateRoot);
-        if (transform.Inverse is not GeneralTransform inverse)
-            return false;
-
-        y = inverse.TransformPoint(windowPoint).Y;
+        // HWND クライアント座標 ≈ XamlRoot.Content 座標 → 要素ローカルへ
+        var transform = root.TransformToVisual(element);
+        y = transform.TransformPoint(new Windows.Foundation.Point(client.X, client.Y)).Y;
         return true;
     }
 }

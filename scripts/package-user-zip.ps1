@@ -108,4 +108,6 @@ Write-Host "利用者手順:" -ForegroundColor Cyan
 Write-Host "  1. ZIP を任意のフォルダに解凍" -ForegroundColor DarkGray
 Write-Host "  2. 解凍先の LocalCompanion\LocalCompanion.exe を起動" -ForegroundColor DarkGray
 Write-Host "  3. .NET 10 Desktop Runtime (x64) が必要（未インストールなら https://dotnet.microsoft.com/download/dotnet/10.0 ）" -ForegroundColor DarkGray
-Write-Host "  4. 初回起動で llama.cpp / 既定モデルを自動 DL（ネット接続・空き容量が必要）" -ForegroundColor DarkGray
+Write-Host "  4. WebView2 Runtime が必須（未インストールなら https://developer.microsoft.com/microsoft-edge/webview2/ ）。Win11 は通常 OS 同梱。ZIP 非同梱" -ForegroundColor DarkGray
+Write-Host "  5. 初回起動で llama.cpp / 既定モデルを自動 DL（ネット接続・空き容量が必要）" -ForegroundColor DarkGray
+Write-Host "  GitHub Release 文案: docs\release-notes-template.md（WebView2 必須を忘れない）" -ForegroundColor DarkGray

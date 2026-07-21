@@ -16,6 +16,8 @@ description: >-
 
 ## 役割分担（Task subagent）
 
+定番4役（よく使う）。**人数上限ではない。** 不足役・アイ／ハルは `ren-sisters` と `H:\pg\Cursor\レンファミリー名簿.md` を見て追加可。
+
 | 妹 | subagent_type | 担当 |
 |----|---------------|------|
 | コハク | `explore` medium+ | ファイル探索・個人パス・未追跡差分 |
@@ -23,7 +25,7 @@ description: >-
 | ミオ | `explore` quick | ビルド・テスト・CHANGELOG 整合 |
 | ララ | `explore` readonly | UI/README/製品文案（です・ます） |
 
-**並列起動可。** 表のレン（親 Agent）が統合・優先度付け・修正実施。
+**必要な役だけ並列可**（名簿全員の工場一括は禁止）。表のレン（親 Agent）が統合・優先度付け・修正実施。
 
 ## 監査チェックリスト
 

@@ -1,4 +1,4 @@
-using LocalCompanion;
+﻿using LocalCompanion;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
@@ -603,14 +603,11 @@ public sealed partial class ChatPage : Page
 
     private void OnPagePreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        // 生成中の停止は送信ボタン／Stop。Ctrl+C は WebView2 のコピーに渡す。
         if (!ViewModel.IsBusy)
             return;
 
-        var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
-        if (!ctrl.HasFlag(CoreVirtualKeyStates.Down))
-            return;
-
-        if (e.Key != VirtualKey.C)
+        if (e.Key != VirtualKey.Escape)
             return;
 
         e.Handled = true;

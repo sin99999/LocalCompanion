@@ -16,6 +16,7 @@ dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 ```
 
 - Platform `x64` 必須。`dotnet build` だけでは llama / GGUF は落ちない（初回起動時）。
+- 配布・起動の前提: **.NET 10 Desktop Runtime（x64）** ＋ **WebView2 Runtime（必須・ZIP 非同梱）**。Release 文案は `docs/release-notes-template.md`。
 
 ## データパス
 

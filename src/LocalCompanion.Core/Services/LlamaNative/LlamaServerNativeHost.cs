@@ -79,10 +79,23 @@ public static class LlamaServerNativeHost
         {
             var lastCtx = ReadIntMarker(ctxMarker);
             var lastModel = ReadStringMarker(modelMarker);
-            if (lastCtx == context && lastModel == modelKey)
+            var configMatches = lastCtx == context && lastModel == modelKey;
+
+            // 自前 PID が生きているときだけ「起動済み」とみなす（他人の /v1/models を横取りしない）
+            if (configMatches && ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir))
             {
                 SetManagedFlag(managedMarker);
-                TryCaptureManagedPid(toolsDir);
+                NativeLog.WriteKey("Startup.LlamaAlreadyRunning", null, context);
+                return 0;
+            }
+
+            // PID 紛失時: 管理マーカーあり＋llama-server が1つだけなら再キャプチャ
+            if (configMatches
+                && LlamaManagedMarker.IsActiveInToolsDir(toolsDir)
+                && TryCaptureManagedPid(toolsDir)
+                && ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir))
+            {
+                SetManagedFlag(managedMarker);
                 NativeLog.WriteKey("Startup.LlamaAlreadyRunning", null, context);
                 return 0;
             }
@@ -91,11 +104,16 @@ public static class LlamaServerNativeHost
             {
                 NativeLog.WriteKey("Startup.LlamaRestart");
                 StopLlamaProcesses(toolsDir);
+                if (LlamaServerHealth.IsModelReady(port))
+                {
+                    NativeLog.WriteKey("Startup.PortInUseForeign");
+                    return 2;
+                }
             }
             else
             {
                 NativeLog.WriteKey("Startup.PortInUseForeign");
-                return 1;
+                return 2;
             }
         }
 
@@ -157,15 +175,25 @@ public static class LlamaServerNativeHost
             {
                 if (LlamaServerHealth.IsModelReady(port))
                 {
+                    // Ready 応答があっても、記録した自前 PID が生きていなければ他人のサーバ
+                    if (!ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir))
+                    {
+                        NativeLog.WriteKey("Startup.LlamaProcessExited");
+                        if (attemptIndex + 1 < gpuLayerAttempts.Count)
+                            break;
+
+                        TailLog(logFile);
+                        return 1;
+                    }
+
                     WriteMarker(ctxMarker, context.ToString());
                     WriteMarker(modelMarker, modelKey);
                     SetManagedFlag(managedMarker);
-                    TryCaptureManagedPid(toolsDir);
                     NativeLog.WriteKey("Startup.LlamaReady", 100);
                     return 0;
                 }
 
-                if (!IsManagedLlamaAlive(toolsDir))
+                if (!ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir))
                 {
                     NativeLog.WriteKey("Startup.LlamaProcessExited");
                     if (attemptIndex + 1 < gpuLayerAttempts.Count)
@@ -276,34 +304,20 @@ public static class LlamaServerNativeHost
     internal static void StopLlamaProcesses(string toolsDir, bool waitAfterKill = true)
         => ManagedLlamaProcess.StopManaged(toolsDir, waitAfterKill, requireMarker: true);
 
-    private static bool IsManagedLlamaAlive(string toolsDir)
-    {
-        var pid = ManagedLlamaProcess.TryReadPid(toolsDir);
-        if (pid is not int trackedPid)
-            return Process.GetProcessesByName("llama-server").Length > 0;
-
-        try
-        {
-            using var proc = Process.GetProcessById(trackedPid);
-            return !proc.HasExited;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>PID 未記録の既存起動を引き継ぐ（単一 llama-server のみ）。</summary>
-    private static void TryCaptureManagedPid(string toolsDir)
+    /// <summary>PID 未記録の既存起動を引き継ぐ（単一 llama-server のみ）。成功したら true。</summary>
+    private static bool TryCaptureManagedPid(string toolsDir)
     {
         if (ManagedLlamaProcess.TryReadPid(toolsDir) is not null)
-            return;
+            return ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir);
 
         var procs = Process.GetProcessesByName("llama-server");
         try
         {
-            if (procs.Length == 1)
-                ManagedLlamaProcess.WritePid(toolsDir, procs[0].Id);
+            if (procs.Length != 1)
+                return false;
+
+            ManagedLlamaProcess.WritePid(toolsDir, procs[0].Id);
+            return ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir);
         }
         finally
         {

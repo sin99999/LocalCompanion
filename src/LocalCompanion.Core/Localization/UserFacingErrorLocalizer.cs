@@ -1,4 +1,4 @@
-using LocalCompanion.Services;
+﻿using LocalCompanion.Services;
 
 namespace LocalCompanion.Localization;
 
@@ -20,7 +20,8 @@ public static class UserFacingErrorLocalizer
             || msg == LlamaServerClient.ContextOverflowMessage
             || msg == loc.Get("Error.LlamaConnectionFailed")
             || msg == loc.Get("Error.ContextOverflow")
-            || msg == loc.Get("Startup.LlamaFailed"))
+            || msg == loc.Get("Startup.LlamaFailed")
+            || msg == loc.Get("Startup.PortInUseForeign"))
             return msg;
 
         if (TryLocalizeLegacyMessage(ex, loc, out var legacy))

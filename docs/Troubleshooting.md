@@ -12,6 +12,18 @@ LocalCompanion が動かない・調子が悪いときは、まずこのペー�
 2. 「.NET Desktop Runtime」の **x64** インストーラーをダウンロードして実行します。
 3. インストール後、LocalCompanion.exe をもう一度起動します。
 
+### 起動はするがチャット画面が空／真っ白になる
+
+**Microsoft Edge WebView2 Runtime が未インストールの可能性があります（必須）。**
+
+会話ログの表示に WebView2 を使います。配布 ZIP には同梱していません。
+
+1. https://developer.microsoft.com/microsoft-edge/webview2/ を開きます。
+2. **Evergreen Bootstrapper** または **Evergreen Standalone Installer** をダウンロードして実行します。
+3. インストール後、LocalCompanion.exe をもう一度起動します。
+
+Windows 11 では通常 OS に含まれます。Windows 10 でも多くの PC で導入済みですが、無い環境では上記が必要です。Microsoft Edge 本体が入っていても、Runtime が別途無い場合があります。
+
 ### 「アプリを開始できません」などのエラーが出る
 
 - Windows 10 1809（ビルド 17763）より古い OS では動作しません。Windows Update を適用してください。

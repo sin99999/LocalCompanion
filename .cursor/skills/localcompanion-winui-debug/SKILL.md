@@ -31,8 +31,9 @@ description: >-
 | 設定タブで縦が揺れる | プレビュー文字サイズ → スクロールバー出現 → 幅ブレ |
 | 左ナビ見切れ | 固定 15% ではなく **最長ラベルから幅計算**（`MainWindow.xaml.cs`） |
 | チャットが末尾まで見えない | `ScrollViewer` / 自動スクロール / `ListView` 更新方式 |
-| 長履歴でスクロール重い | **会話全体を1 TextBlockにしない**（過去に悪化）。`ListView` 仮想化＋**1メッセージ単位**の本文が安全。選択はメッセージ内 `RichTextBlock` で連続に |
-| 全文選択 vs 軽さ | トレードオフ。表だけ二層（表示Grid＋透明選択）は過去案あり。会話全体の重ねレイヤは未採用 |
+| 長履歴でスクロール重い／選択で落ちる | **会話全体の巨大 `RichTextBlock` は禁止**（WinUI 既知 AV: microsoft-ui-xaml #7299 / #9442）。発言またぎの選択・コピーは **WebView2 の単一 DOM**（`ChatConversationView`＋`ChatConversationHtmlBuilder`）。Cursor/VS Code と同じ Chromium 選択 |
+| 全文選択 vs リンク | HTML の `<a href>`＋`NavigationStarting` で外部ブラウザ。CSS `cursor: pointer` |
+| ListView 複数 TextBlock またぎ選択 | **WinUI 仕様上不可**（フォーカスは1要素）。カスタムオーバーレイは非推奨 |
 
 ## 編集前チェック
 

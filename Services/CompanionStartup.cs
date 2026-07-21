@@ -35,6 +35,8 @@ public static class CompanionStartup
             StartupProgress.ReportKey("Startup.LlamaPrepare", 5);
 
             var llamaCode = await Task.Run(() => AppBootstrap.EnsureLlamaServer(paths), ct).ConfigureAwait(true);
+            if (llamaCode == 2)
+                throw new InvalidOperationException(loc.Get("Startup.PortInUseForeign"));
             if (llamaCode != 0)
                 throw new InvalidOperationException(loc.Get("Startup.LlamaFailed"));
 
