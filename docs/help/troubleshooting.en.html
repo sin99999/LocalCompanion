@@ -97,7 +97,7 @@
     <ul>
       <li><strong>General</strong>, <strong>Model</strong>, <strong>Character</strong>, <strong>RAG</strong>, and <strong>About</strong> are always shown. Long-term memory toggles live under General.</li>
       <li>The <strong>VOICEVOX</strong> tab appears only when VOICEVOX is installed on this PC.</li>
-      <li>Version, licenses, logs, and backup are under <strong>About &amp; maintenance</strong> at the bottom of the General tab.</li>
+      <li>Version, licenses, logs, and backup are under <strong>Settings → About</strong>.</li>
     </ul>
 
     <h2>Long-term memory</h2>
@@ -169,14 +169,15 @@
         <tr><th>How you launch</th><th>Logs and user data</th></tr>
       </thead>
       <tbody>
-        <tr><td>LocalCompanion.exe</td><td><code>{folder containing LocalCompanion.exe}\data\</code></td></tr>
+        <tr><td>LocalCompanion.exe (typical)</td><td><code>{folder containing LocalCompanion.exe}\data\</code></td></tr>
+        <tr><td>When <code>data\</code> is not writable</td><td><code>%LocalAppData%\LocalCompanionLlama\</code></td></tr>
       </tbody>
     </table>
-    <p class="note">You can also use <strong>Open log folder</strong> on the General tab in Settings.</p>
+    <p class="note">To see the actual folder, use <strong>Settings → About → Open log folder</strong>.</p>
 
     <h2>Backup and restore</h2>
     <ul>
-      <li>Use <strong>Back up data</strong> on the General tab to export conversations, RAG, and settings to a ZIP file.</li>
+      <li>Use <strong>Settings → About → Back up data</strong> to export conversations, RAG, and settings to a ZIP file.</li>
       <li>To restore, exit the app and extract the backup ZIP into the data folder listed above.</li>
     </ul>
 

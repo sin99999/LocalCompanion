@@ -332,6 +332,13 @@ public sealed class LlamaServerClient
                     if (!string.IsNullOrWhiteSpace(rt))
                         yield return new LlamaStreamPiece("reasoning", rt);
                 }
+                // 一部テンプレ／サーバ版は thinking キーで流す
+                if (delta.TryGetProperty("thinking", out var th))
+                {
+                    var rt = ReadContentElement(th);
+                    if (!string.IsNullOrWhiteSpace(rt))
+                        yield return new LlamaStreamPiece("reasoning", rt);
+                }
                 if (delta.TryGetProperty("content", out var c))
                 {
                     var ctText = ReadContentElement(c);

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="LocalCompanion.Pages.ChatPage"
     x:Name="ChatPageRoot"
@@ -28,6 +28,7 @@
         <controls:ChatConversationView
             x:Name="ConversationView"
             Grid.Row="1"
+            IsBusy="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
             Messages="{x:Bind ViewModel.Messages, Mode=OneWay}" />
 
         <Grid Grid.Row="2" ColumnSpacing="12">

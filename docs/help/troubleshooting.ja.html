@@ -97,7 +97,7 @@
     <ul>
       <li><strong>基本設定</strong>・<strong>モデル選択</strong>・<strong>キャラクター設定</strong>・<strong>RAG</strong>・<strong>このアプリについて</strong>の 5 つは常に表示されます。長期記憶のトグルは基本設定内にあります。</li>
       <li><strong>VOICEVOX</strong> タブは、VOICEVOX をインストール済みのときだけ表示されます（未インストール時は表示されません）。</li>
-      <li>バージョン番号・ライセンス・ログ・バックアップは <strong>基本設定</strong> タブ下部の「情報・メンテナンス」にあります。</li>
+      <li>バージョン番号・ライセンス・ログ・バックアップは <strong>設定 → このアプリについて</strong> にあります。</li>
     </ul>
 
     <h2>長期記憶</h2>
@@ -171,14 +171,15 @@
         <tr><th>起動方法</th><th>ログ・データの場所</th></tr>
       </thead>
       <tbody>
-        <tr><td>LocalCompanion.exe</td><td><code>{LocalCompanion.exe のあるフォルダー}\data\</code></td></tr>
+        <tr><td>LocalCompanion.exe（通常）</td><td><code>{LocalCompanion.exe のあるフォルダー}\data\</code></td></tr>
+        <tr><td><code>data\</code> に書き込めない場合</td><td><code>%LocalAppData%\LocalCompanionLlama\</code></td></tr>
       </tbody>
     </table>
-    <p class="note">設定画面の「基本設定」タブにある <strong>ログフォルダーを開く</strong> からも開けます。</p>
+    <p class="note">実際の場所は、<strong>設定 → このアプリについて → ログフォルダーを開く</strong> で確認できます。</p>
 
     <h2>データのバックアップと復元</h2>
     <ul>
-      <li>設定画面の「基本設定」タブにある <strong>データをバックアップ</strong> で、会話・RAG・設定を 1 つの ZIP に書き出せます。</li>
+      <li><strong>設定 → このアプリについて → データをバックアップ</strong> で、会話・RAG・設定を 1 つの ZIP に書き出せます。</li>
       <li>復元するときは、アプリを終了した状態で、書き出した ZIP の中身を上記のデータフォルダーに上書き展開してください。</li>
     </ul>
 

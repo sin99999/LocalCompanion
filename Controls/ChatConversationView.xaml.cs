@@ -24,7 +24,8 @@ public sealed partial class ChatConversationView : UserControl
             new PropertyMetadata(null, OnMessagesPropertyChanged));
 
     private static readonly TimeSpan RebuildThrottle = TimeSpan.FromMilliseconds(80);
-    private static readonly TimeSpan StreamingRebuildThrottle = TimeSpan.FromMilliseconds(160);
+    /// <summary>ストリーム中は短め。デバウンスではなくスロットル（ChatMessageBody と同型）。</summary>
+    private static readonly TimeSpan StreamingRebuildThrottle = TimeSpan.FromMilliseconds(48);
 
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private readonly HashSet<ChatLineViewModel> _trackedLines = new();
@@ -32,6 +33,10 @@ public sealed partial class ChatConversationView : UserControl
     private bool _scrollScheduled;
     private bool _autoScrollToEnd = true;
     private DispatcherQueueTimer? _rebuildTimer;
+    private bool _rebuildQueued;
+    private bool _pushInFlight;
+    private bool _streamMode;
+    private int _pushedMessageCount = -1;
     private bool _webReady;
     private bool _shellLoaded;
     private bool _runtimeUnavailable;
@@ -39,6 +44,39 @@ public sealed partial class ChatConversationView : UserControl
     private double _fontSize = 14;
     private string? _webUserDataFolder;
     private WebView2? _conversationWeb;
+    private bool _isBusy;
+
+    public static readonly DependencyProperty IsBusyProperty =
+        DependencyProperty.Register(
+            nameof(IsBusy),
+            typeof(bool),
+            typeof(ChatConversationView),
+            new PropertyMetadata(false, OnIsBusyPropertyChanged));
+
+    public bool IsBusy
+    {
+        get => (bool)GetValue(IsBusyProperty);
+        set => SetValue(IsBusyProperty, value);
+    }
+
+    private static void OnIsBusyPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not ChatConversationView view)
+            return;
+
+        view._isBusy = e.NewValue is true;
+        if (view._isBusy)
+        {
+            view._streamMode = true;
+            view.ScheduleRebuild(StreamingRebuildThrottle, force: true);
+            return;
+        }
+
+        // 生成終了時はリッチ表示へ即フル再描画
+        view._streamMode = false;
+        view._pushedMessageCount = -1;
+        view.ScheduleRebuild(RebuildThrottle, force: true);
+    }
 
     public ChatConversationView()
     {
@@ -247,7 +285,8 @@ public sealed partial class ChatConversationView : UserControl
                 TrackLine(line);
         }
 
-        ScheduleRebuild(RebuildThrottle);
+        _pushedMessageCount = -1;
+        ScheduleRebuild(RebuildThrottle, force: true);
         ScheduleScrollToEnd();
     }
 
@@ -271,6 +310,7 @@ public sealed partial class ChatConversationView : UserControl
                 UntrackLine(line);
             foreach (ChatLineViewModel line in _messages)
                 TrackLine(line);
+            _pushedMessageCount = -1;
         }
 
         var streaming = e.Action == NotifyCollectionChangedAction.Add
@@ -279,7 +319,12 @@ public sealed partial class ChatConversationView : UserControl
             && e.NewStartingIndex >= 0
             && e.NewStartingIndex + e.NewItems.Count == _messages.Count;
 
-        ScheduleRebuild(streaming ? StreamingRebuildThrottle : RebuildThrottle);
+        if (streaming)
+            _streamMode = true;
+        else if (e.Action is NotifyCollectionChangedAction.Reset or NotifyCollectionChangedAction.Remove)
+            _pushedMessageCount = -1;
+
+        ScheduleRebuild(streaming || _isBusy ? StreamingRebuildThrottle : RebuildThrottle);
         ScheduleScrollToEnd();
     }
 
@@ -314,15 +359,23 @@ public sealed partial class ChatConversationView : UserControl
             && ReferenceEquals(_messages[_messages.Count - 1], line)
             && e.PropertyName is nameof(ChatLineViewModel.Text) or nameof(ChatLineViewModel.ReasoningText);
 
-        ScheduleRebuild(streaming ? StreamingRebuildThrottle : RebuildThrottle);
+        if (streaming)
+            _streamMode = true;
+
+        ScheduleRebuild(streaming || _isBusy ? StreamingRebuildThrottle : RebuildThrottle);
         ScheduleScrollToEnd();
     }
 
-    private void ScheduleRebuild(TimeSpan delay)
+    private void ScheduleRebuild(TimeSpan delay, bool force = false)
     {
+        _rebuildQueued = true;
         _rebuildTimer ??= _dispatcherQueue.CreateTimer();
         _rebuildTimer.Interval = delay;
         _rebuildTimer.IsRepeating = false;
+        // スロットル: 稼働中はリセットしない（旧実装はデバウンスで推論中に描画が止まっていた）
+        if (!force && _rebuildTimer.IsRunning)
+            return;
+
         _rebuildTimer.Tick -= OnRebuildTimerTick;
         _rebuildTimer.Tick += OnRebuildTimerTick;
         _rebuildTimer.Start();
@@ -332,6 +385,10 @@ public sealed partial class ChatConversationView : UserControl
     {
         sender.Tick -= OnRebuildTimerTick;
         sender.Stop();
+        if (!_rebuildQueued)
+            return;
+
+        _rebuildQueued = false;
         _ = PushLogAsync(scroll: _autoScrollToEnd);
     }
 
@@ -342,6 +399,7 @@ public sealed partial class ChatConversationView : UserControl
 
         _rebuildTimer.Tick -= OnRebuildTimerTick;
         _rebuildTimer.Stop();
+        _rebuildQueued = false;
     }
 
     private async Task PushLogAsync(bool scroll)
@@ -349,37 +407,87 @@ public sealed partial class ChatConversationView : UserControl
         if (_runtimeUnavailable || !_webReady || _conversationWeb?.CoreWebView2 is null)
             return;
 
-        if (!_shellLoaded)
+        if (_pushInFlight)
         {
-            _conversationWeb.NavigateToString(ChatConversationHtmlBuilder.BuildShell(_fontFamily, _fontSize));
-            _shellLoaded = true;
-            await Task.Delay(30);
+            _rebuildQueued = true;
+            return;
         }
 
-        var lines = new List<ChatConversationHtmlBuilder.Line>();
-        if (_messages is not null)
-        {
-            foreach (ChatLineViewModel line in _messages)
-            {
-                lines.Add(new ChatConversationHtmlBuilder.Line(
-                    line.Header,
-                    line.ReasoningText,
-                    line.Text,
-                    line.ApplySentenceBreaks));
-            }
-        }
-
-        var html = ChatConversationHtmlBuilder.BuildLogHtml(lines);
-        var payload = JsonSerializer.Serialize(html);
-        var scrollJson = scroll ? "true" : "false";
+        _pushInFlight = true;
         try
         {
-            await _conversationWeb.ExecuteScriptAsync($"lcSetLog({payload}, {scrollJson});");
+            if (!_shellLoaded)
+            {
+                _conversationWeb.NavigateToString(ChatConversationHtmlBuilder.BuildShell(_fontFamily, _fontSize));
+                _shellLoaded = true;
+                await Task.Delay(30);
+            }
+
+            var lines = BuildDisplayLines();
+            var scrollJson = scroll ? "true" : "false";
+            var usePatch = (_streamMode || _isBusy)
+                && lines.Count > 0
+                && lines.Count == _pushedMessageCount;
+
+            try
+            {
+                if (usePatch)
+                {
+                    var article = ChatConversationHtmlBuilder.BuildArticleHtml(lines[^1]);
+                    var payload = JsonSerializer.Serialize(article);
+                    await _conversationWeb.ExecuteScriptAsync($"lcPatchLastArticle({payload}, {scrollJson});");
+                }
+                else
+                {
+                    var html = ChatConversationHtmlBuilder.BuildLogHtml(lines);
+                    var payload = JsonSerializer.Serialize(html);
+                    await _conversationWeb.ExecuteScriptAsync($"lcSetLog({payload}, {scrollJson});");
+                    _pushedMessageCount = lines.Count;
+                }
+            }
+            catch (Exception ex)
+            {
+                StartupLog.Write($"ChatConversationView push failed: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            StartupLog.Write($"ChatConversationView push failed: {ex.Message}");
+            _pushInFlight = false;
+            if (_rebuildQueued)
+                ScheduleRebuild(_streamMode || _isBusy ? StreamingRebuildThrottle : RebuildThrottle);
         }
+    }
+
+    private List<ChatConversationHtmlBuilder.Line> BuildDisplayLines()
+    {
+        var lines = new List<ChatConversationHtmlBuilder.Line>();
+        if (_messages is null)
+            return lines;
+
+        var reasoningLabel = LocalizationService.Instance.Get("Chat.ReasoningLabel");
+        for (var i = 0; i < _messages.Count; i++)
+        {
+            if (_messages[i] is not ChatLineViewModel line)
+                continue;
+
+            var isLast = i == _messages.Count - 1;
+            var live = isLast && (_streamMode || _isBusy) && line.Role == "assistant";
+            var showReasoningPanel = live
+                || !string.IsNullOrWhiteSpace(line.ReasoningText);
+            if (live && string.IsNullOrWhiteSpace(line.ReasoningText) && string.IsNullOrWhiteSpace(line.Text))
+                showReasoningPanel = true;
+
+            lines.Add(new ChatConversationHtmlBuilder.Line(
+                line.Header,
+                line.ReasoningText,
+                line.Text,
+                line.ApplySentenceBreaks,
+                showReasoningPanel ? reasoningLabel : null,
+                LiveStream: live,
+                ShowReasoningPanel: showReasoningPanel));
+        }
+
+        return lines;
     }
 
     private async Task ApplyAppearanceToWebAsync()

@@ -34,4 +34,40 @@ public sealed class ChatConversationHtmlBuilderTests
         Assert.Contains("<a href=\"https://example.com", html, StringComparison.Ordinal);
         Assert.Contains("</a>", html, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void BuildLogHtml_IncludesReasoningBlockWithLabel()
+    {
+        var html = ChatConversationHtmlBuilder.BuildLogHtml(
+        [
+            new ChatConversationHtmlBuilder.Line("Assistant", "step one", "final answer", true, "推論"),
+        ]);
+        Assert.Contains("class=\"reasoning\"", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"reasoning-label\"", html, StringComparison.Ordinal);
+        Assert.Contains("step one", html, StringComparison.Ordinal);
+        Assert.Contains("final answer", html, StringComparison.Ordinal);
+        // 推論が本文より前
+        Assert.True(
+            html.IndexOf("step one", StringComparison.Ordinal)
+            < html.IndexOf("final answer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BuildArticleHtml_LiveStream_ShowsPlainTextAndCaret()
+    {
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line(
+                "Assistant",
+                "thinking now",
+                "",
+                true,
+                "推論",
+                LiveStream: true,
+                ShowReasoningPanel: true));
+
+        Assert.Contains("reasoning live", html, StringComparison.Ordinal);
+        Assert.Contains("stream-caret", html, StringComparison.Ordinal);
+        Assert.Contains("thinking now", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<ul>", html, StringComparison.Ordinal);
+    }
 }

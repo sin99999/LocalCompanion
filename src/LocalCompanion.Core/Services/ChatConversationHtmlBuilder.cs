@@ -14,7 +14,10 @@ public static class ChatConversationHtmlBuilder
         string Header,
         string? ReasoningText,
         string BodyText,
-        bool ApplySentenceBreaks);
+        bool ApplySentenceBreaks,
+        string? ReasoningLabel = null,
+        bool LiveStream = false,
+        bool ShowReasoningPanel = false);
 
     public static string BuildShell(string fontFamily, double fontSize)
     {
@@ -58,7 +61,37 @@ html, body {
 .msg .reasoning {
   color: var(--chat-fg-secondary);
   font-size: 0.92em;
+  margin: 0 0 10px 0;
+  padding: 8px 10px;
+  border-left: 3px solid rgba(96, 205, 255, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0 6px 6px 0;
+}
+.msg .reasoning.live {
+  border-left-color: rgba(96, 205, 255, 0.95);
+  background: rgba(96, 205, 255, 0.08);
+}
+.msg .reasoning-label {
+  font-weight: 600;
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
   margin: 0 0 6px 0;
+  color: var(--chat-link);
+  user-select: text;
+}
+.msg .reasoning-body {
+  white-space: pre-wrap;
+  margin: 0;
+}
+.msg .stream-caret {
+  display: inline-block;
+  width: 0.55em;
+  margin-left: 1px;
+  animation: lcCaret 1s step-end infinite;
+  color: var(--chat-link);
+}
+@keyframes lcCaret {
+  50% { opacity: 0; }
 }
 .msg a {
   color: var(--chat-link);
@@ -130,10 +163,29 @@ function lcSetLog(html, scroll) {
   if (lcHasTextSelection()) {
     window.__lcPendingLog = html || '';
     window.__lcPendingScroll = !!scroll;
+    window.__lcPendingPatch = null;
     return 'deferred';
   }
   window.__lcPendingLog = null;
+  window.__lcPendingPatch = null;
   lcApplyLog(html, !!scroll);
+  return 'ok';
+}
+function lcPatchLastArticle(html, scroll) {
+  if (lcHasTextSelection()) {
+    window.__lcPendingPatch = html || '';
+    window.__lcPendingScroll = !!scroll;
+    return 'deferred';
+  }
+  window.__lcPendingPatch = null;
+  var log = document.getElementById('log');
+  var articles = log.querySelectorAll('article.msg');
+  if (articles.length === 0) {
+    log.insertAdjacentHTML('beforeend', html || '');
+  } else {
+    articles[articles.length - 1].outerHTML = html || '';
+  }
+  if (scroll) lcScrollEnd();
   return 'ok';
 }
 function lcSetAppearance(family, size) {
@@ -141,11 +193,21 @@ function lcSetAppearance(family, size) {
   document.documentElement.style.setProperty('--chat-size', size + 'px');
 }
 document.addEventListener('selectionchange', function () {
-  if (window.__lcPendingLog == null || lcHasTextSelection()) return;
-  var pending = window.__lcPendingLog;
-  var scroll = !!window.__lcPendingScroll;
-  window.__lcPendingLog = null;
-  lcApplyLog(pending, scroll);
+  if (lcHasTextSelection()) return;
+  if (window.__lcPendingLog != null) {
+    var pending = window.__lcPendingLog;
+    var scroll = !!window.__lcPendingScroll;
+    window.__lcPendingLog = null;
+    window.__lcPendingPatch = null;
+    lcApplyLog(pending, scroll);
+    return;
+  }
+  if (window.__lcPendingPatch != null) {
+    var patch = window.__lcPendingPatch;
+    var pscroll = !!window.__lcPendingScroll;
+    window.__lcPendingPatch = null;
+    lcPatchLastArticle(patch, pscroll);
+  }
 });
 window.addEventListener('scroll', lcNotifyScroll, { passive: true });
 </script>
@@ -161,25 +223,60 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
 
         var sb = new StringBuilder();
         for (var i = 0; i < lines.Count; i++)
-        {
-            var line = lines[i];
-            sb.Append("<article class=\"msg\">");
-            if (!string.IsNullOrWhiteSpace(line.Header))
-                sb.Append("<div class=\"header\">").Append(Esc(line.Header)).Append("</div>");
+            sb.Append(BuildArticleHtml(lines[i]));
+        return sb.ToString();
+    }
 
-            if (!string.IsNullOrWhiteSpace(line.ReasoningText))
+    public static string BuildArticleHtml(Line line)
+    {
+        var sb = new StringBuilder();
+        sb.Append("<article class=\"msg\">");
+        if (!string.IsNullOrWhiteSpace(line.Header))
+            sb.Append("<div class=\"header\">").Append(Esc(line.Header)).Append("</div>");
+
+        var showReasoning = line.ShowReasoningPanel
+            || !string.IsNullOrWhiteSpace(line.ReasoningText);
+        if (showReasoning)
+        {
+            sb.Append("<div class=\"")
+                .Append(line.LiveStream ? "reasoning live" : "reasoning")
+                .Append("\">");
+            if (!string.IsNullOrWhiteSpace(line.ReasoningLabel))
             {
-                sb.Append("<div class=\"reasoning\">");
-                sb.Append(BuildBodyWithLinks(line.ReasoningText, sentenceBreaks: true));
-                sb.Append("</div>");
+                sb.Append("<div class=\"reasoning-label\">")
+                    .Append(Esc(line.ReasoningLabel))
+                    .Append("</div>");
             }
 
-            if (!string.IsNullOrWhiteSpace(line.BodyText))
-                sb.Append(BuildBodyWithLinks(line.BodyText, line.ApplySentenceBreaks));
+            if (line.LiveStream)
+            {
+                sb.Append("<p class=\"reasoning-body\">")
+                    .Append(Esc(ChatRichTextDisplayNormalizer.Normalize(line.ReasoningText)))
+                    .Append("<span class=\"stream-caret\">▍</span></p>");
+            }
+            else if (!string.IsNullOrWhiteSpace(line.ReasoningText))
+            {
+                sb.Append(BuildBodyWithLinks(line.ReasoningText, sentenceBreaks: true));
+            }
 
-            sb.Append("</article>");
+            sb.Append("</div>");
         }
 
+        if (!string.IsNullOrWhiteSpace(line.BodyText))
+        {
+            if (line.LiveStream)
+            {
+                sb.Append("<p class=\"reasoning-body\">")
+                    .Append(Esc(ChatRichTextDisplayNormalizer.Normalize(line.BodyText)))
+                    .Append("</p>");
+            }
+            else
+            {
+                sb.Append(BuildBodyWithLinks(line.BodyText, line.ApplySentenceBreaks));
+            }
+        }
+
+        sb.Append("</article>");
         return sb.ToString();
     }
 

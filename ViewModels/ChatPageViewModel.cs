@@ -607,20 +607,16 @@ public partial class ChatPageViewModel : ObservableObject
                     {
                         case "content":
                         {
-                            var line = EnsureAssistantLine();
-                            if (replyAcc.Length == 0)
-                                line.ClearReasoning();
+                            EnsureAssistantLine();
                             replyAcc.Append(chunk.Text);
                             break;
                         }
                         case "reasoning" when UseReasoning:
                         {
-                            var line = EnsureAssistantLine();
-                            if (replyAcc.Length == 0)
-                            {
-                                reasoningAcc.Append(chunk.Text);
-                                line.SetReasoning(reasoningAcc.ToString());
-                            }
+                            EnsureAssistantLine();
+                            reasoningAcc.Append(chunk.Text);
+                            // 本文到着後も推論チャンクを捨てない（サーバが交互に流す場合がある）
+                            SetStatusByKey("Chat.Status.Reasoning");
                             break;
                         }
                         case "done":
@@ -630,14 +626,25 @@ public partial class ChatPageViewModel : ObservableObject
                                 replyAcc.Clear();
                                 replyAcc.Append(chunk.Text);
                             }
+
+                            // 完了時にまとめて渡される推論を優先（ストリーム中に消していた不具合の本命）
+                            if (UseReasoning && !string.IsNullOrWhiteSpace(chunk.ReasoningText))
+                            {
+                                reasoningAcc.Clear();
+                                reasoningAcc.Append(chunk.ReasoningText.Trim());
+                            }
+
                             break;
                     }
 
                     if (assistantLine is null)
                         return;
 
-                    if (replyAcc.Length > 0)
+                    if (UseReasoning && reasoningAcc.Length > 0)
+                        assistantLine.SetReasoning(reasoningAcc.ToString());
+                    else
                         assistantLine.ClearReasoning();
+
                     if (replyAcc.Length > 0 || !string.IsNullOrWhiteSpace(assistantLine.ReasoningText))
                         assistantLine.SetText(replyAcc.ToString());
                 });
