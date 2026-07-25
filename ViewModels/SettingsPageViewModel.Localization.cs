@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 
@@ -239,6 +239,7 @@ public partial class SettingsPageViewModel
         UiCharacterRegistered = _loc.Get("Settings.Character.Registered");
         UiCharacterName = _loc.Get("Settings.Character.Name");
         UiCharacterPersona = _loc.Get("Settings.Character.Persona");
+        ApplyCharacterSelfImproveLocalizedUi();
         UiApplyCharacterDefaults = _loc.Get("Settings.Character.ApplyDefaults");
         UiCharacterTemperatureHint = _loc.Get("Settings.Character.Hint.Temperature");
         UiCharacterTopPHint = _loc.Get("Settings.Character.Hint.TopP");

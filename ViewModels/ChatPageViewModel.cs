@@ -1,8 +1,9 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Localization;
+using LocalCompanion.Models;
 using LocalCompanion.Services;
 
 namespace LocalCompanion.ViewModels;
@@ -18,6 +19,7 @@ public partial class ChatPageViewModel : ObservableObject
     private readonly VoicevoxSpeechService _voicevoxSpeech;
     private readonly AppAppearanceService _appearance;
     private readonly SpeechInputService _speechInput;
+    private readonly CharacterSelfImproveService _selfImprove;
     private readonly List<string> _inputHistory = new();
 
     private int _inputHistoryIndex = -1;
@@ -27,13 +29,18 @@ public partial class ChatPageViewModel : ObservableObject
     private bool _suppressCharacterChangeReset;
     private string? _syncedCharacterFileName;
     private CancellationTokenSource? _sendCts;
+    private CancellationTokenSource? _selfImproveCts;
     private Exception? _lastErrorException;
     private readonly SemaphoreSlim _sessionFinalizeGate = new(1, 1);
     private int _sessionFinalizeGeneration;
+    private int _selfImproveDialogGate;
+    private int _selfImproveBusy;
 
     public bool ImageAttachEnabled { get; private set; } = true;
 
     public string? ImageAttachHint { get; private set; }
+
+    public event EventHandler<CharacterSelfImproveProposal>? SelfImproveProposed;
 
     public ChatPageViewModel(
         ChatService chat,
@@ -42,12 +49,14 @@ public partial class ChatPageViewModel : ObservableObject
         RuntimeHealthService health,
         VoicevoxSpeechService voicevoxSpeech,
         AppAppearanceService appearance,
-        SpeechInputService speechInput)
+        SpeechInputService speechInput,
+        CharacterSelfImproveService selfImprove)
     {
         _chat = chat;
         _rag = rag;
         _characters = characters;
         _health = health;
+        _selfImprove = selfImprove;
         _voicevoxSpeech = voicevoxSpeech;
         _appearance = appearance;
         _speechInput = speechInput;
@@ -175,7 +184,7 @@ public partial class ChatPageViewModel : ObservableObject
 
     partial void OnSelectedCharacterChanged(CharacterChoiceViewModel? value)
     {
-        if (value is null || IsBusy)
+        if (value is null || IsBusy || IsSelfImproveBusy)
             return;
 
         var newKey = string.IsNullOrEmpty(value.FileName) || value.FileName == CharacterPresetService.NoneSelection
@@ -675,6 +684,23 @@ public partial class ChatPageViewModel : ObservableObject
                 _ = _voicevoxSpeech.MaybeSpeakAssistantAsync(replyText);
 
             _ = RefreshHealthAsync();
+
+            var activePreset = _characters.GetActivePresetFileName();
+            var wantsPersonaUpdate = CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(message);
+            if (wantsPersonaUpdate && CharacterPresetService.IsNoneSelection(activePreset))
+            {
+                await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.NeedNamedCharacter"));
+            }
+            else if (wantsPersonaUpdate && !_appearance.Current.CharacterSelfImproveEnabled)
+            {
+                await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.NeedEnabled"));
+            }
+            else if (_appearance.Current.CharacterSelfImproveEnabled
+                && !CharacterPresetService.IsNoneSelection(activePreset)
+                && !string.IsNullOrWhiteSpace(replyText))
+            {
+                _ = MaybeProposeSelfImproveAsync(activePreset, message, replyText, wantsPersonaUpdate);
+            }
         }
         catch (OperationCanceledException) when (sendCt.IsCancellationRequested)
         {
@@ -739,6 +765,116 @@ public partial class ChatPageViewModel : ObservableObject
         }
     }
 
+    private async Task MaybeProposeSelfImproveAsync(
+        string? presetFileName,
+        string userMessage,
+        string assistantReply,
+        bool explicitRequest)
+    {
+        _selfImproveCts?.Cancel();
+        _selfImproveCts?.Dispose();
+        _selfImproveCts = new CancellationTokenSource();
+        var ct = _selfImproveCts.Token;
+        var holdBusyForDialog = false;
+
+        await RunOnUiAsync(SetSelfImproveBusy);
+
+        try
+        {
+            if (explicitRequest)
+                await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.Preparing"));
+
+            var proposal = await _selfImprove.TryProposeAfterReplyAsync(
+                presetFileName,
+                userMessage,
+                assistantReply,
+                ct);
+            if (ct.IsCancellationRequested)
+                return;
+
+            if (proposal is null)
+            {
+                if (explicitRequest)
+                    await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.NoProposal"));
+                return;
+            }
+
+            holdBusyForDialog = true;
+            await RunOnUiAsync(() =>
+            {
+                SelfImproveProposed?.Invoke(this, proposal);
+                // ハンドラがダイアログを取れなかった／未購読なら busy を戻す
+                if (Volatile.Read(ref _selfImproveDialogGate) == 0)
+                    ClearSelfImproveBusy();
+            });
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            /* 終了・次提案でキャンセル */
+        }
+        catch (Exception)
+        {
+            if (explicitRequest && !ct.IsCancellationRequested)
+                await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.NoProposal"));
+        }
+        finally
+        {
+            if (!holdBusyForDialog)
+                await RunOnUiAsync(ClearSelfImproveBusy);
+        }
+    }
+
+    /// <summary>ウィンドウクローズ時に送信・提案を止める（llama Kill 前）。</summary>
+    public void CancelBackgroundWorkOnClose()
+    {
+        try { _sendCts?.Cancel(); } catch { /* ignore */ }
+        try { _selfImproveCts?.Cancel(); } catch { /* ignore */ }
+        try { _voicevoxSpeech.Cancel(); } catch { /* ignore */ }
+        ClearSelfImproveBusy();
+    }
+
+    public bool IsSelfImproveBusy => Volatile.Read(ref _selfImproveBusy) != 0;
+
+    private void SetSelfImproveBusy()
+    {
+        Interlocked.Exchange(ref _selfImproveBusy, 1);
+        NotifySelfImproveBusyChanged();
+    }
+
+    private void ClearSelfImproveBusy()
+    {
+        Interlocked.Exchange(ref _selfImproveBusy, 0);
+        NotifySelfImproveBusyChanged();
+    }
+
+    private void NotifySelfImproveBusyChanged()
+    {
+        OnPropertyChanged(nameof(IsSelfImproveBusy));
+        OnPropertyChanged(nameof(CanMutateConversation));
+        OnPropertyChanged(nameof(IsInputEnabled));
+        ClearHistoryCommand.NotifyCanExecuteChanged();
+        SendCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>同意ダイアログが同時に複数出ないようにする。</summary>
+    public bool TryEnterSelfImproveDialog() =>
+        Interlocked.CompareExchange(ref _selfImproveDialogGate, 1, 0) == 0;
+
+    public void ExitSelfImproveDialog()
+    {
+        Interlocked.Exchange(ref _selfImproveDialogGate, 0);
+        ClearSelfImproveBusy();
+    }
+
+    public bool TryApplySelfImproveProposal(CharacterSelfImproveProposal proposal)
+    {
+        if (!_selfImprove.TryApplyApprovedProposal(proposal))
+            return false;
+
+        // 設定画面を開いている場合に備えて、次の表示で最新が載るようイベントは Settings 側の Reload に任せる
+        return true;
+    }
+
     [RelayCommand(CanExecute = nameof(CanStopGeneration))]
     private void StopGeneration()
     {
@@ -751,9 +887,9 @@ public partial class ChatPageViewModel : ObservableObject
             ? LocalizationService.Instance.Get("Chat.Stop")
             : LocalizationService.Instance.Get("Chat.Send");
 
-    public bool IsInputEnabled => !IsBusy;
+    public bool IsInputEnabled => !IsBusy && !IsSelfImproveBusy;
 
-    public bool CanMutateConversation => !IsBusy;
+    public bool CanMutateConversation => !IsBusy && !IsSelfImproveBusy;
 
     public void NotifyBusyMutationBlocked() => SetStatusByKey("Chat.Status.BusyCannotSwitch");
 
@@ -769,7 +905,7 @@ public partial class ChatPageViewModel : ObservableObject
     }
 
     private bool CanSend() =>
-        !IsBusy && (!string.IsNullOrWhiteSpace(InputText) || PendingAttachments.Count > 0);
+        !IsBusy && !IsSelfImproveBusy && (!string.IsNullOrWhiteSpace(InputText) || PendingAttachments.Count > 0);
 
     private bool CanStopGeneration() => IsBusy;
 

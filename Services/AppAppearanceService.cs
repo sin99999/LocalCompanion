@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Models;
+using LocalCompanion.Models;
 using Microsoft.UI.Xaml;
 
 namespace LocalCompanion.Services;
@@ -35,22 +35,17 @@ public sealed class AppAppearanceService
 
     public void SetConfirmHistoryDelete(bool enabled)
     {
-        Current = _store.Save(new AppSettingsDto
-        {
-            ConfirmHistoryDelete = enabled,
-            ThemeMode = Current.ThemeMode,
-            ChatFontFamily = Current.ChatFontFamily,
-            ChatFontSize = Current.ChatFontSize,
-            UserDisplayName = Current.UserDisplayName,
-            RagUseHtmlMarkdown = Current.RagUseHtmlMarkdown,
-            RagUseLlmStructurer = Current.RagUseLlmStructurer,
-            RagSaveStructurerCache = Current.RagSaveStructurerCache,
-            RagUsePdfLayoutReader = Current.RagUsePdfLayoutReader,
-            MemoryEnabled = Current.MemoryEnabled,
-            MemoryAutoExtractOnClose = Current.MemoryAutoExtractOnClose,
-            ChatSearchEnabled = Current.ChatSearchEnabled,
-            SpeechInputEnabled = Current.SpeechInputEnabled,
-        });
+        var dto = Current.Clone();
+        dto.ConfirmHistoryDelete = enabled;
+        Current = _store.Save(dto);
+    }
+
+    public void SetCharacterSelfImproveEnabled(bool enabled)
+    {
+        var dto = Current.Clone();
+        dto.CharacterSelfImproveEnabled = enabled;
+        Current = _store.Save(dto);
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public static ApplicationTheme ResolveApplicationTheme(string _) => ApplicationTheme.Dark;

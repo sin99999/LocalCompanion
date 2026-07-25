@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="LocalCompanion.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -286,6 +286,11 @@
                                     Style="{StaticResource SettingsInBorderTextBoxStyle}"
                                     Text="{x:Bind ViewModel.CharacterName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </Border>
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiCharacterSelfImproveEnabled, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiCharacterSelfImproveEnabledHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.CharacterSelfImproveEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiCharacterPersona, Mode=OneWay}" />

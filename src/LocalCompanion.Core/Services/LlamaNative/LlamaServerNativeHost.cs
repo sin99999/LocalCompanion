@@ -17,7 +17,7 @@ public static class LlamaServerNativeHost
         if (exe is null)
             return 1;
 
-        DefaultModelDownloader.TryBootstrap(root);
+        var bootstrap = DefaultModelDownloader.TryBootstrap(root);
 
         var dataDir = AppPaths.ResolveUserDataDirectory(settings.DataDirectory);
         var extraFolders = ModelLibrarySettings.EnumerateModelFolders(modelsDir, dataDir)
@@ -29,8 +29,9 @@ public static class LlamaServerNativeHost
 
         if (resolved.ModelPath is null)
         {
-            NativeLog.WriteKey("Startup.NoChatGgufSkip");
-            return 0;
+            NativeLog.WriteKey("Startup.NoChatGguf");
+            // 3=ダウンロード失敗、1=モデルなし（スキップしてチャットには進まない）
+            return bootstrap == DefaultModelDownloader.BootstrapResult.Failed ? 3 : 1;
         }
 
         var modelPath = resolved.ModelPath;
@@ -41,8 +42,8 @@ public static class LlamaServerNativeHost
 
         if (resolved.ModelPath is null)
         {
-            NativeLog.WriteKey("Startup.NoChatGgufSkip");
-            return 0;
+            NativeLog.WriteKey("Startup.NoChatGguf");
+            return bootstrap == DefaultModelDownloader.BootstrapResult.Failed ? 3 : 1;
         }
 
         modelPath = resolved.ModelPath;
@@ -156,6 +157,13 @@ public static class LlamaServerNativeHost
         var gpuLayerAttempts = LlamaGpuLayerPolicy.BuildLayerAttempts(configuredGpuLayers, hasUsableGpu);
         for (var attemptIndex = 0; attemptIndex < gpuLayerAttempts.Count; attemptIndex++)
         {
+            // 終了要求後の GPU 再試行で llama-server を再スポーンしない
+            if (AppBootstrap.IsExitRequested)
+            {
+                NativeLog.WriteKeyLogOnly("Startup.LlamaAbortedOnExit");
+                return 1;
+            }
+
             var gpuLayers = gpuLayerAttempts[attemptIndex];
             if (gpuLayers != configuredGpuLayers)
                 NativeLog.WriteKey("Startup.GpuLayersRetry", null, gpuLayers);
@@ -173,6 +181,13 @@ public static class LlamaServerNativeHost
             NativeLog.WriteKey("Startup.LlamaLoadingModel", 5, 5);
             while (DateTime.UtcNow < deadline)
             {
+                if (AppBootstrap.IsExitRequested)
+                {
+                    NativeLog.WriteKeyLogOnly("Startup.LlamaAbortedOnExit");
+                    StopLlamaProcesses(toolsDir, waitAfterKill: false);
+                    return 1;
+                }
+
                 if (LlamaServerHealth.IsModelReady(port))
                 {
                     // Ready 応答があっても、記録した自前 PID が生きていなければ他人のサーバ
@@ -212,6 +227,12 @@ public static class LlamaServerNativeHost
 
             if (attemptIndex + 1 < gpuLayerAttempts.Count)
             {
+                if (AppBootstrap.IsExitRequested)
+                {
+                    NativeLog.WriteKeyLogOnly("Startup.LlamaAbortedOnExit");
+                    return 1;
+                }
+
                 StopLlamaProcesses(toolsDir);
                 continue;
             }
@@ -259,6 +280,8 @@ public static class LlamaServerNativeHost
             if (proc is null)
                 throw new InvalidOperationException("Process.Start returned null");
 
+            ChildProcessJob.Assign(proc);
+
             _ = Task.Run(async () =>
             {
                 try
@@ -294,7 +317,10 @@ public static class LlamaServerNativeHost
             CreateNoWindow = true,
             UseShellExecute = false,
         };
-        return Process.Start(fallback)?.Id;
+        var fallbackProc = Process.Start(fallback);
+        if (fallbackProc is not null)
+            ChildProcessJob.Assign(fallbackProc);
+        return fallbackProc?.Id;
     }
 
     private static string Quote(string arg) =>

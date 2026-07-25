@@ -180,10 +180,13 @@ public sealed class AppPaths
     internal static bool IsDevelopmentOutputPath(string path)
     {
         var normalized = path.Replace('/', '\\');
+        // 単なる \bin\x64\ は配布 ZIP 展開先にも現れうるので、構成名付きだけを開発出力とみなす
         return normalized.Contains(@"\bin\Debug\", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains(@"\bin\Release\", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains(@"\bin\x64\", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains(@"\bin\Win32\", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(@"\bin\x64\Debug\", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(@"\bin\x64\Release\", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(@"\bin\Win32\Debug\", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(@"\bin\Win32\Release\", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains(@"\obj\", StringComparison.OrdinalIgnoreCase);
     }
 

@@ -10,6 +10,7 @@ public static class AppBootstrap
     public const int UiPort = 5781;
 
     private static AppPaths? _shutdownPaths;
+    private static int _exitRequested;
     private static int _stopInvoked;
 
     public static void RegisterShutdown(AppPaths paths)
@@ -17,9 +18,16 @@ public static class AppBootstrap
         _shutdownPaths = paths;
     }
 
+    /// <summary>終了開始。llama 再スポーンを止め、Kill は <see cref="StopManagedLlamaOnExit"/> が行う。</summary>
+    public static void RequestExit() => Interlocked.Exchange(ref _exitRequested, 1);
+
+    /// <summary>終了要求済みか（起動リトライ／再スポーン抑制用）。</summary>
+    public static bool IsExitRequested => Volatile.Read(ref _exitRequested) != 0;
+
     /// <summary>アプリ終了時に llama-server を止める（複数回呼んでも安全）。</summary>
     public static void StopManagedLlamaOnExit()
     {
+        Interlocked.Exchange(ref _exitRequested, 1);
         if (Interlocked.Exchange(ref _stopInvoked, 1) != 0)
             return;
 

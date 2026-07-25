@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
@@ -57,22 +57,12 @@ public partial class SettingsPageViewModel
     {
         if (_suppressRagOptionSave)
             return;
-        _appearance.Save(new AppSettingsDto
-        {
-            ConfirmHistoryDelete = _appearance.Current.ConfirmHistoryDelete,
-            ThemeMode = _appearance.Current.ThemeMode,
-            ChatFontFamily = _appearance.Current.ChatFontFamily,
-            ChatFontSize = _appearance.Current.ChatFontSize,
-            UserDisplayName = _appearance.Current.UserDisplayName,
-            RagUseHtmlMarkdown = RagUseHtmlMarkdown,
-            RagUseLlmStructurer = RagUseLlmStructurer,
-            RagSaveStructurerCache = RagSaveStructurerCache,
-            RagUsePdfLayoutReader = RagUsePdfLayoutReader,
-            MemoryEnabled = _appearance.Current.MemoryEnabled,
-            MemoryAutoExtractOnClose = _appearance.Current.MemoryAutoExtractOnClose,
-            ChatSearchEnabled = _appearance.Current.ChatSearchEnabled,
-            SpeechInputEnabled = _appearance.Current.SpeechInputEnabled,
-        });
+        var dto = _appearance.Current.Clone();
+        dto.RagUseHtmlMarkdown = RagUseHtmlMarkdown;
+        dto.RagUseLlmStructurer = RagUseLlmStructurer;
+        dto.RagSaveStructurerCache = RagSaveStructurerCache;
+        dto.RagUsePdfLayoutReader = RagUsePdfLayoutReader;
+        _appearance.Save(dto);
     }
 
     internal void ApplyIngestResult(RagService.RagIngestResult result)

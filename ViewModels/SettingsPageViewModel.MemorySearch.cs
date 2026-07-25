@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
 
@@ -51,21 +51,9 @@ public partial class SettingsPageViewModel
             return;
 
         var c = _appearance.Current;
-        _appearance.Save(new AppSettingsDto
-        {
-            ConfirmHistoryDelete = c.ConfirmHistoryDelete,
-            ThemeMode = c.ThemeMode,
-            ChatFontFamily = c.ChatFontFamily,
-            ChatFontSize = c.ChatFontSize,
-            UserDisplayName = c.UserDisplayName,
-            RagUseHtmlMarkdown = c.RagUseHtmlMarkdown,
-            RagUseLlmStructurer = c.RagUseLlmStructurer,
-            RagSaveStructurerCache = c.RagSaveStructurerCache,
-            RagUsePdfLayoutReader = c.RagUsePdfLayoutReader,
-            MemoryEnabled = MemoryEnabled,
-            MemoryAutoExtractOnClose = MemoryAutoExtractOnClose,
-            ChatSearchEnabled = c.ChatSearchEnabled,
-            SpeechInputEnabled = c.SpeechInputEnabled,
-        });
+        var dto = c.Clone();
+        dto.MemoryEnabled = MemoryEnabled;
+        dto.MemoryAutoExtractOnClose = MemoryAutoExtractOnClose;
+        _appearance.Save(dto);
     }
 }

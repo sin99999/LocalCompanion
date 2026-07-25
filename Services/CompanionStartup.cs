@@ -6,6 +6,7 @@ namespace LocalCompanion.Services;
 public static class CompanionStartup
 {
     private static readonly object StartupProgressOwner = new();
+    private static int _processExitHooked;
 
     public static async Task RunAsync(Action<StartupProgressReport> reportProgress, CancellationToken ct = default)
     {
@@ -15,17 +16,20 @@ public static class CompanionStartup
             progressScope = StartupProgressScope.Acquire(StartupProgressOwner, reportProgress);
             var paths = AppPaths.Current;
             AppBootstrap.RegisterShutdown(paths);
-            AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+            if (Interlocked.Exchange(ref _processExitHooked, 1) == 0)
             {
-                try
+                AppDomain.CurrentDomain.ProcessExit += (_, _) =>
                 {
-                    Shutdown();
-                }
-                catch
-                {
-                    /* 終了処理中の例外は無視 */
-                }
-            };
+                    try
+                    {
+                        Shutdown();
+                    }
+                    catch
+                    {
+                        /* 終了処理中の例外は無視 */
+                    }
+                };
+            }
 
             var loc = LocalizationService.Instance;
             StartupProgress.ReportKey("Startup.Preparing", 0);
@@ -37,6 +41,10 @@ public static class CompanionStartup
             var llamaCode = await Task.Run(() => AppBootstrap.EnsureLlamaServer(paths), ct).ConfigureAwait(true);
             if (llamaCode == 2)
                 throw new InvalidOperationException(loc.Get("Startup.PortInUseForeign"));
+            if (llamaCode == 3)
+                throw new InvalidOperationException(loc.Get("Startup.Error.DefaultModelDownload"));
+            if (llamaCode == 1)
+                throw new InvalidOperationException(loc.Get("Startup.Error.NoChatGguf"));
             if (llamaCode != 0)
                 throw new InvalidOperationException(loc.Get("Startup.LlamaFailed"));
 

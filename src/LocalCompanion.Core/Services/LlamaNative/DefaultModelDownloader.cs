@@ -11,25 +11,34 @@ internal static class DefaultModelDownloader
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromHours(6) };
 
-    internal static void TryBootstrap(string root)
+    internal enum BootstrapResult
+    {
+        /// <summary>モデルがある／取得不要／取得成功。</summary>
+        Ready,
+
+        /// <summary>既定モデルのダウンロードに失敗し、利用可能なチャット GGUF もない。</summary>
+        Failed,
+    }
+
+    internal static BootstrapResult TryBootstrap(string root)
     {
         var modelsDir = Path.Combine(root, "models");
         var markerPath = Path.Combine(modelsDir, ".default-model-bootstrap.json");
         if (File.Exists(markerPath))
-            return;
+            return BootstrapResult.Ready;
 
         var dest = Path.Combine(modelsDir, DefaultFileName);
         if (File.Exists(dest))
         {
             WriteMarker(modelsDir, "already_present");
-            return;
+            return BootstrapResult.Ready;
         }
 
         if (CountChatGguf(modelsDir) > 0)
         {
             WriteMarker(modelsDir, "skipped_existing_models");
             NativeLog.WriteKey("Startup.DefaultModel.SkipExisting");
-            return;
+            return BootstrapResult.Ready;
         }
 
         var settings = LlamaInstallConfig.Load(root);
@@ -39,7 +48,7 @@ internal static class DefaultModelDownloader
         {
             WriteMarker(modelsDir, "skipped_external_folder");
             NativeLog.WriteKey("Startup.DefaultModel.SkipExisting");
-            return;
+            return BootstrapResult.Ready;
         }
 
         NativeLog.WriteKey("Startup.DefaultModel.Begin", null, DefaultFileName);
@@ -56,11 +65,13 @@ internal static class DefaultModelDownloader
                 throw new LocalizedServiceException("Startup.Error.DownloadInvalid");
             WriteMarker(modelsDir, "downloaded");
             NativeLog.WriteKey("Startup.DefaultModel.Done", null, DefaultFileName);
+            return BootstrapResult.Ready;
         }
         catch (Exception ex)
         {
             NativeLog.WriteKey("Startup.DefaultModel.DownloadFailed", null, UserFacingErrorLocalizer.Localize(ex));
             try { if (File.Exists(dest)) File.Delete(dest); } catch { /* ignore */ }
+            return BootstrapResult.Failed;
         }
     }
 

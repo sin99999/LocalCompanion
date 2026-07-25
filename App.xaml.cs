@@ -36,6 +36,14 @@ public partial class App : Application
         {
             if (e.ExceptionObject is Exception ex)
                 StartupLog.Write(ex, "AppDomain.UnhandledException");
+            try
+            {
+                CompanionStartup.Shutdown();
+            }
+            catch
+            {
+                /* 終了処理中の例外は無視 */
+            }
         };
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) =>
         {
@@ -46,6 +54,13 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        if (!SingleInstanceGate.TryEnter())
+        {
+            // 2 つ目は静かに終了（ポート競合・二重 llama を避ける）
+            Environment.Exit(0);
+            return;
+        }
+
         AppServices.Configure();
         WinUiLanguageBridge.ApplyFromLocalization();
         LocalizationService.Instance.Changed += (_, _) => WinUiLanguageBridge.ApplyFromLocalization();

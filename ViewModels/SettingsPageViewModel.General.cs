@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
@@ -116,22 +116,11 @@ public partial class SettingsPageViewModel
             return;
 
         var c = _appearance.Current;
-        _appearance.Save(new AppSettingsDto
-        {
-            ConfirmHistoryDelete = ConfirmHistoryDelete,
-            ThemeMode = AppThemeModes.Dark,
-            ChatFontFamily = c.ChatFontFamily,
-            ChatFontSize = c.ChatFontSize,
-            UserDisplayName = c.UserDisplayName,
-            RagUseHtmlMarkdown = c.RagUseHtmlMarkdown,
-            RagUseLlmStructurer = c.RagUseLlmStructurer,
-            RagSaveStructurerCache = c.RagSaveStructurerCache,
-            RagUsePdfLayoutReader = c.RagUsePdfLayoutReader,
-            MemoryEnabled = c.MemoryEnabled,
-            MemoryAutoExtractOnClose = c.MemoryAutoExtractOnClose,
-            ChatSearchEnabled = c.ChatSearchEnabled,
-            SpeechInputEnabled = SpeechInputEnabled,
-        });
+        var dto = c.Clone();
+        dto.ConfirmHistoryDelete = ConfirmHistoryDelete;
+        dto.ThemeMode = AppThemeModes.Dark;
+        dto.SpeechInputEnabled = SpeechInputEnabled;
+        _appearance.Save(dto);
     }
 
     [RelayCommand]
@@ -147,25 +136,29 @@ public partial class SettingsPageViewModel
     private void ResetGeneral()
     {
         SetGeneralStatus(null);
-        var saved = _appearance.Save(AppSettingsDto.CreateDefault());
+        // 基本タブの項目だけ戻す（記憶・RAG・キャラ育てる 等は触らない）
+        var defaults = AppSettingsDto.CreateDefault();
+        var dto = _appearance.Current.Clone();
+        dto.ConfirmHistoryDelete = defaults.ConfirmHistoryDelete;
+        dto.ThemeMode = AppThemeModes.Dark;
+        dto.ChatFontFamily = defaults.ChatFontFamily;
+        dto.ChatFontSize = defaults.ChatFontSize;
+        dto.UserDisplayName = defaults.UserDisplayName;
+        dto.SpeechInputEnabled = defaults.SpeechInputEnabled;
+        var saved = _appearance.Save(dto);
         ApplyGeneralForm(saved);
         SetGeneralStatus("Settings.General.ResetDone");
     }
 
-    private AppSettingsDto BuildGeneralSettingsDto() => new()
+    private AppSettingsDto BuildGeneralSettingsDto()
     {
-        ConfirmHistoryDelete = ConfirmHistoryDelete,
-        ThemeMode = AppThemeModes.Dark,
-        ChatFontFamily = SelectedChatFontFamily ?? AppSettingsDto.DefaultChatFontFamily,
-        ChatFontSize = GeneralChatFontSize,
-        UserDisplayName = UserDisplayName,
-        RagUseHtmlMarkdown = _appearance.Current.RagUseHtmlMarkdown,
-        RagUseLlmStructurer = _appearance.Current.RagUseLlmStructurer,
-        RagSaveStructurerCache = _appearance.Current.RagSaveStructurerCache,
-        RagUsePdfLayoutReader = _appearance.Current.RagUsePdfLayoutReader,
-        MemoryEnabled = _appearance.Current.MemoryEnabled,
-        MemoryAutoExtractOnClose = _appearance.Current.MemoryAutoExtractOnClose,
-        ChatSearchEnabled = _appearance.Current.ChatSearchEnabled,
-        SpeechInputEnabled = SpeechInputEnabled,
-    };
+        var dto = _appearance.Current.Clone();
+        dto.ConfirmHistoryDelete = ConfirmHistoryDelete;
+        dto.ThemeMode = AppThemeModes.Dark;
+        dto.ChatFontFamily = SelectedChatFontFamily ?? AppSettingsDto.DefaultChatFontFamily;
+        dto.ChatFontSize = GeneralChatFontSize;
+        dto.UserDisplayName = UserDisplayName;
+        dto.SpeechInputEnabled = SpeechInputEnabled;
+        return dto;
+    }
 }

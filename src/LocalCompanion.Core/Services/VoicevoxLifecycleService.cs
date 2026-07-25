@@ -13,6 +13,8 @@ public sealed class VoicevoxLifecycleService
     private readonly ILogger<VoicevoxLifecycleService> _log;
     private readonly object _startLock = new();
     private bool _startAttempted;
+    /// <summary>Process.Start に成功したら true（タイムアウト後も終了時停止の対象にする）。</summary>
+    private bool _managedProcessStarted;
     private bool _warmedUp;
     private volatile bool _updateInProgress;
 
@@ -48,7 +50,7 @@ public sealed class VoicevoxLifecycleService
     /// <summary>このセッションで自動起動した run.exe のみ停止（アプリ終了時）。</summary>
     public void StopManagedEngineOnExit()
     {
-        if (!_startAttempted)
+        if (!_startAttempted && !_managedProcessStarted)
             return;
 
         StopEngineProcesses(engineOnly: true);
@@ -216,7 +218,10 @@ public sealed class VoicevoxLifecycleService
                 WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
             };
 
-            System.Diagnostics.Process.Start(psi);
+            var started = System.Diagnostics.Process.Start(psi);
+            if (started is not null)
+                ChildProcessJob.Assign(started);
+            _managedProcessStarted = true;
             _log.LogInformation("VOICEVOX launch attempted: {Exe}", exe);
         }
         catch (Exception ex)
@@ -238,6 +243,7 @@ public sealed class VoicevoxLifecycleService
         lock (_startLock)
         {
             _startAttempted = false;
+            _managedProcessStarted = false;
         }
 
         _warmedUp = false;

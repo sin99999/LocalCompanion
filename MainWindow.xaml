@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <Window
     x:Class="LocalCompanion.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -262,6 +262,22 @@
                         Text="Please wait…"
                         TextAlignment="Center"
                         TextWrapping="WrapWholeWords" />
+                    <StackPanel
+                        x:Name="StartupErrorActionsPanel"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="12"
+                        Visibility="Collapsed">
+                        <Button
+                            x:Name="StartupRetryButton"
+                            MinWidth="140"
+                            Click="OnStartupRetryClick"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <Button
+                            x:Name="StartupExitButton"
+                            MinWidth="120"
+                            Click="OnStartupExitClick" />
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </Grid>

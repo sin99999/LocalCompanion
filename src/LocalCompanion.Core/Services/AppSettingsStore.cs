@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Models;
 
@@ -90,6 +90,7 @@ public sealed class AppSettingsStore
             RagUsePdfLayoutReader = dto.RagUsePdfLayoutReader,
             MemoryEnabled = dto.MemoryEnabled,
             MemoryAutoExtractOnClose = dto.MemoryAutoExtractOnClose,
+            CharacterSelfImproveEnabled = dto.CharacterSelfImproveEnabled,
             ChatSearchEnabled = false,
             SpeechInputEnabled = dto.SpeechInputEnabled,
         };

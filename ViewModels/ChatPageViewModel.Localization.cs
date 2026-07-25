@@ -26,7 +26,7 @@ public partial class ChatPageViewModel
     private bool _settingStatusByKey;
 
     /// <summary>ステータスをキーで設定する（言語切替時に再翻訳できる）。</summary>
-    private void SetStatusByKey(string key, params object[] args)
+    internal void SetStatusByKey(string key, params object[] args)
     {
         _statusKey = key;
         _statusArgs = args.Length > 0 ? args : null;

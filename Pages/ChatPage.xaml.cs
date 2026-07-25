@@ -1,5 +1,6 @@
-﻿using LocalCompanion;
+using LocalCompanion;
 using LocalCompanion.Localization;
+using LocalCompanion.Models;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
 using Microsoft.UI.Input;
@@ -92,6 +93,7 @@ public sealed partial class ChatPage : Page
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.Messages.CollectionChanged += OnMessagesCollectionChanged;
         ViewModel.ConversationThreadsChanged += OnConversationThreadsChanged;
+        ViewModel.SelfImproveProposed += OnSelfImproveProposed;
         SyncSendStopButton();
         ScheduleScrollToEnd();
     }
@@ -101,6 +103,7 @@ public sealed partial class ChatPage : Page
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ViewModel.Messages.CollectionChanged -= OnMessagesCollectionChanged;
         ViewModel.ConversationThreadsChanged -= OnConversationThreadsChanged;
+        ViewModel.SelfImproveProposed -= OnSelfImproveProposed;
         if (_appearance is not null)
             _appearance.Changed -= OnAppearanceChanged;
         LocalizationService.Instance.Changed -= OnLocalizationChanged;
@@ -676,7 +679,7 @@ public sealed partial class ChatPage : Page
 
     private async Task ConfirmAndClearHistoryAsync()
     {
-        if (ViewModel.IsBusy)
+        if (ViewModel.IsBusy || ViewModel.IsSelfImproveBusy)
         {
             ViewModel.NotifyBusyMutationBlocked();
             return;
@@ -718,5 +721,71 @@ public sealed partial class ChatPage : Page
 
         if (ViewModel.ClearHistoryCommand.CanExecute(null))
             ViewModel.ClearHistoryCommand.Execute(null);
+    }
+
+    private async void OnSelfImproveProposed(object? sender, CharacterSelfImproveProposal proposal)
+    {
+        if (!ViewModel.TryEnterSelfImproveDialog())
+        {
+            // 既存ダイアログがある。busy はそちらの Exit に任せる
+            ViewModel.SetStatusByKey("Character.SelfImprove.Status.DialogBusy");
+            return;
+        }
+
+        try
+        {
+            var loc = LocalizationService.Instance;
+            var reasonBlock = new TextBlock
+            {
+                Text = loc.Format("Character.SelfImprove.Confirm.Message", proposal.CharacterName)
+                    + Environment.NewLine + Environment.NewLine
+                    + proposal.Reason,
+                TextWrapping = TextWrapping.WrapWholeWords,
+            };
+            var diffBlock = new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(proposal.DiffPreview)
+                    ? proposal.ProposedPersona
+                    : proposal.DiffPreview,
+                TextWrapping = TextWrapping.WrapWholeWords,
+                IsTextSelectionEnabled = true,
+            };
+            var scroll = new ScrollViewer
+            {
+                MaxHeight = 360,
+                Content = new StackPanel
+                {
+                    Spacing = 12,
+                    Children = { reasonBlock, diffBlock },
+                },
+            };
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = loc.Get("Character.SelfImprove.Confirm.Title"),
+                Content = scroll,
+                PrimaryButtonText = loc.Get("Character.SelfImprove.Confirm.Approve"),
+                SecondaryButtonText = loc.Get("Character.SelfImprove.Confirm.Reject"),
+                DefaultButton = ContentDialogButton.Secondary,
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                if (ViewModel.TryApplySelfImproveProposal(proposal))
+                    ViewModel.SetStatusByKey("Character.SelfImprove.Status.Approved");
+                else
+                    ViewModel.SetStatusByKey("Character.SelfImprove.Status.Stale");
+            }
+            else
+            {
+                ViewModel.SetStatusByKey("Character.SelfImprove.Status.Rejected");
+            }
+        }
+        finally
+        {
+            ViewModel.ExitSelfImproveDialog();
+        }
     }
 }

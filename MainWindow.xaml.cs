@@ -24,8 +24,11 @@ public sealed partial class MainWindow : Window
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     private static int _startupOnce;
+    private int _startupRunning;
     private TaskCompletionSource<bool>? _languageChoiceTcs;
     private TaskCompletionSource<bool>? _firstRunSetupTcs;
+    private bool _languageChoiceDone;
+    private bool _firstRunSetupDone;
 
     private const double MinNavPaneWidth = 175;
     private const double MaxNavPaneWidth = 400;
@@ -90,6 +93,17 @@ public sealed partial class MainWindow : Window
     {
         // ウィンドウはすぐ閉じる（キビキビUX）。記憶抽出は短時間だけ裏で試し、その後 llama 等を止める。
         // ※ 1.1.5 で Cancel+最大20秒待ちにして閉じがもっさりした経緯あり → 戻さない。
+        AppBootstrap.RequestExit();
+        try
+        {
+            if (AppServices.Provider is not null)
+                AppServices.Get<ChatPageViewModel>().CancelBackgroundWorkOnClose();
+        }
+        catch
+        {
+            /* DI 未準備の起動直後クローズ */
+        }
+
         if (Interlocked.Exchange(ref _closeFinalizeStarted, 1) != 0)
         {
             CompanionStartup.ShutdownInBackground();
@@ -140,31 +154,43 @@ public sealed partial class MainWindow : Window
         if (Interlocked.Exchange(ref _startupOnce, 1) != 0)
             return;
         Activated -= OnFirstActivated;
+        await RunStartupSequenceAsync();
+    }
 
+    private async Task RunStartupSequenceAsync()
+    {
+        if (Interlocked.Exchange(ref _startupRunning, 1) != 0)
+            return;
+
+        ShowStartupErrorActions(false);
         try
         {
-            if (LocalizationService.Instance.NeedsLanguageChoice)
+            if (!_languageChoiceDone && LocalizationService.Instance.NeedsLanguageChoice)
             {
                 LanguagePickerPanel.Visibility = Visibility.Visible;
                 FirstRunSetupPanel.Visibility = Visibility.Collapsed;
                 StartupProgressPanel.Visibility = Visibility.Collapsed;
                 await WaitForLanguageChoiceAsync();
+                _languageChoiceDone = true;
             }
 
             var paths = AppPaths.Current;
             var dataDir = AppPaths.ResolveUserDataDirectory(
                 LlamaInstallConfig.Load(paths.Root).DataDirectory);
-            if (FirstRunModelSetup.NeedsSetup(dataDir, paths.ModelsDirectory))
+            if (!_firstRunSetupDone && FirstRunModelSetup.NeedsSetup(dataDir, paths.ModelsDirectory))
             {
                 LanguagePickerPanel.Visibility = Visibility.Collapsed;
                 FirstRunSetupPanel.Visibility = Visibility.Visible;
                 StartupProgressPanel.Visibility = Visibility.Collapsed;
                 ApplyFirstRunSetupLocalization();
                 await WaitForFirstRunSetupAsync();
+                _firstRunSetupDone = true;
             }
 
+            LanguagePickerPanel.Visibility = Visibility.Collapsed;
             FirstRunSetupPanel.Visibility = Visibility.Collapsed;
             StartupProgressPanel.Visibility = Visibility.Visible;
+            StartupStatusText.Text = LocalizationService.Instance.Get("Splash.Wait");
             await CompanionStartup.RunAsync(report =>
             {
                 _ = DispatcherQueue.TryEnqueue(() => ApplyStartupProgress(report));
@@ -187,8 +213,42 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            StopStartupProgressAnimator();
+            LanguagePickerPanel.Visibility = Visibility.Collapsed;
+            FirstRunSetupPanel.Visibility = Visibility.Collapsed;
+            StartupProgressPanel.Visibility = Visibility.Visible;
             StartupStatusText.Text = UserFacingErrorLocalizer.Localize(ex);
+            ShowStartupErrorActions(true);
         }
+        finally
+        {
+            Interlocked.Exchange(ref _startupRunning, 0);
+        }
+    }
+
+    private void ShowStartupErrorActions(bool visible)
+    {
+        var loc = LocalizationService.Instance;
+        StartupRetryButton.Content = loc.Get("Splash.Retry");
+        StartupExitButton.Content = loc.Get("Splash.Exit");
+        StartupErrorActionsPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (visible)
+            StartupProgressBar.IsIndeterminate = false;
+    }
+
+    private void OnStartupRetryClick(object sender, RoutedEventArgs e)
+    {
+        if (Volatile.Read(ref _startupRunning) != 0)
+            return;
+        ShowStartupErrorActions(false);
+        StartupProgressBar.IsIndeterminate = true;
+        StartupStatusText.Text = LocalizationService.Instance.Get("Splash.Wait");
+        _ = RunStartupSequenceAsync();
+    }
+
+    private void OnStartupExitClick(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 
     private Task WaitForLanguageChoiceAsync()
@@ -207,6 +267,7 @@ public sealed partial class MainWindow : Window
     {
         LocalizationService.Instance.SetLanguage(language);
         LanguagePickerPanel.Visibility = Visibility.Collapsed;
+        _languageChoiceDone = true;
         ApplyLocalization();
         _languageChoiceTcs?.TrySetResult(true);
     }
@@ -252,6 +313,7 @@ public sealed partial class MainWindow : Window
         StartupProgressPanel.Visibility = Visibility.Visible;
         FirstRunSetupErrorText.Visibility = Visibility.Collapsed;
         FirstRunSetupFolderText.Visibility = Visibility.Collapsed;
+        _firstRunSetupDone = true;
         ApplyLocalization();
         _firstRunSetupTcs?.TrySetResult(true);
     }

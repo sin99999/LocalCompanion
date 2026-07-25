@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Data;
+using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
@@ -60,6 +60,7 @@ public static class AppServices
         services.AddSingleton(LocalizationService.Instance);
         services.AddSingleton<RagDatabase>();
         services.AddSingleton<MemoryService>();
+        services.AddSingleton<CharacterSelfImproveService>();
         services.AddSingleton<ChatSearchService>();
         services.AddSingleton<SpeechInputService>();
         services.AddSingleton<RagDocumentStructurer>();
