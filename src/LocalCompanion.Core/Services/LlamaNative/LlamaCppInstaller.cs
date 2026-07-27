@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using LocalCompanion.Localization;
 using System.IO.Compression;
 using System.Net;
@@ -62,6 +62,14 @@ internal static class LlamaCppInstaller
                     NativeLog.WriteKey("Startup.GpuBackendUpgradeFailed", null, UserFacingErrorLocalizer.Localize(ex));
                 }
 
+                found = FindLlamaServerExe(root);
+                installed = ReadInstalledVariant(root);
+            }
+
+            // 管理下の llama.cpp は起動のたびに GitHub latest を見て、古ければ取り直す
+            if (found is not null && IsManagedToolsExe(root, found))
+            {
+                TryUpgradeToLatestRelease(root, preferred, hw);
                 found = FindLlamaServerExe(root);
                 installed = ReadInstalledVariant(root);
             }
@@ -143,6 +151,76 @@ internal static class LlamaCppInstaller
         }
 
         return null;
+    }
+
+    /// <summary>導入済みタグと latest が違う（または未記録）なら更新が必要。</summary>
+    internal static bool NeedsLatestReleaseUpgrade(string? installedTag, string? latestTag)
+    {
+        if (string.IsNullOrWhiteSpace(latestTag))
+            return false;
+        if (string.IsNullOrWhiteSpace(installedTag))
+            return true;
+        return !string.Equals(installedTag.Trim(), latestTag.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsManagedToolsExe(string root, string exe)
+    {
+        try
+        {
+            var toolsDir = Path.GetFullPath(Path.Combine(root, "tools", "llama-cpp"));
+            var full = Path.GetFullPath(exe);
+            return full.StartsWith(toolsDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Path.GetDirectoryName(full), toolsDir, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void TryUpgradeToLatestRelease(string root, string preferredVariant, LlamaHardwareSnapshot hw)
+    {
+        try
+        {
+            var release = GetLatestRelease();
+            var latestTag = release.GetProperty("tag_name").GetString();
+            if (string.IsNullOrWhiteSpace(latestTag))
+                return;
+
+            var toolsDir = Path.Combine(root, "tools", "llama-cpp");
+            var info = LlamaInstalledBackend.TryRead(toolsDir);
+            var installedTag = info?.Tag;
+            if (!NeedsLatestReleaseUpgrade(installedTag, latestTag))
+            {
+                NativeLog.WriteKeyLogOnly("Startup.LlamaUpToDate", latestTag);
+                return;
+            }
+
+            NativeLog.WriteKey(
+                "Startup.LlamaUpdateAvailable",
+                null,
+                string.IsNullOrWhiteSpace(installedTag) ? "—" : installedTag!,
+                latestTag);
+
+            // 展開前に自前プロセスを止める（ファイルロック回避）
+            try
+            {
+                ManagedLlamaProcess.StopManaged(toolsDir, waitAfterKill: true, requireMarker: false);
+            }
+            catch (Exception ex)
+            {
+                StartupLog.Write(ex, "Stop llama before upgrade");
+            }
+
+            Install(root, preferredVariant, hw);
+            NativeLog.WriteKey("Startup.LlamaUpdated", null, latestTag);
+        }
+        catch (Exception ex)
+        {
+            // 更新失敗でも既存ビルドで起動を続ける
+            NativeLog.WriteKey("Startup.LlamaUpdateSkipped", null, UserFacingErrorLocalizer.Localize(ex));
+        }
     }
 
     private static void Install(string root, string preferredVariant, LlamaHardwareSnapshot hw)
