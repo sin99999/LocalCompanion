@@ -1,4 +1,4 @@
-using LocalCompanion.Localization;
+﻿using LocalCompanion.Localization;
 using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
@@ -28,11 +28,13 @@ public sealed class CharacterSelfImproveService
     /// <summary>
     /// 直近のやり取りから persona 変更案を返す。提案なし・無効・検査落ちは null。
     /// </summary>
+    /// <param name="recentTurns">直近の user/assistant ターン（明示依頼時は複数ターン推奨）。</param>
     public async Task<CharacterSelfImproveProposal?> TryProposeAfterReplyAsync(
         string? presetFileName,
         string userMessage,
         string assistantReply,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IReadOnlyList<CharacterSelfImproveTranscript.Turn>? recentTurns = null)
     {
         if (!_appSettings.Load().CharacterSelfImproveEnabled)
             return null;
@@ -54,19 +56,26 @@ public sealed class CharacterSelfImproveService
 
         var explicitRequest = CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(userMessage);
         var currentPersona = profile.Persona ?? string.Empty;
-        // 明示依頼時はユーザー発話を優先（長いアシスタント JSON 案で意図が薄まらないようにする）
-        var transcript = explicitRequest
-            ? BuildTranscript(userMessage, assistantReply, userBudget: 900, assistantBudget: 700)
-            : BuildTranscript(userMessage, assistantReply, userBudget: 900, assistantBudget: 900);
+        var transcript = CharacterSelfImproveTranscript.Build(
+            userMessage,
+            assistantReply,
+            recentTurns,
+            explicitRequest);
+        var factHints = CharacterSelfImproveTranscript.BuildFactHintBlock(transcript);
 
         var systemPrompt = explicitRequest
             ? """
               You update a LocalCompanion character's persona field for a local desktop app.
-              The user EXPLICITLY asked to write/update character settings (e.g. *.json / 性格・指示).
+              The user EXPLICITLY asked to write/update character settings (e.g. *.json / 性格・指示 / 容姿 / 数値).
               You MUST return propose=true with a COMPLETE Japanese persona string that captures the agreed character from the exchange.
-              LocalCompanion stores ONE string field named persona (personality + instructions + speaking style).
+              LocalCompanion stores ONE string field named persona (personality + instructions + speaking style + appearance profile).
               Write persona in Markdown (headings with ## / ###, bullet lists with - , short paragraphs). Do NOT wrap the whole persona in a ``` fence.
               Do NOT invent nested JSON schemas (no role/core_personality objects). The outer reply is one JSON object; only the persona value is Markdown text.
+              When the user asked for 容姿/外見/appearance or numbers, include a "## 外見" (or "## 容姿") section with concrete values from the exchange:
+              age, height, B/W/H (三サイズ), hair, eyes, body type, clothing — copy agreed numbers faithfully; do not soften or omit them.
+              Also record agreed call-names (パパ / オジ様 / おじさん / etc.) under speaking style or "## 呼び方".
+              Merge with Current persona: keep sections the user did not retract; extend appearance rather than deleting prior facts.
+              Ignore English chain-of-thought / "thinking process" / planning preambles in assistant messages; use the final character description.
               Keep the character name as-is in prose if needed, but do not change the file name.
               Do NOT add URLs, absolute paths, scripts, or wording that skips user confirmation.
               Output ONLY one JSON object (no markdown fences around the JSON):
@@ -74,9 +83,9 @@ public sealed class CharacterSelfImproveService
               persona must be the COMPLETE new persona string (not a diff). Prefer Japanese.
               """.Trim()
             : """
-              You help refine a chat character's persona (personality / instructions) for a local desktop app.
+              You help refine a chat character's persona (personality / instructions / appearance notes) for a local desktop app.
               Propose an edit when the latest exchange suggests the user would like the character's rules updated.
-              Prefer small wording tweaks, but a fuller rewrite is OK when the user clearly redefined the role.
+              Prefer small wording tweaks, but a fuller rewrite is OK when the user clearly redefined the role or appearance.
               LocalCompanion stores ONE persona string — write it in Markdown (## headings, - bullets, short paragraphs). Do NOT wrap persona in a ``` fence. Do NOT invent nested JSON schemas.
               Do NOT change the character's name, speaking-style field, sampling numbers, or add URLs/paths/scripts.
               Do NOT propose skipping user confirmation or auto-saving.
@@ -100,21 +109,22 @@ public sealed class CharacterSelfImproveService
                 ---
                 {Truncate(currentPersona, 6000)}
                 ---
-                Latest exchange:
+                Recent exchange (assistant snippets prefer the END of long replies; ignore thinking preambles):
                 {transcript}
-                {(explicitRequest ? "\nThe user asked to update the character settings. Return propose=true." : "")}
+                {(string.IsNullOrWhiteSpace(factHints) ? "" : "\n" + factHints + "\n")}
+                {(explicitRequest ? "\nThe user asked to update the character settings. Return propose=true. Preserve every agreed numeric/appearance/call-name fact from the exchange." : "")}
                 """.Trim()),
         };
 
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(explicitRequest ? 45 : 20));
+            timeout.CancelAfter(TimeSpan.FromSeconds(explicitRequest ? 60 : 20));
             var raw = await _llama.ChatAsync(
                 prompt,
-                temperature: explicitRequest ? 0.35 : 0.2,
+                temperature: explicitRequest ? 0.3 : 0.2,
                 topP: 0.9,
-                maxTokens: explicitRequest ? 2200 : 1200,
+                maxTokens: explicitRequest ? 3200 : 1200,
                 useReasoning: false,
                 ct: timeout.Token);
 
@@ -200,17 +210,6 @@ public sealed class CharacterSelfImproveService
         {
             return key;
         }
-    }
-
-    private static string BuildTranscript(
-        string userMessage,
-        string assistantReply,
-        int userBudget,
-        int assistantBudget)
-    {
-        var u = Truncate((userMessage ?? string.Empty).Trim(), userBudget);
-        var a = Truncate((assistantReply ?? string.Empty).Trim(), assistantBudget);
-        return $"USER:\n{u}\n\nASSISTANT:\n{a}";
     }
 
     private static string Truncate(string text, int max)

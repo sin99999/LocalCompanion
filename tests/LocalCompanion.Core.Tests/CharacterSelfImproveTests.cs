@@ -1,4 +1,4 @@
-using LocalCompanion.Services;
+﻿using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -23,6 +23,92 @@ public sealed class CharacterSelfImproveIntentTests
     {
         Assert.True(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
             "性格を提案してくれる？"));
+    }
+
+    [Fact]
+    public void LooksLikePersonaUpdateRequest_AppearanceNumbersDescribe_True()
+    {
+        Assert.True(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
+            "詳しく数値でキャラ設定に記述して欲しいな？他の容姿"));
+    }
+
+    [Fact]
+    public void LooksLikePersonaUpdateRequest_NumbersDescribe_True()
+    {
+        Assert.True(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
+            "数値を詳しく記述して？"));
+    }
+
+    [Fact]
+    public void LooksLikePersonaUpdateRequest_WeatherDescribe_False()
+    {
+        Assert.False(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
+            "今日の天気を詳しく記述して"));
+    }
+}
+
+public sealed class CharacterSelfImproveTranscriptTests
+{
+    [Fact]
+    public void PrepareSnippet_AssistantPreferTail_KeepsCharacterSheet()
+    {
+        var cot = "Here's a thinking process to construct the response...\n"
+                  + new string('A', 400)
+                  + "\n";
+        var sheet = "## 外見\n- B:90cm / W:58cm / H:90cm\n- 身長:160cm\n";
+        var text = cot + sheet;
+        var snippet = CharacterSelfImproveTranscript.PrepareSnippet(text, 120, preferTail: true);
+        Assert.Contains("B:90cm", snippet, StringComparison.Ordinal);
+        Assert.Contains("160cm", snippet, StringComparison.Ordinal);
+        Assert.DoesNotContain("Here's a thinking", snippet, StringComparison.Ordinal);
+        Assert.StartsWith("## 外見", snippet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreferCharacterContent_DropsEnglishThinkingPreamble()
+    {
+        var text = """
+            Here's a thinking process to construct the response:
+            1. Analyze the User Input
+            わあ、オジ様！
+            ## 外見
+            - B:88cm / W:59cm / H:88cm
+            """;
+        var preferred = CharacterSelfImproveTranscript.PreferCharacterContent(text);
+        Assert.StartsWith("## 外見", preferred, StringComparison.Ordinal);
+        Assert.Contains("B:88cm", preferred, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_UsesMultipleTurns_OldestFirst()
+    {
+        var turns = new[]
+        {
+            new CharacterSelfImproveTranscript.Turn("user", "君は女の子だ"),
+            new CharacterSelfImproveTranscript.Turn("assistant", "はい、女の子です"),
+            new CharacterSelfImproveTranscript.Turn("user", "数値でキャラ設定に記述して"),
+            new CharacterSelfImproveTranscript.Turn("assistant", "B:90cm / W:58cm / H:90cm"),
+        };
+        var transcript = CharacterSelfImproveTranscript.Build(
+            "数値でキャラ設定に記述して",
+            "B:90cm / W:58cm / H:90cm",
+            turns,
+            explicitRequest: true);
+        Assert.Contains("君は女の子だ", transcript, StringComparison.Ordinal);
+        Assert.Contains("B:90cm", transcript, StringComparison.Ordinal);
+        Assert.True(
+            transcript.IndexOf("君は女の子だ", StringComparison.Ordinal)
+            < transcript.IndexOf("数値でキャラ設定", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BuildFactHintBlock_ExtractsThreeSizeAndAge()
+    {
+        var hints = CharacterSelfImproveTranscript.BuildFactHintBlock(
+            "私は19歳です。三サイズは B:90cm / W:58cm / H:90cm です。パパって呼んでもいいよ。");
+        Assert.Contains("19歳", hints, StringComparison.Ordinal);
+        Assert.Contains("B:90cm", hints, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("パパ", hints, StringComparison.Ordinal);
     }
 }
 

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -784,11 +784,13 @@ public partial class ChatPageViewModel : ObservableObject
             if (explicitRequest)
                 await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.Preparing"));
 
+            var recentTurns = CollectRecentTurnsForSelfImprove();
             var proposal = await _selfImprove.TryProposeAfterReplyAsync(
                 presetFileName,
                 userMessage,
                 assistantReply,
-                ct);
+                ct,
+                recentTurns);
             if (ct.IsCancellationRequested)
                 return;
 
@@ -822,6 +824,28 @@ public partial class ChatPageViewModel : ObservableObject
             if (!holdBusyForDialog)
                 await RunOnUiAsync(ClearSelfImproveBusy);
         }
+    }
+
+    /// <summary>自己改善提案用に、直近の user/assistant 本文だけ集める（歓迎文・system は除外）。</summary>
+    private IReadOnlyList<CharacterSelfImproveTranscript.Turn> CollectRecentTurnsForSelfImprove()
+    {
+        const int maxTurns = 8;
+        var acc = new List<CharacterSelfImproveTranscript.Turn>(maxTurns);
+        foreach (var line in Messages)
+        {
+            if (line.IsWelcomePlaceholder)
+                continue;
+            if (line.Role is not ("user" or "assistant"))
+                continue;
+            var text = (line.Text ?? string.Empty).Trim();
+            if (text.Length == 0)
+                continue;
+            acc.Add(new CharacterSelfImproveTranscript.Turn(line.Role, text));
+        }
+
+        if (acc.Count <= maxTurns)
+            return acc;
+        return acc.Skip(acc.Count - maxTurns).ToList();
     }
 
     /// <summary>ウィンドウクローズ時に送信・提案を止める（llama Kill 前）。</summary>

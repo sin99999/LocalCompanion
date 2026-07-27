@@ -4,7 +4,7 @@
 public static class CharacterSelfImproveIntent
 {
     /// <summary>
-    /// 「.json に書いて」「性格を提案して」など、明示的に設定更新を求めているか。
+    /// 「.json に書いて」「性格を提案して」「容姿を記述して」など、明示的に設定更新を求めているか。
     /// </summary>
     public static bool LooksLikePersonaUpdateRequest(string? userMessage)
     {
@@ -23,11 +23,17 @@ public static class CharacterSelfImproveIntent
             || t.Contains("システムプロンプト", StringComparison.Ordinal)
             || t.Contains("persona", StringComparison.OrdinalIgnoreCase)
             || t.Contains("character settings", StringComparison.OrdinalIgnoreCase)
-            || t.Contains("personality", StringComparison.OrdinalIgnoreCase);
+            || t.Contains("personality", StringComparison.OrdinalIgnoreCase)
+            || t.Contains("容姿", StringComparison.Ordinal)
+            || t.Contains("外見", StringComparison.Ordinal)
+            || t.Contains("見た目", StringComparison.Ordinal)
+            || t.Contains("プロフィール", StringComparison.Ordinal)
+            || t.Contains("appearance", StringComparison.OrdinalIgnoreCase);
 
         var asksUpdate =
             t.Contains("提案", StringComparison.Ordinal)
             || t.Contains("記述", StringComparison.Ordinal)
+            || t.Contains("記載", StringComparison.Ordinal)
             || t.Contains("書いて", StringComparison.Ordinal)
             || t.Contains("書き込", StringComparison.Ordinal)
             || t.Contains("反映", StringComparison.Ordinal)
@@ -35,6 +41,7 @@ public static class CharacterSelfImproveIntent
             || t.Contains("保存して", StringComparison.Ordinal)
             || t.Contains("追記", StringComparison.Ordinal)
             || t.Contains("育てて", StringComparison.Ordinal)
+            || t.Contains("入れて", StringComparison.Ordinal)
             || t.Contains("propose", StringComparison.OrdinalIgnoreCase)
             || t.Contains("update the persona", StringComparison.OrdinalIgnoreCase)
             || t.Contains("write into", StringComparison.OrdinalIgnoreCase);
@@ -42,14 +49,20 @@ public static class CharacterSelfImproveIntent
         if (mentionsTarget && asksUpdate)
             return true;
 
-        // 「性格を提案して」「この性格を設定に」系（.json 無し）
+        // 「性格を提案して」「数値を記述して」「容姿を書いて」系（.json 無し）
         if (asksUpdate
             && (t.Contains("性格", StringComparison.Ordinal)
                 || t.Contains("この性格", StringComparison.Ordinal)
                 || t.Contains("その性格", StringComparison.Ordinal)
                 || t.Contains("きっちり", StringComparison.Ordinal)
                 || t.Contains("口調", StringComparison.Ordinal)
-                || t.Contains("キャラ", StringComparison.Ordinal)))
+                || t.Contains("キャラ", StringComparison.Ordinal)
+                || t.Contains("容姿", StringComparison.Ordinal)
+                || t.Contains("外見", StringComparison.Ordinal)
+                || t.Contains("見た目", StringComparison.Ordinal)
+                || t.Contains("数値", StringComparison.Ordinal)
+                || t.Contains("三サイズ", StringComparison.Ordinal)
+                || t.Contains("呼び方", StringComparison.Ordinal)))
             return true;
 
         return false;
