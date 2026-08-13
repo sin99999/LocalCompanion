@@ -84,7 +84,7 @@ public sealed class ChatMessageUrlExtractorTests
         var urls = ChatMessageUrlExtractor.Extract(
             "https://github.com/sin99999/LocalCompanionだよ？");
 
-        Assert.Equal(1, urls.Count);
+        Assert.Single(urls);
         Assert.Equal("https://github.com/sin99999/LocalCompanion", urls[0]);
     }
 

@@ -56,7 +56,8 @@ public partial class App : Application
     {
         if (!SingleInstanceGate.TryEnter())
         {
-            // 2 つ目は静かに終了（ポート競合・二重 llama を避ける）
+            // 2 つ目は起動せず終了（ポート競合・二重 llama を避ける）。無言だと「起動しない」と誤認しやすい。
+            SingleInstanceGate.NotifyAlreadyRunning();
             Environment.Exit(0);
             return;
         }

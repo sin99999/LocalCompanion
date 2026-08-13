@@ -24,7 +24,11 @@
         <li>Download and run the <strong>x64</strong> .NET Desktop Runtime installer.</li>
         <li>Launch LocalCompanion.exe again.</li>
       </ol>
+      <p>If the app is already running, a message appears and the second copy exits. Check the existing window, the taskbar, or another desktop.</p>
     </div>
+
+    <h3>A message says the app is already running</h3>
+    <p>Only one LocalCompanion window can run at a time. Use the window that is already open.</p>
 
     <h3>The app starts but the chat area is blank / empty</h3>
     <div class="card">
@@ -78,6 +82,7 @@
       <li>Check the runtime status on <strong>Settings → Model</strong> (the same status also appears at the bottom-right of the chat screen).</li>
       <li>Starting llama-server can take several minutes (especially on first launch or with large models).</li>
       <li>If another AI app or server app is running, close it. If the problem continues, restart the PC.</li>
+      <li>A leftover <code>llama-server</code> that you started by hand can occupy the port. End it in Task Manager and try again.</li>
     </ul>
 
     <h3>Replies are extremely slow</h3>
@@ -152,6 +157,7 @@
     <ul>
       <li>Ingestion and search use the llama-server embedding API. Wait until status is OK.</li>
       <li>By default, imports are limited to about 32 MB per file and 500 files per folder. Change <code>RagMaxFileBytes</code> (bytes) and <code>RagMaxFolderFiles</code> (count) in <code>appsettings.json</code> (0 or less means unlimited).</li>
+      <li>Scanned image-only PDFs (with no text layer) are not searchable yet; OCR is not implemented. Use text PDFs, Markdown, or plain text. This is separate from reading text in a chat image attachment (Vision).</li>
     </ul>
 
     <h2>Privacy and network</h2>
@@ -169,7 +175,8 @@
         <tr><th>How you launch</th><th>Logs and user data</th></tr>
       </thead>
       <tbody>
-        <tr><td>LocalCompanion.exe (typical)</td><td><code>{folder containing LocalCompanion.exe}\data\</code></td></tr>
+        <tr><td>LocalCompanion.exe (from the distribution ZIP)</td><td><code>{folder containing LocalCompanion.exe}\data\</code></td></tr>
+        <tr><td>Visual Studio / <code>dotnet build</code> (<code>bin\Debug</code>, etc.)</td><td><code>%LocalAppData%\LocalCompanionLlama\</code></td></tr>
         <tr><td>When <code>data\</code> is not writable</td><td><code>%LocalAppData%\LocalCompanionLlama\</code></td></tr>
       </tbody>
     </table>

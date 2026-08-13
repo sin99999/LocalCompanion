@@ -4,7 +4,7 @@
 public static class CharacterSelfImproveIntent
 {
     /// <summary>
-    /// 「.json に書いて」「性格を提案して」「容姿を記述して」など、明示的に設定更新を求めているか。
+    /// 「.json に書いて」「性格を提案して」「ルールを提案して」など、明示的に設定更新を求めているか。
     /// </summary>
     public static bool LooksLikePersonaUpdateRequest(string? userMessage)
     {
@@ -42,6 +42,9 @@ public static class CharacterSelfImproveIntent
             || t.Contains("追記", StringComparison.Ordinal)
             || t.Contains("育てて", StringComparison.Ordinal)
             || t.Contains("入れて", StringComparison.Ordinal)
+            || t.Contains("挙げて", StringComparison.Ordinal)
+            || t.Contains("まとめて", StringComparison.Ordinal)
+            || t.Contains("作って", StringComparison.Ordinal)
             || t.Contains("propose", StringComparison.OrdinalIgnoreCase)
             || t.Contains("update the persona", StringComparison.OrdinalIgnoreCase)
             || t.Contains("write into", StringComparison.OrdinalIgnoreCase);
@@ -49,7 +52,7 @@ public static class CharacterSelfImproveIntent
         if (mentionsTarget && asksUpdate)
             return true;
 
-        // 「性格を提案して」「数値を記述して」「容姿を書いて」系（.json 無し）
+        // 「性格を提案して」「数値を記述して」「ルールを提案して」系（.json 無し）
         if (asksUpdate
             && (t.Contains("性格", StringComparison.Ordinal)
                 || t.Contains("この性格", StringComparison.Ordinal)
@@ -62,7 +65,11 @@ public static class CharacterSelfImproveIntent
                 || t.Contains("見た目", StringComparison.Ordinal)
                 || t.Contains("数値", StringComparison.Ordinal)
                 || t.Contains("三サイズ", StringComparison.Ordinal)
-                || t.Contains("呼び方", StringComparison.Ordinal)))
+                || t.Contains("呼び方", StringComparison.Ordinal)
+                || t.Contains("ルール", StringComparison.Ordinal)
+                || t.Contains("か条", StringComparison.Ordinal)
+                || t.Contains("条項", StringComparison.Ordinal)
+                || t.Contains("指針", StringComparison.Ordinal)))
             return true;
 
         return false;

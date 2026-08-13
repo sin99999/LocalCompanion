@@ -2,7 +2,7 @@
 name: localcompanion-release
 description: >-
   LocalCompanion distribution, ZIP packaging, GitHub Releases, and public
-  visibility. Use when packaging user ZIP, publishing to GitHub, writing release
+  visibility. Use when packaging distribution ZIP, publishing to GitHub, writing release
   notes, push vs squash, Private/Public repo, or note article about releases.
 ---
 
@@ -10,7 +10,7 @@ description: >-
 
 ## いつ読むか
 
-- `package-user-zip.ps1` / `publish-win.ps1` を実行・修正するとき
+- `package-zip.ps1` / `publish-win.ps1` を実行・修正するとき
 - GitHub Release 作成、Release 説明文の執筆
 - `git push` 前（開発用 commit をそのまま載せない判断）
 - note / README の配布向け文案
@@ -20,11 +20,12 @@ description: >-
 ```powershell
 dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64
 .\scripts\publish-win.ps1
-.\scripts\package-user-zip.ps1
+.\scripts\package-zip.ps1
 dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 ```
 
 - バージョンは `LocalCompanion.csproj` の `<Version>` のみ。`CHANGELOG.md` と揃える。
+- ZIP 名は `dist\LocalCompanion-{Version}.zip`（`-user` 接尾辞は付けない）。
 - `appsettings.json` に絶対パスを書かない（`publish-win.ps1` が検証）。
 
 ## データディレクトリ（バグ再現で必ず確認）
@@ -83,6 +84,6 @@ Release を Publish しても **リポが Private のまま** ならログイン
 
 ## 配布ドキュメント（欠けると恥ずかしい）
 
-- ZIP に `CONTRIBUTING.md` が入ること（`publish-win.ps1` がコピー、`package-user-zip.ps1` が検証）
+- ZIP に `CONTRIBUTING.md` が入ること（`publish-win.ps1` がコピー、`package-zip.ps1` が検証）
 - Web 検索のプライバシー（DuckDuckGo / クエリ送信 / `WebSearchEnabled`）を README・About・help で揃える
 - 設定タブ説明は実 UI と一致（長期記憶は基本設定内。独立「記憶」タブはない）

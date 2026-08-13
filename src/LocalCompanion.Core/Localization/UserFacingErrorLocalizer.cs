@@ -88,7 +88,8 @@ public static class UserFacingErrorLocalizer
             return true;
         }
 
-        if (TryExtractPrefix(msg, "キャラ設定が見つかりません:", out var name)
+        if (TryExtractPrefix(msg, "キャラクター設定が見つかりません:", out var name)
+            || TryExtractPrefix(msg, "キャラ設定が見つかりません:", out name)
             || TryExtractPrefix(msg, "Character preset not found:", out name))
         {
             message = loc.Format("Settings.Character.Error.NotFound", name.Trim());

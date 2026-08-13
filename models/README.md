@@ -90,7 +90,7 @@ huggingface-cli download REPO_ID ファイル名.gguf --local-dir .\models
 
 
 
-| 量子化 | ざっくり | メモ |
+| 量子化 | 目安 | メモ |
 
 |--------|----------|------|
 

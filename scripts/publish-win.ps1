@@ -189,7 +189,7 @@ if ($env:LOCALCOMPANION_SIGN_PFX_PATH) {
 
 Write-Host ""
 Write-Host "起動: publish フォルダ内の LocalCompanion.exe（同フォルダに scripts / models / characters が必要）" -ForegroundColor Green
-Write-Host "公開 ZIP: .\scripts\package-user-zip.ps1" -ForegroundColor Cyan
+Write-Host "公開 ZIP: .\scripts\package-zip.ps1" -ForegroundColor Cyan
 if (-not $BundleAllRuntimes) {
     Write-Host "前提: .NET 10 Desktop Runtime（https://dotnet.microsoft.com/download/dotnet/10.0）" -ForegroundColor DarkGray
     Write-Host "前提: WebView2 Runtime（https://developer.microsoft.com/microsoft-edge/webview2/ ）※必須・ZIP 非同梱" -ForegroundColor DarkGray

@@ -42,7 +42,7 @@ internal static class ChatSystemPromptTexts
               - 2〜3文ごとに空行を1つ入れ、段落に分けてください
               - 長い説明は箇条書きや短い見出しを使う
               - コード例は ```言語 で囲み、#include などの # を省略しない。各行は適切に改行する
-              - キャラの口調・人格は保ちつつ、壁のような長文1塊は禁止
+              - キャラクターの口調・人格は保ちつつ、壁のような長文1塊は禁止
               """.Trim()
             : """
               [Readability — required]
@@ -58,7 +58,7 @@ internal static class ChatSystemPromptTexts
             ? $"""
               【会話相手（ユーザー）の名前】{name}
               - チャット画面のユーザー表示名と同じです。
-              - これはあなた（AIキャラ）の名前ではありません。
+              - これはあなた（AIキャラクター）の名前ではありません。
               - ユーザーが「俺の名前」「私の名前」と聞いたら、相手の名前「{name}」を答えてください。
               - 「知らない」「教えて」とは答えないでください。
               """.Trim()
@@ -72,7 +72,7 @@ internal static class ChatSystemPromptTexts
 
     internal static string CharacterNameLine(string name, bool japanese) =>
         japanese
-            ? $"【あなた（AIキャラ）の名前】「{name}」です。会話相手の名前と混同しないでください。"
+            ? $"【あなた（AIキャラクター）の名前】「{name}」です。会話相手の名前と混同しないでください。"
             : $"[Your name (AI character)] \"{name}\". Do not confuse it with the user's name.";
 
     internal static string UserAndCharacterNameDistinction(string userName, string characterName, bool japanese) =>
@@ -80,7 +80,7 @@ internal static class ChatSystemPromptTexts
             ? $"""
               【名前の区別（必須）】
               - 会話相手（ユーザー）: 「{userName}」
-              - あなた（AIキャラ）: 「{characterName}」
+              - あなた（AIキャラクター）: 「{characterName}」
               - ユーザーが自分の名前を聞いた → 「{userName}」と答える（「俺の名前は{userName}」のように、ユーザーの名前を自分の名前として言わない）
               - あなた自身の名前を聞かれた → 「{characterName}」と答える
               """.Trim()
@@ -124,7 +124,7 @@ internal static class ChatSystemPromptTexts
               【長期記憶の出し方】
               - 上の長期記憶はあなたが前から知っている個人的なこと。設定画面やリストではない
               - たまに、会話の合間や関係しそうなタイミングで、自然な口調でひとつだけ触れてよい
-              - 「覚えてる？」「前に言ってくれたよね」など、キャラとして自然ならOK。全部並べない
+              - 「覚えてる？」「前に言ってくれたよね」など、キャラクターとして自然ならOK。全部並べない
               - 「記憶から」「DBに保存」などのメタ説明は禁止。無理に話題を変えない
               """.Trim()
             : """
@@ -218,8 +218,8 @@ internal static class ChatSystemPromptTexts
     internal static string RagPersonaReferenceInstruction(bool japanese) =>
         japanese
             ? """
-              【RAG・キャラ会話モード】
-              直後の参考資料を、キャラの口調・人格を保ったまま自然に織り込む。
+              【RAG・キャラクター会話モード】
+              直後の参考資料を、キャラクターの口調・人格を保ったまま自然に織り込む。
               - 軽いネタや「関連する条項チェック！」のような突然の条文参照もよい（資料に根拠がある場合）
               - 刑期・罰金・金額は資料どおり。資料にない条文番号は断定せず「資料だと〜」「この資料の範囲だと」
               - 堅い法律文書口調・説教は禁止。相棒として会話の温度感を最優先
@@ -268,7 +268,7 @@ internal static class ChatSystemPromptTexts
               - 条件が食い違う場面では、現実的な別案を提案してよい（資料根拠＋推理であることを示す）
               - 資料と一般知識が食い違う場合：資料を優先しつつ、推理部分は「アシスタントの見解」「一般論」と区別
               - 数字や罰則の金額は資料に書いてあるものだけ。資料にない数値・条番号は推測しない
-              - キャラ口調は維持。最後に専門家確認の一言を添えてもよい
+              - キャラクター口調は維持。最後に専門家確認の一言を添えてもよい
               """.Trim()
             : """
               [Advisory — multi-document mode]

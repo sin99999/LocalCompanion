@@ -781,8 +781,8 @@ public partial class ChatPageViewModel : ObservableObject
 
         try
         {
-            if (explicitRequest)
-                await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.Preparing"));
+            // 提案中は入力がロックされるので、明示依頼以外でも進捗を出す
+            await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.Preparing"));
 
             var recentTurns = CollectRecentTurnsForSelfImprove();
             var proposal = await _selfImprove.TryProposeAfterReplyAsync(
@@ -796,8 +796,8 @@ public partial class ChatPageViewModel : ObservableObject
 
             if (proposal is null)
             {
-                if (explicitRequest)
-                    await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.NoProposal"));
+                // Preparing のあとに黙って「完了」に戻すと、失敗に見えない
+                await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.NoProposal"));
                 return;
             }
 
@@ -813,6 +813,11 @@ public partial class ChatPageViewModel : ObservableObject
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             /* 終了・次提案でキャンセル */
+        }
+        catch (TimeoutException)
+        {
+            if (!ct.IsCancellationRequested)
+                await RunOnUiAsync(() => SetStatusByKey("Character.SelfImprove.Status.TimedOut"));
         }
         catch (Exception)
         {

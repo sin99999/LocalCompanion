@@ -362,7 +362,7 @@ if ($modelSizeGb -ge 10 -and $hasMmproj) {
     $serverArgsExtra = @("-np", "1", "--fit", "on", "--fit-target", "2048")
     $heavyCtxCap = 12288
     if ($Context -gt $heavyCtxCap) {
-        Write-Host "[..] コンテキスト $Context -> $heavyCtxCap（26B+vision 向け。足りなければ ⚙キャラで下げる）" -ForegroundColor Yellow
+        Write-Host "[..] コンテキスト $Context -> $heavyCtxCap（26B+vision 向け。足りなければ 設定→キャラクター設定で下げる）" -ForegroundColor Yellow
         $Context = $heavyCtxCap
     }
 } elseif ($modelSizeGb -ge 10) {
@@ -443,7 +443,7 @@ if ($Mmproj -and (Test-Path $Mmproj)) {
 
 if ($Context -gt 24576) {
     Write-Host "[!!] コンテキスト $Context は上限超過のため 16384 に制限します" -ForegroundColor Yellow
-    Write-Host "     ⚙キャラで 24576 以下に保存するとこの警告は出ません" -ForegroundColor DarkYellow
+    Write-Host "     設定→キャラクター設定で 24576 以下に保存するとこの警告は出ません" -ForegroundColor DarkYellow
     $Context = 16384
 }
 
@@ -497,7 +497,7 @@ while ((Get-Date) -lt $deadline) {
                     }
                 }
                 Write-Host "対処: タスクマネで llama-server を終了 → LocalCompanion.exe を再起動" -ForegroundColor Yellow
-                Write-Host "      まだダメならコンテキスト長を 8192 に下げて ⚙キャラで保存" -ForegroundColor Yellow
+                Write-Host "      まだダメならコンテキスト長を 8192 に下げて 設定→キャラクター設定で保存" -ForegroundColor Yellow
                 exit 1
             }
             $lastProgress = Get-Date

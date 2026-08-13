@@ -1,4 +1,4 @@
-﻿# Universal RAG Architecture（LocalCompanion）
+# Universal RAG Architecture（LocalCompanion）
 
 以下の前提（①〜④）に基づき、**「どんなファイルでも高精度 RAG」** へ向けた全体設計です。
 
@@ -52,9 +52,9 @@
 
 ### Phase 3 — 検索・応答の汎用化（一部実装済み）
 
-- **Advisory 意図** + **PersonaSynthesis** — 複数資料の相談（キャラ口調維持）
-- **RagPersonaReferenceInstruction** — 遊び会話中の軽い条文参照（キャラ選択時・非フォーマル質問）
-- キャラ選択時は VERBATIM バイパスを抑制（「贈賄の罰則は？」等フォーマル質問のみ機械引用）
+- **Advisory 意図** + **PersonaSynthesis** — 複数資料の相談（キャラクター口調維持）
+- **RagPersonaReferenceInstruction** — 遊び会話中の軽い条文参照（キャラクター選択時・非フォーマル質問）
+- キャラクター選択時は VERBATIM バイパスを抑制（「贈賄の罰則は？」等フォーマル質問のみ機械引用）
 - ✅ **FAQ 意図** + VERBATIM（Q/A ブロック ingest + `RagFaqQueryParser`）
 - ✅ **`CitationFirst`** — 条文質問で引用優先プロンプト
 - ✅ 短いテキスト添付 + RAG 併用（`RagLightAttachMaxChars`）

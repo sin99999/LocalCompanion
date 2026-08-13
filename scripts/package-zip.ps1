@@ -1,4 +1,5 @@
-﻿# 利用者向け ZIP（publish 出力フォルダ丸ごと）を dist に作成
+﻿# 配布用 ZIP（publish 出力フォルダ丸ごと）を dist に作成
+# ZIP 名: LocalCompanion-{Version}.zip（-user 接尾辞は使わない）
 param(
     [string]$Configuration = "Release",
     [string]$Platform = "x64"
@@ -14,7 +15,7 @@ $DistDir = Join-Path $Root "dist\LocalCompanion"
 $csprojXml = [xml](Get-Content (Join-Path $Root "LocalCompanion.csproj") -Raw)
 $Version = ($csprojXml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ }) | Select-Object -First 1
 if (-not $Version) { $Version = "0.0.0" }
-$ZipPath = Join-Path $Root "dist\LocalCompanion-$Version-user.zip"
+$ZipPath = Join-Path $Root "dist\LocalCompanion-$Version.zip"
 
 function Test-DistributionFolder {
     param([string]$Folder)
@@ -70,12 +71,12 @@ function Test-DistributionFolder {
     Get-ChildItem -Path (Join-Path $Folder "models") -Filter "*.gguf" -ErrorAction SilentlyContinue |
         ForEach-Object { throw "配布フォルダに個人モデルが含まれています: models\$($_.Name)" }
     Get-ChildItem -Path (Join-Path $Folder "characters") -Filter "*.json" -ErrorAction SilentlyContinue |
-        ForEach-Object { throw "配布フォルダに個人キャラ設定が含まれています: characters\$($_.Name)" }
+        ForEach-Object { throw "配布フォルダに個人キャラクター設定が含まれています: characters\$($_.Name)" }
     Get-ChildItem -Path $Folder -Filter "rag.db" -Recurse -ErrorAction SilentlyContinue |
         ForEach-Object { throw "配布フォルダに個人 RAG DB が含まれています: $($_.FullName.Substring($Folder.Length).TrimStart('\','/'))" }
 }
 
-Write-Host "=== package user ZIP ===" -ForegroundColor Cyan
+Write-Host "=== package ZIP ===" -ForegroundColor Cyan
 
 & (Join-Path $Root "scripts\publish-win.ps1") -Configuration $Configuration -Platform $Platform -AlsoDist
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -85,6 +86,13 @@ Test-DistributionFolder -Folder $DistDir
 $stageParent = Join-Path $Root "dist"
 $zipItem = Join-Path $stageParent "LocalCompanion"
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+
+# 旧名（…-user.zip）が残っていたら消す（同バージョン）
+$legacyZip = Join-Path $Root "dist\LocalCompanion-$Version-user.zip"
+if (Test-Path $legacyZip) {
+    Remove-Item $legacyZip -Force
+    Write-Host "[..] 旧名を削除: LocalCompanion-$Version-user.zip" -ForegroundColor DarkGray
+}
 
 # publish 直後はウイルス対策のスキャンで一時的にファイルが開かれることがあるためリトライする
 $maxAttempts = 3

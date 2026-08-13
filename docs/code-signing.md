@@ -39,7 +39,7 @@ $env:LOCALCOMPANION_SIGN_PFX_PASSWORD = "証明書パスワード"
 
 .\scripts\publish-win.ps1
 .\scripts\sign-authenticode.ps1 -PublishRoot "bin\x64\Release\net10.0-windows10.0.26100.0\win-x64"
-.\scripts\package-user-zip.ps1
+.\scripts\package-zip.ps1
 ```
 
 `LOCALCOMPANION_SIGN_PFX_PATH` が設定されている場合、`publish-win.ps1` の末尾で自動的に `sign-authenticode.ps1` を呼びます。

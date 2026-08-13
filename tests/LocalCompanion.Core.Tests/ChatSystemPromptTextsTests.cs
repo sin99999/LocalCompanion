@@ -66,4 +66,27 @@ public sealed class ChatSystemPromptTextsTests
         Assert.Contains("好きな飲み物は麦茶", block);
         Assert.Contains("メタな言い方はしない", block);
     }
+
+    [Fact]
+    public void JapaneseInstructions_SpellCharacterInFull()
+    {
+        var texts = new[]
+        {
+            ChatSystemPromptTexts.DefaultLanguageInstruction(japanese: true),
+            ChatSystemPromptTexts.CharacterLanguageInstruction(japanese: true),
+            ChatSystemPromptTexts.ReadabilityInstruction(japanese: true),
+            ChatSystemPromptTexts.UserNameLine("太郎", japanese: true),
+            ChatSystemPromptTexts.CharacterNameLine("花子", japanese: true),
+            ChatSystemPromptTexts.UserAndCharacterNameDistinction("太郎", "花子", japanese: true),
+            ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: true),
+            ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese: true),
+            ChatSystemPromptTexts.RagAdvisoryInstruction(japanese: true),
+        };
+
+        foreach (var text in texts)
+        {
+            var stripped = text.Replace("キャラクター", string.Empty, StringComparison.Ordinal);
+            Assert.DoesNotContain("キャラ", stripped);
+        }
+    }
 }

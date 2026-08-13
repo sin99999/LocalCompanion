@@ -45,6 +45,63 @@ public sealed class CharacterSelfImproveIntentTests
         Assert.False(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
             "今日の天気を詳しく記述して"));
     }
+
+    [Fact]
+    public void LooksLikePersonaUpdateRequest_FiveRulesPropose_True()
+    {
+        Assert.True(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
+            "5つのルールを簡潔に提案して"));
+    }
+
+    [Fact]
+    public void LooksLikePersonaUpdateRequest_FiveArticlesReflect_True()
+    {
+        Assert.True(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
+            "この5か条を設定に反映して"));
+    }
+
+    [Fact]
+    public void LooksLikePersonaUpdateRequest_ExplainRules_False()
+    {
+        Assert.False(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(
+            "ルールを説明して"));
+    }
+}
+
+public sealed class CharacterSelfImproveFallbackTests
+{
+    [Fact]
+    public void ExtractRuleLines_NumberedJapanese_TakesFive()
+    {
+        var text = """
+            わかりました！短い5か条です。
+            1. 相手を尊重する
+            2. 約束は守る
+            3. 嘘をつかない
+            4. 困ったら相談する
+            5. 毎日少し感謝を伝える
+            ほかに聞きたいことはありますか？
+            """;
+        var rules = CharacterSelfImproveFallback.ExtractRuleLines(text);
+        Assert.Equal(5, rules.Count);
+        Assert.Contains(rules, r => r.Contains("尊重", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TryMergeListedRules_AppendsRulesSection()
+    {
+        var current = "## 性格\n- 明るい\n";
+        var reply = """
+            1. 朝は元気にあいさつする
+            2. 夜は静かに過ごす
+            3. 嘘はつかない
+            """;
+        var merged = CharacterSelfImproveFallback.TryMergeListedRules(current, reply);
+        Assert.NotNull(merged);
+        Assert.Contains("## ルール", merged, StringComparison.Ordinal);
+        Assert.Contains("あいさつ", merged, StringComparison.Ordinal);
+        Assert.Contains("## 性格", merged, StringComparison.Ordinal);
+    }
 }
 
 public sealed class CharacterSelfImproveTranscriptTests

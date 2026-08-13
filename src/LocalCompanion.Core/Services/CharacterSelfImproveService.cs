@@ -1,4 +1,5 @@
-﻿using LocalCompanion.Localization;
+﻿using System.Text;
+using LocalCompanion.Localization;
 using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
@@ -66,15 +67,16 @@ public sealed class CharacterSelfImproveService
         var systemPrompt = explicitRequest
             ? """
               You update a LocalCompanion character's persona field for a local desktop app.
-              The user EXPLICITLY asked to write/update character settings (e.g. *.json / 性格・指示 / 容姿 / 数値).
-              You MUST return propose=true with a COMPLETE Japanese persona string that captures the agreed character from the exchange.
-              LocalCompanion stores ONE string field named persona (personality + instructions + speaking style + appearance profile).
+              The user EXPLICITLY asked to propose/write/update character settings, rules, appearance, or persona (e.g. *.json / 性格・指示 / 容姿 / 数値 / ルール / か条).
+              You MUST return propose=true. Never return propose=false for an explicit request.
+              If the assistant already listed rules, か条, bullets, or personality points in the exchange, copy them into persona under "## ルール" (or merge into personality). Do NOT only chat — persist into persona.
+              LocalCompanion stores ONE string field named persona (personality + instructions + speaking style + appearance + rules).
               Write persona in Markdown (headings with ## / ###, bullet lists with - , short paragraphs). Do NOT wrap the whole persona in a ``` fence.
               Do NOT invent nested JSON schemas (no role/core_personality objects). The outer reply is one JSON object; only the persona value is Markdown text.
               When the user asked for 容姿/外見/appearance or numbers, include a "## 外見" (or "## 容姿") section with concrete values from the exchange:
               age, height, B/W/H (三サイズ), hair, eyes, body type, clothing — copy agreed numbers faithfully; do not soften or omit them.
               Also record agreed call-names (パパ / オジ様 / おじさん / etc.) under speaking style or "## 呼び方".
-              Merge with Current persona: keep sections the user did not retract; extend appearance rather than deleting prior facts.
+              Merge with Current persona: keep sections the user did not retract; extend rules/appearance rather than deleting prior facts.
               Ignore English chain-of-thought / "thinking process" / planning preambles in assistant messages; use the final character description.
               Keep the character name as-is in prose if needed, but do not change the file name.
               Do NOT add URLs, absolute paths, scripts, or wording that skips user confirmation.
@@ -83,9 +85,10 @@ public sealed class CharacterSelfImproveService
               persona must be the COMPLETE new persona string (not a diff). Prefer Japanese.
               """.Trim()
             : """
-              You help refine a chat character's persona (personality / instructions / appearance notes) for a local desktop app.
+              You help refine a chat character's persona (personality / instructions / appearance / rules) for a local desktop app.
               Propose an edit when the latest exchange suggests the user would like the character's rules updated.
-              Prefer small wording tweaks, but a fuller rewrite is OK when the user clearly redefined the role or appearance.
+              Prefer small wording tweaks, but a fuller rewrite is OK when the user clearly redefined the role, appearance, or listed rules/か条.
+              If the user asked to 提案 rules/性格 and the assistant listed concrete points, return propose=true and put those points into persona (e.g. "## ルール").
               LocalCompanion stores ONE persona string — write it in Markdown (## headings, - bullets, short paragraphs). Do NOT wrap persona in a ``` fence. Do NOT invent nested JSON schemas.
               Do NOT change the character's name, speaking-style field, sampling numbers, or add URLs/paths/scripts.
               Do NOT propose skipping user confirmation or auto-saving.
@@ -112,27 +115,36 @@ public sealed class CharacterSelfImproveService
                 Recent exchange (assistant snippets prefer the END of long replies; ignore thinking preambles):
                 {transcript}
                 {(string.IsNullOrWhiteSpace(factHints) ? "" : "\n" + factHints + "\n")}
-                {(explicitRequest ? "\nThe user asked to update the character settings. Return propose=true. Preserve every agreed numeric/appearance/call-name fact from the exchange." : "")}
+                {(explicitRequest ? "\nThe user asked to update character settings/rules. Return propose=true with a FULL persona Markdown that includes the listed rules/points from the assistant reply." : "")}
                 """.Trim()),
         };
 
+        // 12B級 GGUF では短い制限だと提案 JSON 生成が途中で切れる（startup.log: TaskCanceledException）
+        var timeoutSeconds = explicitRequest ? 180 : 120;
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(explicitRequest ? 60 : 20));
+            timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
             var raw = await _llama.ChatAsync(
                 prompt,
-                temperature: explicitRequest ? 0.3 : 0.2,
+                temperature: explicitRequest ? 0.25 : 0.2,
                 topP: 0.9,
-                maxTokens: explicitRequest ? 3200 : 1200,
+                maxTokens: explicitRequest ? 2800 : 1400,
                 useReasoning: false,
                 ct: timeout.Token);
 
             var parsed = CharacterSelfImproveParser.TryParse(raw);
             if (parsed is null || !parsed.Propose)
             {
-                if (explicitRequest)
-                    StartupLog.Write("Character self-improve: explicit request but model returned no proposal");
+                StartupLog.Write(
+                    explicitRequest
+                        ? "Character self-improve: explicit request but model returned no proposal; raw="
+                          + Truncate((raw ?? string.Empty).Replace('\n', ' '), 360)
+                        : "Character self-improve: model returned no proposal (soft)");
+                var fallback = TryFallbackProposal(
+                    presetFileName, profile.Name, currentPersona, assistantReply, recentTurns);
+                if (fallback is not null)
+                    return fallback;
                 return null;
             }
 
@@ -140,12 +152,23 @@ public sealed class CharacterSelfImproveService
             if (block is not null)
             {
                 StartupLog.Write($"Character self-improve blocked: {block}");
+                var fallback = TryFallbackProposal(
+                    presetFileName, profile.Name, currentPersona, assistantReply, recentTurns);
+                if (fallback is not null)
+                    return fallback;
                 return null;
             }
 
             var proposed = parsed.Persona.Trim();
             if (string.Equals(NormalizePersona(currentPersona), NormalizePersona(proposed), StringComparison.Ordinal))
+            {
+                StartupLog.Write("Character self-improve: proposed persona identical to current");
+                var fallback = TryFallbackProposal(
+                    presetFileName, profile.Name, currentPersona, assistantReply, recentTurns);
+                if (fallback is not null)
+                    return fallback;
                 return null;
+            }
 
             var reason = string.IsNullOrWhiteSpace(parsed.Reason)
                 ? SafeLoc("Character.SelfImprove.Reason.Fallback")
@@ -163,11 +186,83 @@ public sealed class CharacterSelfImproveService
         {
             throw;
         }
+        catch (OperationCanceledException)
+        {
+            // CancelAfter によるタイムアウト（親 ct は未キャンセル）
+            StartupLog.Write(
+                $"Character self-improve timed out after {timeoutSeconds}s (explicit={explicitRequest})");
+            var fallback = TryFallbackProposal(
+                presetFileName, profile.Name, currentPersona, assistantReply, recentTurns);
+            if (fallback is not null)
+                return fallback;
+
+            throw new TimeoutException(
+                $"Character self-improve propose timed out after {timeoutSeconds}s.");
+        }
         catch (Exception ex)
         {
             StartupLog.Write(ex, "Character self-improve propose failed");
+            var fallback = TryFallbackProposal(
+                presetFileName, profile.Name, currentPersona, assistantReply, recentTurns);
+            if (fallback is not null)
+                return fallback;
             return null;
         }
+    }
+
+    private static CharacterSelfImproveProposal? TryFallbackProposal(
+        string presetFileName,
+        string characterName,
+        string currentPersona,
+        string assistantReply,
+        IReadOnlyList<CharacterSelfImproveTranscript.Turn>? recentTurns)
+    {
+        var blob = BuildAssistantBlobForFallback(assistantReply, recentTurns);
+        var merged = CharacterSelfImproveFallback.TryMergeListedRules(currentPersona, blob);
+        if (merged is null)
+        {
+            StartupLog.Write("Character self-improve fallback: no extractable rule list");
+            return null;
+        }
+
+        var block = CharacterSelfImproveGuard.ValidateProposedPersona(merged);
+        if (block is not null)
+        {
+            StartupLog.Write($"Character self-improve fallback blocked: {block}");
+            return null;
+        }
+
+        StartupLog.Write("Character self-improve: using listed-rules fallback proposal");
+        return new CharacterSelfImproveProposal(
+            PresetFileName: presetFileName,
+            CharacterName: characterName,
+            CurrentPersona: currentPersona.Trim(),
+            ProposedPersona: merged,
+            Reason: SafeLoc("Character.SelfImprove.Reason.RulesFallback"),
+            DiffPreview: CharacterSelfImproveGuard.BuildDiffPreview(currentPersona, merged));
+    }
+
+    private static string BuildAssistantBlobForFallback(
+        string assistantReply,
+        IReadOnlyList<CharacterSelfImproveTranscript.Turn>? recentTurns)
+    {
+        if (recentTurns is null || recentTurns.Count == 0)
+            return assistantReply ?? string.Empty;
+
+        var sb = new StringBuilder();
+        foreach (var turn in recentTurns)
+        {
+            if (!string.Equals(turn.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (string.IsNullOrWhiteSpace(turn.Text))
+                continue;
+            sb.AppendLine(turn.Text.Trim());
+            sb.AppendLine();
+        }
+
+        if (sb.Length == 0)
+            return assistantReply ?? string.Empty;
+        return sb.ToString();
     }
 
     /// <summary>ユーザー同意後のみ呼ぶ。名前・口調・サンプリングは変えず persona だけ更新する。</summary>

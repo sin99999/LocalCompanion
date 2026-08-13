@@ -5,7 +5,7 @@
   LocalCompanion
 </h1>
 
-<p align="center"><strong>Windows 向けローカル LLM チャット — RAG・キャラ設定・VOICEVOX 対応（クラウド API キー不要）</strong></p>
+<p align="center"><strong>Windows 向けローカル LLM チャット — RAG・キャラクター設定・VOICEVOX 対応（クラウド API キー不要）</strong></p>
 
 <p align="center">
   <a href="https://github.com/sin99999/LocalCompanion/actions/workflows/ci.yml"><img src="https://github.com/sin99999/LocalCompanion/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -58,7 +58,7 @@ Windows 向けのローカル AI チャットアプリケーションです。�
 | OS | Windows 10 ビルド 17763 以降 |
 | ランタイム | [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0)（未導入の場合は 1 回インストール） |
 | WebView2 | [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)（**必須**。会話画面の表示に使用。Windows 11 では通常 OS に含まれます。Windows 10 でも多くの環境で導入済みですが、無い場合は Evergreen ランタイムをインストールしてください。ZIP には同梱しません） |
-| ネットワーク | 初回起動時（AI エンジンと既定モデルの DL。自前 GGUF 指定時はモデル DL をスキップ）。任意の更新確認で GitHub にアクセスすることがあります |
+| ネットワーク | 初回起動時（AI エンジンと既定モデルのダウンロード。自前 GGUF 指定時はモデル取得をスキップ）。任意の更新確認で GitHub にアクセスすることがあります |
 | 読み上げ | 任意。[VOICEVOX](https://voicevox.hiroshiba.jp/) を別途インストール |
 
 WinUI の実行に必要なファイルはアプリに同梱されています。別途「開発者モード」をオンにする必要はありません。**WebView2 Runtime は同梱されない**ため、上記のとおり別途必要です（Edge 本体とは別コンポーネントです）。
@@ -66,6 +66,8 @@ WinUI の実行に必要なファイルはアプリに同梱されています�
 <p align="right">(<a href="#top">トップへ</a>)</p>
 
 ## フォルダ構成（配布 ZIP）
+
+GitHub Releases の Assets から **`LocalCompanion-{バージョン}.zip`**（例: `LocalCompanion-1.2.2.zip`）をダウンロードして展開します。
 
 ZIP を展開すると、おおむね次の構成になります（`data\` と `tools\` は初回起動後に作成されます）。
 
@@ -75,13 +77,13 @@ ZIP を展開すると、おおむね次の構成になります（`data\` と `
 | `appsettings.json` | 既定の接続先・RAG 設定など |
 | `Assets\` | アイコンなど |
 | `scripts\` | llama-server 補助スクリプト |
-| `models\` | 付属の GGUF 置き場（初回 DL 先・mmproj の取得先） |
+| `models\` | 付属の GGUF 置き場（初回ダウンロード先・mmproj の取得先） |
 | `characters\` | キャラクター JSON |
 | `docs\` | トラブルシューティング・ヘルプ HTML |
 | `data\` | 会話・RAG・各種設定（実行時に自動作成） |
 | `tools\llama-cpp\` | llama-server（初回起動時に自動取得） |
 
-くわしいモデル配置は [models/README.md](models/README.md)、キャラ設定は [characters/README.md](characters/README.md) をご覧ください。
+くわしいモデル配置は [models/README.md](models/README.md)、キャラクター設定は [characters/README.md](characters/README.md) をご覧ください。
 
 <p align="right">(<a href="#top">トップへ</a>)</p>
 
@@ -91,6 +93,7 @@ ZIP を展開すると、おおむね次の構成になります（`data\` と `
 
 1. 配布フォルダ内の **`LocalCompanion.exe`** をダブルクリックします。
 2. 初回は言語選択・セットアップ表示のあと、チャット画面が開きます（数分かかることがあります）。
+3. すでに起動しているときに exe を再度開くと案内が表示され、2 つ目のウィンドウは開きません。
 
 ### 終了
 
@@ -133,7 +136,7 @@ vision 用の mmproj が必要な場合は、**アプリ側の `models\` フォ�
 | チャット | ローカル AI と会話。キャラクター設定・会話履歴に対応（**デフォルト AI** の会話は左の履歴一覧に表示されません） |
 | 資料検索（RAG） | 登録したテキスト資料を検索し、回答に反映 |
 | Web 参照 | メッセージ内の URL 自動取得、「調べて」などの調査意図での Web 検索（キー不要。オフ可） |
-| 長期記憶 | 名前付きキャラごとに短い事実を内部保存し、そのキャラの会話で自然に思い出して返す（**設定 → 基本設定**）。デフォルト AI には長期記憶はありません |
+| 長期記憶 | 名前付きキャラクターごとに短い事実を内部保存し、そのキャラクターの会話で自然に思い出して返す（**設定 → 基本設定**）。デフォルト AI には長期記憶はありません |
 | 音声入力 | Windows の音声認識で入力（**設定 → 基本設定** で有効化） |
 | モデル管理 | 付属 `models\` と、任意で指定する **追加モデルフォルダ** を一覧表示。適用で llama を再起動 |
 | 読み上げ | VOICEVOX で返答を音声再生（任意） |
@@ -154,7 +157,8 @@ URL 添付・メッセージ内 URL の取得上限は **2 MB** です。Web 検
 ## データの保存場所
 
 会話履歴・RAG 資料・各種設定は、通常 **exe と同じフォルダ内の `data\`** に保存されます。  
-`data\` に書き込めない場合（例: Program Files 配下）は、`%LocalAppData%\LocalCompanionLlama\` に保存されます。
+`data\` に書き込めない場合（例: Program Files 配下）は、`%LocalAppData%\LocalCompanionLlama\` に保存されます。  
+Visual Studio や `dotnet build` からの起動（`bin\Debug` など）も、配布 ZIP とは異なり `%LocalAppData%\LocalCompanionLlama\` を使います。
 
 | ファイル（例） | 内容 |
 |----------------|------|
@@ -163,7 +167,7 @@ URL 添付・メッセージ内 URL の取得上限は **2 MB** です。Web 検
 | `character-settings.json` | 応答の調整設定 |
 | `model-library.json` | 追加モデルフォルダなどのライブラリ設定 |
 
-アプリ内 **設定 → 基本設定** から、データのバックアップ（ZIP 書き出し）ができます。
+アプリ内 **設定 → このアプリについて** から、データのバックアップ（ZIP 書き出し）ができます。
 
 **注意:** `LocalCompanion.exe` ごとフォルダを移動・コピーする場合は、`data\` フォルダも一緒に移してください（LocalAppData 側を使っている場合は、そちらのフォルダを確認してください）。
 
@@ -199,13 +203,16 @@ A. 会話・RAG・添付の本文処理は PC 内で完結します。任意の�
 A. コード署名を行っていないため、初回に表示されることがあります。「詳細情報」→「実行」で起動できます。
 
 **Q. exe をダブルクリックしても起動しません。**  
-A. [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0) のインストールが必要な場合があります。
+A. [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0) のインストールが必要な場合があります。すでに起動している場合は案内が出て終了します。先に開いているウィンドウをご確認ください。
+
+**Q. 「すでに起動しています」と出ます。**  
+A. LocalCompanion は同時に 1 つだけ起動できます。先に開いているウィンドウをご利用ください。何も見えない場合は、タスクバーや別のデスクトップをご確認ください。
 
 **Q. チャット画面が真っ白／会話が表示されません。**  
 A. [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) が未導入の可能性があります（必須コンポーネントです。Edge ブラウザ本体とは別です）。Windows 11 では通常入っています。無い場合は上記公式ページから Evergreen ランタイムをインストールしてください。
 
 **Q. 初回のダウンロードが失敗します。**  
-A. ネットワーク環境や、短時間に何度も起動し直したことによる制限が考えられます。しばらく待ってから再試行してください。お手持ちの GGUF がある場合は、初回セットアップでフォルダを指定すると既定モデルの DL を省略できます。
+A. ネットワーク環境や、短時間に何度も起動し直したことによる制限が考えられます。しばらく待ってから再試行してください。お手持ちの GGUF がある場合は、初回セットアップでフォルダを指定すると既定モデルのダウンロードを省略できます。
 
 **Q. 別の場所にある GGUF を使えますか。**  
 A. 初回セットアップ、または **設定 → モデル** の「追加モデルフォルダ」で指定できます。指定フォルダは読み取り専用で、mmproj はアプリ側の `models\` に取得します。
@@ -221,10 +228,10 @@ A. VOICEVOX のインストールと、設定画面での有効化が必要で�
 
 | 症状 | まず確認すること |
 |------|------------------|
-| 起動しない | .NET 10 Desktop Runtime（x64）が入っているか |
+| 起動しない | .NET 10 Desktop Runtime（x64）が入っているか。すでに起動していないか |
 | チャット画面が空／真っ白 | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) が入っているか（必須） |
-| チャットが使えない | **設定 → モデル** の状態が「OK」になるまで数分待つ。ポート 8080 が他アプリに使われていないか |
-| 初回 DL 失敗 | インターネット接続。しばらく時間をおいて再試行。自前 GGUF があればフォルダ指定でスキップ可 |
+| チャットが使えない | **設定 → モデル** の状態が「OK」になるまで数分待つ。ポート 8080 が他アプリや残った llama-server に使われていないか |
+| 初回ダウンロード失敗 | インターネット接続。しばらく時間をおいて再試行。自前 GGUF があればフォルダ指定でスキップ可 |
 | DLL エラー | [Visual C++ 再頒布可能パッケージ（x64）](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) のインストール |
 
 設定画面の **このアプリについて → ログフォルダーを開く** から、問題報告用のログを確認できます。
