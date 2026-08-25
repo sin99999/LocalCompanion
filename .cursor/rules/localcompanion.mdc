@@ -5,7 +5,7 @@ alwaysApply: true
 
 # LocalCompanion（常時）
 
-リポ内の短い判断のみ。詳細は `AGENTS.md` と各スキル。
+リポ内の短い判断のみ。詳細は各スキルと `docs/公開前チェックリスト.md`（メンテナ手元の `AGENTS.md` は gitignore）。
 
 ## ビルド・起動
 
@@ -55,4 +55,4 @@ Task を並列で起動（explore）。親 Agent が統合して **最小修正 
 
 ## 製品文案
 
-README / UI / エラー / `docs/help/` → です・ます。チャット用の口語・絵文字は製品文案に入れない。
+GitHub／README／配布／docs にギャル口調と AI っぽい合図の語を置かない。製品文案はです・ます。チャット用の口語・絵文字は製品文案に入れない。公開前の複数 Agent 監査は `localcompanion-agent-audit`（「妹作戦」は Agent 向けの呼び名。製品 README には書かない）。

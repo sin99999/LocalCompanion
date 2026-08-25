@@ -39,6 +39,7 @@ function Test-DistributionFolder {
         "CHANGELOG.md",
         "README.md",
         "CONTRIBUTING.md",
+        "SECURITY.md",
         "docs\Troubleshooting.md",
         "docs\code-signing.md",
         "docs\help\help.css",

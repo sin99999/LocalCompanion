@@ -67,7 +67,7 @@ WinUI の実行に必要なファイルはアプリに同梱されています�
 
 ## フォルダ構成（配布 ZIP）
 
-GitHub Releases の Assets から **`LocalCompanion-{バージョン}.zip`**（例: `LocalCompanion-1.2.2.zip`）をダウンロードして展開します。
+GitHub Releases の Assets から **`LocalCompanion-{バージョン}.zip`**（例: `LocalCompanion-1.2.3.zip`）をダウンロードして展開します。
 
 ZIP を展開すると、おおむね次の構成になります（`data\` と `tools\` は初回起動後に作成されます）。
 
@@ -179,7 +179,7 @@ Visual Studio や `dotnet build` からの起動（`bin\Debug` など）も、�
 
 1. [VOICEVOX 公式サイト](https://voicevox.hiroshiba.jp/) からインストール
 2. LocalCompanion を **再起動**（または設定画面を開き直す）— インストールを検出すると **VOICEVOX** タブが表示されます
-3. ⚙ **設定 → VOICEVOX** で「**読み上げを有効**」をオンにし、話者を選択（変更は自動保存されます）
+3. **設定 → VOICEVOX** で「**読み上げを有効**」をオンにし、話者を選択（変更は自動保存されます）
 
 VOICEVOX **未インストール時は VOICEVOX タブは表示されません**。チャット・資料検索など **他の機能は通常どおり** 使えます。
 

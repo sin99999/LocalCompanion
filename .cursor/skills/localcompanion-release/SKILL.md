@@ -25,6 +25,7 @@ dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 ```
 
 - バージョンは `LocalCompanion.csproj` の `<Version>` のみ。`CHANGELOG.md` と揃える。
+- Git タグのコミット・`package-zip.ps1` したコミット・csproj の Version を一致させる（タグだけ先に付くと Source ZIP が古くなる）。
 - ZIP 名は `dist\LocalCompanion-{Version}.zip`（`-user` 接尾辞は付けない）。
 - `appsettings.json` に絶対パスを書かない（`publish-win.ps1` が検証）。
 

@@ -16,7 +16,7 @@ Release 本文は **このファイルをベースに手書き**してくださ�
 
 ## インストール
 
-1. 下の Assets から `LocalCompanion-{バージョン}.zip`（例: `LocalCompanion-1.2.2.zip`）をダウンロードして展開します。
+1. 下の Assets から `LocalCompanion-{バージョン}.zip`（例: `LocalCompanion-1.2.3.zip`）をダウンロードして展開します。
 2. `LocalCompanion\LocalCompanion.exe` を起動します。
 3. 初回は言語選択・セットアップのあと、必要に応じて AI エンジン／既定モデルを取得します（ネット接続・空き容量が必要です）。
 
@@ -43,7 +43,7 @@ Release 本文は **このファイルをベースに手書き**してくださ�
 
 ## Install
 
-1. Download `LocalCompanion-{version}.zip` (for example `LocalCompanion-1.2.2.zip`) from Assets and extract it.
+1. Download `LocalCompanion-{version}.zip` (for example `LocalCompanion-1.2.3.zip`) from Assets and extract it.
 2. Run `LocalCompanion\LocalCompanion.exe`.
 3. On first launch, complete language/setup; the app may download the AI engine / default model (network and disk space required).
 
