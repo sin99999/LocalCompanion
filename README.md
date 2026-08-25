@@ -231,7 +231,7 @@ A. VOICEVOX のインストールと、設定画面での有効化が必要で�
 | 起動しない | .NET 10 Desktop Runtime（x64）が入っているか。すでに起動していないか |
 | チャット画面が空／真っ白 | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) が入っているか（必須） |
 | チャットが使えない | **設定 → モデル** の状態が「OK」になるまで数分待つ。ポート 8080 が他アプリや残った llama-server に使われていないか |
-| 初回ダウンロード失敗 | インターネット接続。しばらく時間をおいて再試行。自前 GGUF があればフォルダ指定でスキップ可 |
+| 初回ダウンロード失敗 | インターネット接続。しばらく時間をおいて再試行。自前 GGUF があればフォルダ指定でスキップできます |
 | DLL エラー | [Visual C++ 再頒布可能パッケージ（x64）](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) のインストール |
 
 設定画面の **このアプリについて → ログフォルダーを開く** から、問題報告用のログを確認できます。
@@ -243,6 +243,7 @@ A. VOICEVOX のインストールと、設定画面での有効化が必要で�
 | ドキュメント | 内容 |
 |--------------|------|
 | [LICENSE](LICENSE) | 本リポジトリのライセンス（MIT・著作権は LocalCompanion Project） |
+| [SECURITY.md](SECURITY.md) | セキュリティ上の連絡 |
 | [CHANGELOG.md](CHANGELOG.md) | 変更履歴 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 報告・開発のしかた |
 | [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) | サードパーティライセンス |

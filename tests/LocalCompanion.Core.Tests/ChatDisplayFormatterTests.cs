@@ -14,17 +14,17 @@ public sealed class ChatDisplayFormatterTests
     [Fact]
     public void FormatForDisplay_PunctuationThenEmoji_KeepsSameLine()
     {
-        // 表示用句点改行が 「！😘💕」 を割らないこと（UI で絵文字だけ次行になる退行防止）
-        var actual = ChatDisplayFormatter.FormatForDisplay("全部レンにぶつけていいからさー！😘💕");
-        Assert.Equal("全部レンにぶつけていいからさー！😘💕", actual);
+        // 表示用句点改行が 「！🎉🎈」 を割らないこと（UI で絵文字だけ次行になる退行防止）
+        var actual = ChatDisplayFormatter.FormatForDisplay("完了です！🎉🎈");
+        Assert.Equal("完了です！🎉🎈", actual);
         Assert.DoesNotContain('\n', actual);
     }
 
     [Fact]
     public void FormatForDisplay_PunctuationThenEmojiThenMoreText_KeepsSameLine()
     {
-        var actual = ChatDisplayFormatter.FormatForDisplay("こんばんわ〜〜！🌙✨また来てくれたんだ〜！");
-        Assert.Equal("こんばんわ〜〜！🌙✨また来てくれたんだ〜！", actual);
+        var actual = ChatDisplayFormatter.FormatForDisplay("到着しました！🌙✨続けます。");
+        Assert.Equal("到着しました！🌙✨続けます。", actual);
     }
 
     [Fact]

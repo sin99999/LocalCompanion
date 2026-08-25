@@ -50,7 +50,7 @@ internal static class LocalizationResources
         ["Character.SelfImprove.Status.Rejected"] = "提案を却下しました。ファイルは変更していません。",
         ["Character.SelfImprove.Status.Stale"] = "設定が別途変更されていたため、提案を適用できませんでした。",
         ["Character.SelfImprove.Status.Preparing"] = "キャラクター設定の提案を作成しています…",
-        ["Character.SelfImprove.Status.NoProposal"] = "今回は保存用の提案を作れませんでした。もう一度「5つのルールを提案して」や「キャラクター設定に記述して」と頼むか、返答が番号付きの箇条になっているか確認してください。",
+        ["Character.SelfImprove.Status.NoProposal"] = "今回は保存用の提案を作れませんでした。もう一度「5つのルールを提案して」や「キャラクター設定に記述して」と依頼するか、返答が番号付きの箇条になっているか確認してください。",
         ["Character.SelfImprove.Status.TimedOut"] = "キャラクター設定の提案作成が時間切れになりました。モデルが大きいときは時間がかかります。少し待ってから、もう一度お試しください。",
         ["Character.SelfImprove.Status.NeedEnabled"] = "キャラクター設定の提案を使うには、設定 → キャラクター設定で「会話からキャラクターを育てる」をオンにしてください。",
         ["Character.SelfImprove.Status.NeedNamedCharacter"] = "キャラクター設定の提案は、名前付きキャラクターを選んでいるときだけ使えます。",
@@ -64,7 +64,7 @@ internal static class LocalizationResources
         ["Character.SelfImprove.Block.ForbiddenMeta"] = "確認を省略する文言を含む提案は許可しません。",
 
         ["Chat.Assistant.DefaultName"] = "AI",
-        ["Chat.Welcome.Default"] = "何か御用でしょうか？",
+        ["Chat.Welcome.Default"] = "メッセージを入力して、会話を始められます。",
         ["Chat.UserLabel"] = "あなた",
         ["Chat.ErrorTitle"] = "エラー",
         ["Chat.Rag"] = "RAG",
@@ -519,7 +519,7 @@ internal static class LocalizationResources
         ["Character.SelfImprove.Block.ForbiddenMeta"] = "Proposals must not include wording that skips confirmation.",
 
         ["Chat.Assistant.DefaultName"] = "AI",
-        ["Chat.Welcome.Default"] = "How may I assist you?",
+        ["Chat.Welcome.Default"] = "Type a message to start chatting.",
         ["Chat.UserLabel"] = "You",
         ["Chat.ErrorTitle"] = "Error",
         ["Chat.Rag"] = "RAG",

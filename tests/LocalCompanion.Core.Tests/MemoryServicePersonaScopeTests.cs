@@ -56,7 +56,7 @@ public sealed class MemoryServicePersonaScopeTests
 
         var saved = await fx.Memory.ExtractFromSessionAsync(
             "sess-default",
-            [("user", "僕はしんです"), ("assistant", "よろしくね")],
+            [("user", "僕は山田です"), ("assistant", "よろしくお願いします")],
             CancellationToken.None);
 
         Assert.Equal(0, saved);

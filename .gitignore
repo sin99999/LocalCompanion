@@ -63,6 +63,7 @@ _ReSharper*/
 docs/cursor-ren-user-rules-*.md
 AGENTS.md
 appsettings.local.json
+起動.bat
 
 # Generated files
 Generated\ Files/

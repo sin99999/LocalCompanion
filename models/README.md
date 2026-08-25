@@ -94,7 +94,7 @@ huggingface-cli download REPO_ID ファイル名.gguf --local-dir .\models
 
 |--------|----------|------|
 
-| **Q4_K_M** | 軽め・VRAM 節約 | 日常チャットの定番 |
+| **Q4_K_M** | 軽め・VRAM 節約 | 日常的なチャット向け |
 
 | **Q5_K_M / Q6_K** | 中間 | 品質とサイズのバランス |
 
@@ -104,7 +104,7 @@ huggingface-cli download REPO_ID ファイル名.gguf --local-dir .\models
 
 
 
-> **VRAM** … 6〜8 GB 級なら **7B Q4_K_M** から。OOM 時は量子化を下げ、⚙ でコンテキスト長を下げて **`LocalCompanion.exe` を再起動**。
+> **VRAM** … 6〜8 GB 級なら **7B Q4_K_M** から。メモリ不足のときは量子化を下げ、**設定 → モデル** でコンテキスト長を下げて **`LocalCompanion.exe` を再起動**してください。
 
 
 
