@@ -25,6 +25,9 @@ public sealed class LocalizationService
         var table = LocalizationResources.For(_current);
         if (table.TryGetValue(key, out var value))
             return value;
+        if (_current != AppLanguage.Japanese
+            && LocalizationResources.For(AppLanguage.Japanese).TryGetValue(key, out var japanese))
+            return japanese;
         return key;
     }
 

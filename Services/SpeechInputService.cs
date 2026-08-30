@@ -182,9 +182,7 @@ public sealed class SpeechInputService
     /// </summary>
     private static IEnumerable<string> EnumerateRecognizerLanguageCandidates()
     {
-        var preferred = LocalizationService.Instance.Current == AppLanguage.Japanese
-            ? "ja-JP"
-            : "en-US";
+        var preferred = AppLanguages.ToBcp47(LocalizationService.Instance.Current);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var tag in new[] { preferred, "ja-JP", "en-US" })

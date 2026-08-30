@@ -1,4 +1,4 @@
-using LocalCompanion.Models;
+﻿using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
 
@@ -25,21 +25,26 @@ internal static class RagQueryPlanner
                 Confidence: 0.92);
         }
 
-        if (RagArticleQueryParser.TryGetArticleNumber(effective, out var articleNumber)
+        var articleNumbers = RagArticleQueryParser.GetArticleNumbers(effective);
+        if (articleNumbers.Count > 0
             && RagLegalQueryContext.LooksLikeLegalArticleQuery(effective, sourceHint))
         {
-            var wantsVerbatim = ContainsVerbatimCue(effective);
-            var wantsPenalty = effective.Contains('罰', StringComparison.Ordinal);
+            var bindings = RagArticleBindingParser.Parse(effective);
+            var keys = bindings.Count > 0
+                ? bindings.Select(static b => b.SortKey).Distinct().ToList()
+                : articleNumbers.Select(static n => n * 100L).ToList();
             return new RagQueryPlan(
                 RagQueryIntent.Article,
                 effective,
-                ArticleSortKey: articleNumber * 100L,
+                ArticleSortKey: keys[0],
                 Boundary: null,
                 TopicKeyword: null,
                 SourceHint: sourceHint,
                 SourceHints: sourceHints,
-                ResponseMode: wantsVerbatim || wantsPenalty ? RagResponseMode.Verbatim : RagResponseMode.CitationFirst,
-                Confidence: 0.88);
+                ResponseMode: RagResponseMode.Verbatim,
+                Confidence: 0.88,
+                ArticleSortKeys: keys,
+                ArticleBindings: bindings.Count > 0 ? bindings : null);
         }
 
         if (RagPenaltyTopicParser.TryGetTopicKeyword(effective, out var topic))
@@ -123,10 +128,4 @@ internal static class RagQueryPlanner
             ResponseMode: RagResponseMode.Synthesis,
             Confidence: 0.5);
     }
-
-    private static bool ContainsVerbatimCue(string query) =>
-        query.Contains("全文", StringComparison.Ordinal)
-        || query.Contains("原文", StringComparison.Ordinal)
-        || query.Contains("そのまま", StringComparison.Ordinal)
-        || query.Contains("引用", StringComparison.Ordinal);
 }

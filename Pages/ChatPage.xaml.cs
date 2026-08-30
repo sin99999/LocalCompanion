@@ -1,4 +1,4 @@
-using LocalCompanion;
+﻿using LocalCompanion;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
@@ -741,6 +741,7 @@ public sealed partial class ChatPage : Page
                     + Environment.NewLine + Environment.NewLine
                     + proposal.Reason,
                 TextWrapping = TextWrapping.WrapWholeWords,
+                Margin = new Thickness(0, 0, 12, 0),
             };
             var diffBlock = new TextBlock
             {
@@ -749,13 +750,21 @@ public sealed partial class ChatPage : Page
                     : proposal.DiffPreview,
                 TextWrapping = TextWrapping.WrapWholeWords,
                 IsTextSelectionEnabled = true,
+                Margin = new Thickness(0, 0, 12, 0),
             };
+            // ContentDialog 本体の ScrollViewer と二重にならないよう、ここだけ固定高でスクロールする
             var scroll = new ScrollViewer
             {
-                MaxHeight = 360,
+                Height = 360,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                VerticalScrollMode = ScrollMode.Enabled,
+                HorizontalScrollMode = ScrollMode.Disabled,
+                Padding = new Thickness(0, 0, 4, 0),
                 Content = new StackPanel
                 {
                     Spacing = 12,
+                    Padding = new Thickness(0, 0, 8, 0),
                     Children = { reasonBlock, diffBlock },
                 },
             };

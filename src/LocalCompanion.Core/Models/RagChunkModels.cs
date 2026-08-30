@@ -31,7 +31,8 @@ public sealed record RagSearchHit(
     string ParentText = "",
     string PenaltyLead = "",
     string VerbatimQuote = "",
-    string DefinitionLead = "")
+    string DefinitionLead = "",
+    string SectionPath = "")
 {
     public long ArticleSortKey =>
         RagArticleSortKeyHelper.TryParse(HeaderText, out var key) ? key : 0;

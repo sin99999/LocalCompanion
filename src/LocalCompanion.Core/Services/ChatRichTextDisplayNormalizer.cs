@@ -1,8 +1,8 @@
 ﻿namespace LocalCompanion.Services;
 
 /// <summary>
-/// RichTextBlock 表示用の文字正規化。
-/// 絵文字の異体字セレクタや NUL が選択ヒットテストの穴・WinUI ネイティブ落ちの誘因になるため除去する。
+/// チャット表示用の文字正規化（WebView2）。
+/// 絵文字の異体字セレクタや NUL が選択ヒットテストの穴・ネイティブ落ちの誘因になるため除去する。
 /// </summary>
 public static class ChatRichTextDisplayNormalizer
 {

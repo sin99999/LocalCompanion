@@ -14,6 +14,9 @@ public sealed class ChatExportRequestParserTests
     [InlineData("会話の内容をデスクトップにテキストファイルで書き出して", true, "会話", ".txt")]
     [InlineData("hello world", false, "", "")]
     [InlineData("刑法第8条は？", false, "", "")]
+    [InlineData("あの話を後で見返したいからファイルに残して", false, "", "")]
+    [InlineData("大事なファイルは保存してね", false, "", "")]
+    [InlineData("Wordファイルに保存してる？", false, "", "")]
     public void TryParse_DetectsDesktopExportIntent(string message, bool expected, string expectedQuery, string expectedExt)
     {
         var ok = ChatExportRequestParser.TryParse(message, out var request);
@@ -42,12 +45,34 @@ public sealed class ChatExportRequestParserTests
     [InlineData("結果をUSBメモリに保存して", ChatExportTargetKind.RemovableStorage, "結果を")]
     [InlineData("まとめをドキュメントに保存して", ChatExportTargetKind.Documents, "まとめを")]
     [InlineData("内容をダウンロードフォルダに保存して", ChatExportTargetKind.Downloads, "内容を")]
+    [InlineData("違法ダウンロードについて調べてデスクトップに置いて", ChatExportTargetKind.Desktop, "違法ダウンロード")]
+    [InlineData("USBメモリの歴史を調べてデスクトップに保存して", ChatExportTargetKind.Desktop, "USBメモリ")]
+    [InlineData("デスクトップアプリの話をUSBメモリに保存して", ChatExportTargetKind.RemovableStorage, "デスクトップアプリ")]
     public void TryParse_DetectsCustomDestinations(string message, ChatExportTargetKind kind, string expectedQuery)
     {
         Assert.True(ChatExportRequestParser.TryParse(message, out var request));
         Assert.Equal(kind, request.Target.Kind);
         Assert.Contains(expectedQuery, request.Query, StringComparison.Ordinal);
         Assert.Equal(ChatExportConflictPolicy.AskUser, request.ConflictPolicy);
+    }
+
+    [Fact]
+    public void TryExtractExplicitDirectory_StripsParticleWithoutSpace()
+    {
+        var path = ChatExportRequestParser.TryExtractExplicitDirectory(
+            @"結果をC:\work\exportsに保存して");
+        Assert.NotNull(path);
+        Assert.Equal(@"C:\work\exports", path, ignoreCase: true);
+    }
+
+    [Theory]
+    [InlineData("性格をファイルに保存して", false)]
+    [InlineData("エマ.jsonに書いて", false)]
+    [InlineData("キャラ設定をデスクトップに保存して", true)]
+    public void TryParse_PersonaUpdateWithoutDiskDestination_DoesNotExport(string message, bool expectedExport)
+    {
+        Assert.True(CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(message));
+        Assert.Equal(expectedExport, ChatExportRequestParser.TryParse(message, out _));
     }
 
     [Theory]

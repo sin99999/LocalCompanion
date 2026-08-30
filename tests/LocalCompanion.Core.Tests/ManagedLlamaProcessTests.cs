@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using LocalCompanion.Services;
+﻿using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -50,6 +49,43 @@ public sealed class ManagedLlamaProcessTests
 
             Assert.Null(ManagedLlamaProcess.TryReadPid(dir));
             Assert.False(File.Exists(ManagedLlamaProcess.ResolvePidPath(dir)));
+        }
+        finally
+        {
+            TryDeleteDir(dir);
+        }
+    }
+
+    [Fact]
+    public void StopManaged_PidOnlyWithoutMarker_StillChecksPid()
+    {
+        // AppBootstrap 終了がマーカー無し＋PID を落とすための退行防止（名前が llama-server でない PID は殺さない）。
+        var dir = CreateTempDir();
+        try
+        {
+            var selfPid = Environment.ProcessId;
+            ManagedLlamaProcess.WritePid(dir, selfPid);
+
+            Assert.False(ManagedLlamaProcess.StopManaged(dir, waitAfterKill: false, requireMarker: false));
+            Assert.Equal(selfPid, ManagedLlamaProcess.TryReadPid(dir));
+        }
+        finally
+        {
+            TryDeleteDir(dir);
+        }
+    }
+
+    [Fact]
+    public void StopManaged_RequireMarkerTrue_PidOnlyWithoutMarker_StillChecksPid()
+    {
+        var dir = CreateTempDir();
+        try
+        {
+            var selfPid = Environment.ProcessId;
+            ManagedLlamaProcess.WritePid(dir, selfPid);
+
+            Assert.False(ManagedLlamaProcess.StopManaged(dir, waitAfterKill: false, requireMarker: true));
+            Assert.Equal(selfPid, ManagedLlamaProcess.TryReadPid(dir));
         }
         finally
         {

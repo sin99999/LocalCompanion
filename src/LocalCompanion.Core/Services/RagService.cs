@@ -446,12 +446,13 @@ public sealed class RagService
         if (GetChunkCount() == 0)
             return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
 
-        if (!await _llama.EmbeddingsSupportedAsync(ct))
-            return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
+        // 埋め込みが死んでも条文 SQL・資料一覧・FTS は通す（ベクトル無しフォールバック）。
+        var allowVector = await _llama.EmbeddingsSupportedAsync(ct);
 
         using var conn = _db.Open();
         await conn.OpenAsync(ct);
-        _db.PrepareVectors(conn);
+        if (allowVector)
+            _db.PrepareVectors(conn);
         _db.PrepareFts(conn);
 
         var enabledSources = GetEnabledSources(conn);
@@ -460,14 +461,12 @@ public sealed class RagService
 
         plan = RagSourceHintResolver.EnrichPlan(plan, enabledSources);
 
-        var sources = string.IsNullOrWhiteSpace(plan.SourceHint)
-            ? enabledSources
-            : FilterSourcesByHint(enabledSources, plan.SourceHint);
+        var sources = RagSourceHintResolver.FilterEnabled(plan, enabledSources);
 
         if (plan.Intent == RagQueryIntent.Advisory && plan.SourceHints is { Count: > 0 })
         {
             var advisoryHits = await MultiSourceHybridSearchAsync(
-                conn, plan.EffectiveQuery, plan.SourceHints, enabledSources, Math.Max(topK, 8), ct);
+                conn, plan.EffectiveQuery, plan.SourceHints, enabledSources, Math.Max(topK, 8), allowVector, ct);
             if (advisoryHits.Count > 0)
                 return new RagSearchResult(CollapseParentHits(advisoryHits).Take(topK + 2).ToList(), plan);
         }
@@ -481,15 +480,35 @@ public sealed class RagService
         if (plan.Intent != RagQueryIntent.General && plan.Intent != RagQueryIntent.Advisory)
         {
             var structured = CollapseParentHits(RagStructuredSearch.Execute(conn, plan, sources, topK));
+            if (structured.Count == 0 && sources.Count < enabledSources.Count)
+                structured = CollapseParentHits(RagStructuredSearch.Execute(conn, plan, enabledSources, topK));
+            structured = RagArticleHitFilter.KeepMatching(plan, structured);
             if (structured.Count > 0)
-                return new RagSearchResult(structured.Take(topK).ToList(), plan);
+            {
+                var kept = RagArticleHitFilter.WantsAllNamedSources(plan)
+                    ? RagArticleSourceDiversifier.KeepAtLeastOnePerSource(structured, topK)
+                    : structured.Take(topK).ToList();
+                return new RagSearchResult(kept, plan);
+            }
+            if (RagArticleHitFilter.SkipHybridWhenStructuredEmpty(plan))
+                return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
         }
 
+        // 一般／助言は言い換え展開してからハイブリッド（計画の Intent 判定は元クエリのまま）
+        var hybridQuery = plan.Intent is RagQueryIntent.General or RagQueryIntent.Advisory
+            ? RagSoftQueryExpander.Expand(plan.EffectiveQuery)
+            : plan.EffectiveQuery;
+
+        var shelves = RagShelfCatalog.Load(conn, enabledSources);
+        var ranked = RagShelfCatalog.Rank(hybridQuery, shelves);
+        var sectionNeedle = RagShelfCatalog.SectionNeedle(hybridQuery, ranked);
         var hybridSources = sources.Count > 0 && sources.Count < enabledSources.Count
             ? sources
             : enabledSources;
-        var hybridHits = await HybridSearchAsync(conn, plan.EffectiveQuery, hybridSources, topK, ct);
-        return new RagSearchResult(CollapseParentHits(hybridHits).Take(topK).ToList(), plan);
+        var scopes = RagNavigateRetry.BuildScopes(hybridSources, enabledSources, ranked, sectionNeedle);
+        var hybridHits = await HybridSearchWithRetryAsync(
+            conn, hybridQuery, scopes, topK, allowVector, ct);
+        return new RagSearchResult(hybridHits.Take(topK).ToList(), plan);
     }
 
     private static IReadOnlyList<RagSourceInfo> ListSources(SqliteConnection conn)
@@ -549,17 +568,34 @@ public sealed class RagService
                 : label)
             : source;
 
+    private async Task<IReadOnlyList<RagSearchHit>> HybridSearchWithRetryAsync(
+        SqliteConnection conn,
+        string query,
+        IReadOnlyList<RagSearchScope> scopes,
+        int topK,
+        bool allowVector,
+        CancellationToken ct)
+    {
+        foreach (var scope in scopes)
+        {
+            var raw = await HybridSearchAsync(conn, query, scope.Sources, topK, allowVector, ct);
+            var collapsed = CollapseParentHits(raw);
+            var kept = RagNavigateRetry.KeepRelevant(collapsed, query, scope.SectionNeedle);
+            if (kept.Count > 0)
+                return kept;
+        }
+
+        return Array.Empty<RagSearchHit>();
+    }
+
     private async Task<IReadOnlyList<RagSearchHit>> HybridSearchAsync(
         SqliteConnection conn,
         string query,
         IReadOnlyList<string> enabledSources,
         int topK,
+        bool allowVector,
         CancellationToken ct)
     {
-        var q = await _llama.EmbedAsync(query, ct);
-        if (q is null || q.Length == 0)
-            return Array.Empty<RagSearchHit>();
-
         var pool = Math.Max(_opt.RagSearchPoolSize, topK);
         var rrfK = Math.Max(_opt.RagRrfK, 1);
         var (wFts, wVec) = RagHybridSearch.ResolveWeights(query, _opt.RagWeightFts, _opt.RagWeightVec);
@@ -572,21 +608,30 @@ public sealed class RagService
                 ftsIds = _db.Fts.Search(conn, matchQuery, pool, enabledSources);
         }
 
+        float[]? q = null;
         IReadOnlyList<long> vectorIds = Array.Empty<long>();
-        if (_db.Vector.IsAvailable)
+        if (allowVector)
         {
-            _db.Vector.EnsureVectorTable(conn, q.Length);
-            vectorIds = _db.Vector.Search(conn, q, pool, enabledSources);
+            q = await _llama.EmbedAsync(query, ct);
+            if (q is { Length: > 0 } && _db.Vector.IsAvailable)
+            {
+                _db.Vector.EnsureVectorTable(conn, q.Length);
+                vectorIds = _db.Vector.Search(conn, q, pool, enabledSources);
+            }
         }
 
         if (ftsIds.Count > 0 || vectorIds.Count > 0)
         {
+            // ベクトル無しのときは FTS 順位だけでも返す（埋め込み死のフォールバック）。
             var fused = RagHybridSearch.FuseRrf(ftsIds, vectorIds, topK, rrfK, wFts, wVec);
             if (fused.Count > 0)
                 return LoadHitsByIds(conn, fused);
         }
 
-        return await LegacySearchAsync(conn, q, topK, enabledSources, ct);
+        if (q is { Length: > 0 })
+            return await LegacySearchAsync(conn, q, topK, enabledSources, ct);
+
+        return Array.Empty<RagSearchHit>();
     }
 
     private async Task<IReadOnlyList<RagSearchHit>> MultiSourceHybridSearchAsync(
@@ -595,6 +640,7 @@ public sealed class RagService
         IReadOnlyList<string> sourceHints,
         IReadOnlyList<string> enabledSources,
         int topK,
+        bool allowVector,
         CancellationToken ct)
     {
         var perSource = Math.Clamp((topK + sourceHints.Count - 1) / sourceHints.Count, 2, 4);
@@ -604,7 +650,7 @@ public sealed class RagService
         foreach (var hint in sourceHints)
         {
             var sources = FilterSourcesByHint(enabledSources, hint);
-            var hits = await HybridSearchAsync(conn, query, sources, perSource, ct);
+            var hits = await HybridSearchAsync(conn, query, sources, perSource, allowVector, ct);
             foreach (var hit in hits)
             {
                 var key = hit.Source + "\0" + (hit.ChunkId.Length > 0 ? hit.ChunkId : hit.Text[..Math.Min(40, hit.Text.Length)]);
@@ -617,7 +663,7 @@ public sealed class RagService
         if (merged.Count >= topK / 2)
             return merged;
 
-        var fallback = await HybridSearchAsync(conn, query, enabledSources, topK, ct);
+        var fallback = await HybridSearchAsync(conn, query, enabledSources, topK, allowVector, ct);
         foreach (var hit in fallback)
         {
             var key = hit.Source + "\0" + hit.ChunkId;
@@ -666,7 +712,7 @@ public sealed class RagService
         {
             var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                SELECT text, source, header_text, page, chunk_id, parent_text, penalty_lead, definition_lead
+                SELECT text, source, header_text, page, chunk_id, parent_text, penalty_lead, definition_lead, section_path
                 FROM rag_chunks WHERE id = $id
                 """;
             cmd.Parameters.AddWithValue("$id", id);
@@ -687,6 +733,7 @@ public sealed class RagService
     {
         var penaltyLead = reader.FieldCount > 6 && !reader.IsDBNull(6) ? reader.GetString(6) : "";
         var definitionLead = reader.FieldCount > 7 && !reader.IsDBNull(7) ? reader.GetString(7) : "";
+        var sectionPath = reader.FieldCount > 8 && !reader.IsDBNull(8) ? reader.GetString(8) : "";
         return new RagSearchHit(
             reader.GetString(0),
             reader.GetString(1),
@@ -696,7 +743,8 @@ public sealed class RagService
             reader.IsDBNull(5) ? "" : reader.GetString(5),
             penaltyLead,
             penaltyLead,
-            definitionLead);
+            definitionLead,
+            sectionPath);
     }
 
     private static IReadOnlyList<string> FilterSourcesByHint(

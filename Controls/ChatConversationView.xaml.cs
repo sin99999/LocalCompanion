@@ -24,7 +24,7 @@ public sealed partial class ChatConversationView : UserControl
             new PropertyMetadata(null, OnMessagesPropertyChanged));
 
     private static readonly TimeSpan RebuildThrottle = TimeSpan.FromMilliseconds(80);
-    /// <summary>ストリーム中は短め。デバウンスではなくスロットル（ChatMessageBody と同型）。</summary>
+    /// <summary>ストリーム中は短め。デバウンスではなくスロットル。</summary>
     private static readonly TimeSpan StreamingRebuildThrottle = TimeSpan.FromMilliseconds(48);
 
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
@@ -72,9 +72,8 @@ public sealed partial class ChatConversationView : UserControl
             return;
         }
 
-        // 生成終了時はリッチ表示へ即フル再描画
+        // 生成終了: フル innerHTML はしない。末尾1通だけ LiveStream=false（リッチ）で差し替え
         view._streamMode = false;
-        view._pushedMessageCount = -1;
         view.ScheduleRebuild(RebuildThrottle, force: true);
     }
 
@@ -353,6 +352,15 @@ public sealed partial class ChatConversationView : UserControl
             return;
         }
 
+        // 言語切替などでヘッダが全行変わるときは末尾パッチでは足りない
+        if (e.PropertyName == nameof(ChatLineViewModel.Header))
+        {
+            _pushedMessageCount = -1;
+            ScheduleRebuild(RebuildThrottle);
+            ScheduleScrollToEnd();
+            return;
+        }
+
         var streaming = sender is ChatLineViewModel line
             && _messages is not null
             && _messages.Count > 0
@@ -425,9 +433,8 @@ public sealed partial class ChatConversationView : UserControl
 
             var lines = BuildDisplayLines();
             var scrollJson = scroll ? "true" : "false";
-            var usePatch = (_streamMode || _isBusy)
-                && lines.Count > 0
-                && lines.Count == _pushedMessageCount;
+            // 件数同じなら末尾パッチ（ストリーム中の plain も、完了後のリッチ化もここ）。件数変化・初回だけ全置換
+            var usePatch = lines.Count > 0 && lines.Count == _pushedMessageCount;
 
             try
             {

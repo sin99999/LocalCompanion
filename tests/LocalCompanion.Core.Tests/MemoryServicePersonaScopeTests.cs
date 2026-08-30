@@ -43,9 +43,15 @@ public sealed class MemoryServicePersonaScopeTests
         var defaultHits = await memory.GetRelevantForPromptAsync("やあ", CharacterPresetService.DefaultAiPresetKey);
         Assert.Empty(defaultHits);
 
-        var alphaHits = await memory.GetRelevantForPromptAsync("やあ", "alpha.json");
-        Assert.NotEmpty(alphaHits);
-        Assert.All(alphaHits, m => Assert.Equal("alpha.json", m.PresetKey));
+        // あいさつだけでは関連検索ヒットなし → 乱択回想もしない
+        var alphaCasual = await memory.GetRelevantForPromptAsync("やあ", "alpha.json");
+        Assert.Empty(alphaCasual);
+
+        var alphaRelated = await memory.GetRelevantForPromptAsync("好きな色は青", "alpha.json");
+        Assert.NotEmpty(alphaRelated);
+        Assert.True(alphaRelated.Count <= 1);
+        Assert.All(alphaRelated, m => Assert.Equal("alpha.json", m.PresetKey));
+        Assert.Contains(alphaRelated, m => m.Content.Contains("青", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using LocalCompanion.Models;
+﻿using LocalCompanion.Models;
 using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
@@ -7,7 +7,9 @@ public sealed class RagLegalQueryContextTests
 {
     [Theory]
     [InlineData("刑法第54条全文", true)]
+    [InlineData("国外犯ってどうなる？", true)]
     [InlineData("労基法の8条", true)]
+    [InlineData("4条って何？", true)]
     [InlineData("READMEの3条", false)]
     [InlineData("vectorの3条項", false)]
     public void LooksLikeLegalArticleQuery_DistinguishesLegalContext(string query, bool expected)

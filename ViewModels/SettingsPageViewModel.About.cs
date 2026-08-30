@@ -92,9 +92,7 @@ public partial class SettingsPageViewModel
     private void OpenLocalizedHelpHtml(string baseName, string fallbackRelativePath, string missingDisplayName)
     {
         SetAboutStatus(null);
-        var lang = _loc.Current == AppLanguage.English ? "en" : "ja";
-        var htmlRelativePath = Path.Combine("docs", "help", $"{baseName}.{lang}.html");
-        var path = FindDistributionFile(htmlRelativePath) ?? FindDistributionFile(fallbackRelativePath);
+        var path = FindLocalizedHelpPath(baseName) ?? FindDistributionFile(fallbackRelativePath);
         if (path is null)
         {
             SetAboutStatus("Settings.About.FileMissing", missingDisplayName);
@@ -102,6 +100,19 @@ public partial class SettingsPageViewModel
         }
 
         OpenWithShell(path);
+    }
+
+    private string? FindLocalizedHelpPath(string baseName)
+    {
+        foreach (var suffix in AppLanguages.HelpFileSuffixes(_loc.Current))
+        {
+            var htmlRelativePath = Path.Combine("docs", "help", $"{baseName}.{suffix}.html");
+            var found = FindDistributionFile(htmlRelativePath);
+            if (found is not null)
+                return found;
+        }
+
+        return null;
     }
 
     [RelayCommand]

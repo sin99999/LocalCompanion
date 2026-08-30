@@ -132,6 +132,15 @@ pre.chat-code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+code {
+  font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+  font-size: 0.93em;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+strong { font-weight: 700; }
 </style>
 </head>
 <body>
@@ -264,16 +273,9 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
 
         if (!string.IsNullOrWhiteSpace(line.BodyText))
         {
-            if (line.LiveStream)
-            {
-                sb.Append("<p class=\"reasoning-body\">")
-                    .Append(Esc(ChatRichTextDisplayNormalizer.Normalize(line.BodyText)))
-                    .Append("</p>");
-            }
-            else
-            {
-                sb.Append(BuildBodyWithLinks(line.BodyText, line.ApplySentenceBreaks));
-            }
+            sb.Append(line.LiveStream
+                ? BuildStreamingBody(line.BodyText, line.ApplySentenceBreaks)
+                : BuildBodyWithLinks(line.BodyText, line.ApplySentenceBreaks));
         }
 
         sb.Append("</article>");
@@ -293,34 +295,100 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
 
         var sb = new StringBuilder();
         foreach (var block in blocks)
+            AppendRichBlock(sb, block);
+
+        return sb.Length > 0 ? sb.ToString() : $"<p>{ChatInlineMarkupHtml.Format(normalized)}</p>";
+    }
+
+    /// <summary>閉じたブロックはリッチ。最後の未閉じ（伸びてるリスト・表・段落）はプレーン。</summary>
+    private static string BuildStreamingBody(string? sourceText, bool sentenceBreaks)
+    {
+        if (string.IsNullOrWhiteSpace(sourceText))
+            return string.Empty;
+
+        var normalized = ChatRichTextDisplayNormalizer.Normalize(sourceText);
+        var blocks = ChatRichContentParser.ParseBlocks(normalized, sentenceBreaks);
+        if (blocks.Count == 0)
         {
-            switch (block.Kind)
+            return "<p class=\"reasoning-body\">"
+                + Esc(normalized)
+                + "</p>";
+        }
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < blocks.Count; i++)
+        {
+            var last = i == blocks.Count - 1;
+            if (!last || IsClosedTail(blocks[i]))
+                AppendRichBlock(sb, blocks[i]);
+            else
             {
-                case ChatDisplayBlockKind.Paragraph:
-                    foreach (var paragraphLine in block.ParagraphLines)
-                    {
-                        if (paragraphLine.Length > 0)
-                            sb.Append("<p>").Append(LinkifyEscaped(paragraphLine)).Append("</p>");
-                    }
-                    break;
-                case ChatDisplayBlockKind.List:
-                    sb.Append(block.ListOrdered ? "<ol>" : "<ul>");
-                    foreach (var item in block.ListItems)
-                        sb.Append("<li>").Append(LinkifyEscaped(item)).Append("</li>");
-                    sb.Append(block.ListOrdered ? "</ol>" : "</ul>");
-                    break;
-                case ChatDisplayBlockKind.Table:
-                    sb.Append(BuildTableHtml(block.TableHeader, block.TableRows));
-                    break;
-                case ChatDisplayBlockKind.Code:
-                    sb.Append("<pre class=\"chat-code\">")
-                        .Append(Esc(block.CodeText))
-                        .Append("</pre>");
-                    break;
+                sb.Append("<p class=\"reasoning-body\">")
+                    .Append(Esc(FormatBlockPlain(blocks[i])))
+                    .Append("</p>");
             }
         }
 
-        return sb.Length > 0 ? sb.ToString() : $"<p>{LinkifyEscaped(normalized)}</p>";
+        return sb.Length > 0
+            ? sb.ToString()
+            : "<p class=\"reasoning-body\">" + Esc(normalized) + "</p>";
+    }
+
+    private static bool IsClosedTail(ChatDisplayBlock block) =>
+        block.Kind == ChatDisplayBlockKind.Code
+        || (block.Kind == ChatDisplayBlockKind.Table && block.TableRows.Count >= 1);
+
+    private static string FormatBlockPlain(ChatDisplayBlock block)
+    {
+        switch (block.Kind)
+        {
+            case ChatDisplayBlockKind.List:
+                var mark = block.ListOrdered ? "1. " : "- ";
+                return string.Join('\n', block.ListItems.Select(item => mark + item));
+            case ChatDisplayBlockKind.Table:
+                var lines = new List<string>();
+                if (block.TableHeader.Count > 0)
+                {
+                    lines.Add("| " + string.Join(" | ", block.TableHeader) + " |");
+                    lines.Add("| " + string.Join(" | ", block.TableHeader.Select(_ => "---")) + " |");
+                }
+
+                foreach (var row in block.TableRows)
+                    lines.Add("| " + string.Join(" | ", row) + " |");
+                return string.Join('\n', lines);
+            case ChatDisplayBlockKind.Code:
+                return block.CodeText;
+            default:
+                return string.Join('\n', block.ParagraphLines);
+        }
+    }
+
+    private static void AppendRichBlock(StringBuilder sb, ChatDisplayBlock block)
+    {
+        switch (block.Kind)
+        {
+            case ChatDisplayBlockKind.Paragraph:
+                foreach (var paragraphLine in block.ParagraphLines)
+                {
+                    if (paragraphLine.Length > 0)
+                        sb.Append("<p>").Append(ChatInlineMarkupHtml.Format(paragraphLine)).Append("</p>");
+                }
+                break;
+            case ChatDisplayBlockKind.List:
+                sb.Append(block.ListOrdered ? "<ol>" : "<ul>");
+                foreach (var item in block.ListItems)
+                    sb.Append("<li>").Append(ChatInlineMarkupHtml.Format(item)).Append("</li>");
+                sb.Append(block.ListOrdered ? "</ol>" : "</ul>");
+                break;
+            case ChatDisplayBlockKind.Table:
+                sb.Append(BuildTableHtml(block.TableHeader, block.TableRows));
+                break;
+            case ChatDisplayBlockKind.Code:
+                sb.Append("<pre class=\"chat-code\">")
+                    .Append(Esc(block.CodeText))
+                    .Append("</pre>");
+                break;
+        }
     }
 
     private static string BuildTableHtml(
@@ -339,7 +407,7 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
         for (var c = 0; c < columnCount; c++)
         {
             var cell = c < header.Count ? cellSanitize(header[c]) : string.Empty;
-            sb.Append("<th>").Append(Esc(cell)).Append("</th>");
+            sb.Append("<th>").Append(ChatInlineMarkupHtml.Format(cell)).Append("</th>");
         }
 
         sb.Append("</tr></thead><tbody>");
@@ -349,7 +417,7 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
             for (var c = 0; c < columnCount; c++)
             {
                 var cell = c < row.Count ? cellSanitize(row[c]) : string.Empty;
-                sb.Append("<td>").Append(Esc(cell)).Append("</td>");
+                sb.Append("<td>").Append(ChatInlineMarkupHtml.Format(cell)).Append("</td>");
             }
 
             sb.Append("</tr>");

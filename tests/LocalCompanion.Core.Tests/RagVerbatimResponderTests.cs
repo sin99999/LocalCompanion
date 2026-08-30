@@ -63,4 +63,41 @@ public sealed class RagVerbatimResponderTests
         Assert.Contains(definition, reply);
         Assert.Contains("【資料記載の定義】", reply);
     }
+
+    [Fact]
+    public void TryFormat_TwoNamedStatutes_IncludesBothBodies()
+    {
+        var plan = RagQueryPlanner.Plan("刑法4条と民法4条", previousUserMessage: null);
+        var hits = new[]
+        {
+            new RagSearchHit("この法律は国外において罪を犯したすべての者に適用する。", "刑法.md", "第4条", 1, "keibo4"),
+            new RagSearchHit("未成年者は、法定代理人の同意を得なければ、法律行為をすることができない。", "民法.md", "第4条", 1, "minpo4"),
+        };
+
+        Assert.False(RagArticleHitFilter.IsAmbiguousSources(plan, hits));
+        Assert.True(RagVerbatimResponder.TryFormat(plan, hits, japanese: true, out var reply));
+        Assert.Contains("国外において", reply, StringComparison.Ordinal);
+        Assert.Contains("法定代理人", reply, StringComparison.Ordinal);
+        Assert.Contains("刑法.md", reply, StringComparison.Ordinal);
+        Assert.Contains("民法.md", reply, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TryFormat_PairedStatutes_DoesNotCrossArticles()
+    {
+        var plan = RagQueryPlanner.Plan("刑法4条と民法104条", previousUserMessage: null);
+        var hits = new[]
+        {
+            new RagSearchHit("刑法4本文", "刑法.md", "第4条", 1, "k4"),
+            new RagSearchHit("民法4本文", "民法.md", "第4条", 1, "m4"),
+            new RagSearchHit("刑法104本文", "刑法.md", "第104条", 1, "k104"),
+            new RagSearchHit("民法104本文", "民法.md", "第104条", 1, "m104"),
+        };
+
+        Assert.True(RagVerbatimResponder.TryFormat(plan, hits, japanese: true, out var reply));
+        Assert.Contains("刑法4本文", reply, StringComparison.Ordinal);
+        Assert.Contains("民法104本文", reply, StringComparison.Ordinal);
+        Assert.DoesNotContain("民法4本文", reply, StringComparison.Ordinal);
+        Assert.DoesNotContain("刑法104本文", reply, StringComparison.Ordinal);
+    }
 }

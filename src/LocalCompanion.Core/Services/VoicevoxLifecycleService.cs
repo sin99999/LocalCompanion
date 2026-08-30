@@ -17,6 +17,8 @@ public sealed class VoicevoxLifecycleService
     private bool _managedProcessStarted;
     private bool _warmedUp;
     private volatile bool _updateInProgress;
+    private int? _managedProcessId;
+    private string? _managedLauncherPath;
 
     public bool IsUpdateInProgress => _updateInProgress;
 
@@ -45,19 +47,9 @@ public sealed class VoicevoxLifecycleService
     }
 
     /// <summary>更新前に VOICEVOX エンジン／本体プロセスを停止する（ファイルロック回避）。</summary>
-    public bool StopEngineProcessesForUpdate() => StopEngineProcesses(engineOnly: false);
+    public bool StopEngineProcessesForUpdate() => StopEngineProcesses(engineOnly: false, managedLauncherPath: null);
 
-    /// <summary>このセッションで自動起動した run.exe のみ停止（アプリ終了時）。</summary>
-    public void StopManagedEngineOnExit()
-    {
-        if (!_startAttempted && !_managedProcessStarted)
-            return;
-
-        StopEngineProcesses(engineOnly: true);
-        ResetStartState();
-    }
-
-    private bool StopEngineProcesses(bool engineOnly)
+    private bool StopEngineProcesses(bool engineOnly, string? managedLauncherPath)
     {
         var roots = _locator.GetInstallRootPaths();
         var stopped = false;
@@ -72,7 +64,7 @@ public sealed class VoicevoxLifecycleService
                 if (!TryGetProcessPath(proc, out var path) || !IsVoicevoxProcessPath(path, roots))
                     continue;
 
-                if (engineOnly && !path.EndsWith("run.exe", StringComparison.OrdinalIgnoreCase))
+                if (engineOnly && !ShouldStopProcessOnAppExit(path, managedLauncherPath))
                     continue;
 
                 proc.Kill(entireProcessTree: true);
@@ -98,15 +90,103 @@ public sealed class VoicevoxLifecycleService
         return stopped;
     }
 
+    /// <summary>終了時に止めてよい VOICEVOX プロセスか。このセッションで起動したものだけ。</summary>
+    internal static bool ShouldStopProcessOnAppExit(string processPath, string? managedLauncherPath)
+    {
+        if (string.IsNullOrWhiteSpace(processPath))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(managedLauncherPath))
+            return false;
+
+        try
+        {
+            var managedFull = Path.GetFullPath(managedLauncherPath);
+            var processFull = Path.GetFullPath(processPath);
+            if (string.Equals(processFull, managedFull, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // run.exe / ENGINE.exe が同じインストールフォルダにあるときだけ兄弟も止める
+            var managedDir = Path.GetDirectoryName(managedFull);
+            var processDir = Path.GetDirectoryName(processFull);
+            if (string.IsNullOrEmpty(managedDir) || string.IsNullOrEmpty(processDir))
+                return false;
+
+            if (!string.Equals(managedDir, processDir, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return processFull.EndsWith("run.exe", StringComparison.OrdinalIgnoreCase)
+                || processFull.EndsWith("ENGINE.exe", StringComparison.OrdinalIgnoreCase)
+                || processFull.EndsWith("VOICEVOX.exe", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>このセッションで自動起動したエンジンを停止（アプリ終了時）。</summary>
+    public void StopManagedEngineOnExit()
+    {
+        string? launcher;
+        lock (_startLock)
+        {
+            if (!_startAttempted && !_managedProcessStarted && _managedProcessId is null)
+                return;
+            launcher = _managedLauncherPath;
+        }
+
+        StopTrackedManagedProcess();
+        StopEngineProcesses(engineOnly: true, launcher);
+        ResetStartState();
+    }
+
+    private void StopTrackedManagedProcess()
+    {
+        int? pid;
+        string? launcher;
+        lock (_startLock)
+        {
+            pid = _managedProcessId;
+            launcher = _managedLauncherPath;
+        }
+
+        if (pid is not int id)
+            return;
+
+        try
+        {
+            using var proc = System.Diagnostics.Process.GetProcessById(id);
+            if (proc.HasExited)
+                return;
+
+            if (!TryGetProcessPath(proc, out var path))
+                return;
+
+            var roots = _locator.GetInstallRootPaths();
+            if (!IsVoicevoxProcessPath(path, roots) && !ShouldStopProcessOnAppExit(path, launcher))
+                return;
+
+            proc.Kill(entireProcessTree: true);
+            _log.LogInformation("VOICEVOX managed process stopped (pid={Pid}): {Path}", id, path);
+        }
+        catch (Exception ex)
+        {
+            _log.LogDebug(ex, "VOICEVOX managed pid stop skipped (pid={Pid})", id);
+        }
+    }
+
     public void EnsureInBackground()
     {
-        if (_updateInProgress || !_opt.AutoStart || !_locator.IsInstalled)
+        if (AppBootstrap.IsExitRequested || _updateInProgress || !_opt.AutoStart || !_locator.IsInstalled)
             return;
 
         _ = Task.Run(async () =>
         {
             try
             {
+                if (AppBootstrap.IsExitRequested)
+                    return;
                 await EnsureRunningAsync(CancellationToken.None);
             }
             catch (Exception ex)
@@ -139,13 +219,16 @@ public sealed class VoicevoxLifecycleService
 
     public async Task<VoicevoxStatusDto> EnsureRunningAsync(CancellationToken ct = default)
     {
+        if (AppBootstrap.IsExitRequested)
+            return new VoicevoxStatusDto(false, _locator.IsInstalled, false, _client.BaseUrl, null, null);
+
         if (!_locator.IsInstalled)
             return new VoicevoxStatusDto(false, false, false, _client.BaseUrl, null, null);
 
         var current = await _client.GetStatusAsync(ct);
         if (current.Available)
         {
-            if (!_updateInProgress)
+            if (!_updateInProgress && !AppBootstrap.IsExitRequested)
             {
                 _settings.ApplyFirstRunDefaultsIfNeeded();
                 WarmUpEngineOnce();
@@ -154,30 +237,39 @@ public sealed class VoicevoxLifecycleService
             return current with { Installed = true, ManagedByApp = false };
         }
 
-        if (_updateInProgress || !_opt.AutoStart)
+        if (AppBootstrap.IsExitRequested || _updateInProgress || !_opt.AutoStart)
             return new VoicevoxStatusDto(false, true, false, _client.BaseUrl, null, null);
 
         lock (_startLock)
         {
-            if (_startAttempted)
+            if (!AppBootstrap.IsExitRequested)
             {
-                /* 同一セッションで二重起動しない */
-            }
-            else
-            {
-                _startAttempted = true;
-                TryStartProcess();
+                if (_startAttempted)
+                {
+                    /* 同一セッションで二重起動しない */
+                }
+                else
+                {
+                    _startAttempted = true;
+                    TryStartProcess();
+                }
             }
         }
 
         var deadline = DateTime.UtcNow.AddSeconds(_opt.StartupWaitSeconds);
         while (DateTime.UtcNow < deadline)
         {
+            if (AppBootstrap.IsExitRequested)
+                return new VoicevoxStatusDto(false, true, true, _client.BaseUrl, null, null);
+
             ct.ThrowIfCancellationRequested();
             await Task.Delay(1000, ct);
             var probe = await _client.GetStatusAsync(ct);
             if (probe.Available)
             {
+                if (AppBootstrap.IsExitRequested)
+                    return new VoicevoxStatusDto(false, true, true, _client.BaseUrl, null, null);
+
                 _settings.ApplyFirstRunDefaultsIfNeeded();
                 WarmUpEngineOnce();
                 _log.LogInformation("VOICEVOX engine ready");
@@ -185,14 +277,20 @@ public sealed class VoicevoxLifecycleService
             }
         }
 
-        lock (_startLock)
-            _startAttempted = false;
+        if (!AppBootstrap.IsExitRequested)
+        {
+            lock (_startLock)
+                _startAttempted = false;
+        }
         _log.LogDebug("VOICEVOX installed but engine not ready yet; will retry next ensure");
         return new VoicevoxStatusDto(false, true, true, _client.BaseUrl, null, null);
     }
 
     private void TryStartProcess()
     {
+        if (AppBootstrap.IsExitRequested)
+            return;
+
         var exe = _locator.FindLauncher();
         if (exe is null)
         {
@@ -220,9 +318,18 @@ public sealed class VoicevoxLifecycleService
 
             var started = System.Diagnostics.Process.Start(psi);
             if (started is not null)
+            {
                 ChildProcessJob.Assign(started);
-            _managedProcessStarted = true;
-            _log.LogInformation("VOICEVOX launch attempted: {Exe}", exe);
+                _managedProcessId = started.Id;
+                _managedLauncherPath = exe;
+                _managedProcessStarted = true;
+                _log.LogInformation("VOICEVOX launch attempted: {Exe}", exe);
+            }
+            else
+            {
+                _startAttempted = false;
+                _log.LogDebug("VOICEVOX Process.Start returned null: {Exe}", exe);
+            }
         }
         catch (Exception ex)
         {
@@ -244,6 +351,8 @@ public sealed class VoicevoxLifecycleService
         {
             _startAttempted = false;
             _managedProcessStarted = false;
+            _managedProcessId = null;
+            _managedLauncherPath = null;
         }
 
         _warmedUp = false;
@@ -282,13 +391,15 @@ public sealed class VoicevoxLifecycleService
 
     private void WarmUpEngineOnce()
     {
-        if (_updateInProgress || _warmedUp)
+        if (AppBootstrap.IsExitRequested || _updateInProgress || _warmedUp)
             return;
         _warmedUp = true;
         _ = Task.Run(async () =>
         {
             try
             {
+                if (AppBootstrap.IsExitRequested)
+                    return;
                 await _client.SynthesizeAsync("。", _settings.Load(), autoSpeak: true, CancellationToken.None);
             }
             catch (Exception ex)

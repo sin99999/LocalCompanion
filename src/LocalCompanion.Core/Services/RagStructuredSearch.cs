@@ -1,3 +1,4 @@
+﻿using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using Microsoft.Data.Sqlite;
 
@@ -19,8 +20,10 @@ internal static class RagStructuredSearch
         {
             RagQueryIntent.Boundary when plan.Boundary is not null =>
                 LoadBoundary(conn, sources, plan.Boundary.Value, topK),
-            RagQueryIntent.Article when plan.ArticleSortKey is > 0 =>
-                LoadByArticleSortKey(conn, sources, plan.ArticleSortKey.Value, topK),
+            RagQueryIntent.Article when plan.ArticleBindings is { Count: > 0 } =>
+                LoadByArticleBindings(conn, sources, plan.ArticleBindings, topK),
+            RagQueryIntent.Article when RagArticleHitFilter.RequestedKeys(plan).Count > 0 =>
+                LoadByArticleSortKeys(conn, sources, RagArticleHitFilter.RequestedKeys(plan), topK),
             RagQueryIntent.Penalty when !string.IsNullOrWhiteSpace(plan.TopicKeyword) =>
                 LoadByPenaltyTopic(conn, sources, plan.TopicKeyword!, topK),
             RagQueryIntent.Definition when !string.IsNullOrWhiteSpace(plan.TopicKeyword) =>
@@ -31,12 +34,69 @@ internal static class RagStructuredSearch
         };
     }
 
+    private static IReadOnlyList<RagSearchHit> LoadByArticleBindings(
+        SqliteConnection conn,
+        IReadOnlyList<string> sources,
+        IReadOnlyList<RagArticleBinding> bindings,
+        int topK)
+    {
+        var merged = new List<RagSearchHit>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var binding in bindings)
+        {
+            var scoped = sources.Where(s => RagSourceHintResolver.MatchesHint(s, binding.Hint)).ToList();
+            if (scoped.Count == 0)
+                scoped = sources.ToList();
+
+            foreach (var hit in LoadByArticleSortKey(conn, scoped, binding.SortKey, topK))
+            {
+                if (!seen.Add(hit.ChunkId))
+                    continue;
+                merged.Add(hit);
+            }
+        }
+
+        return merged;
+    }
+
+    private static IReadOnlyList<RagSearchHit> LoadByArticleSortKeys(
+        SqliteConnection conn,
+        IReadOnlyList<string> sources,
+        IReadOnlyList<long> sortKeys,
+        int topK)
+    {
+        if (sortKeys.Count == 1)
+            return LoadByArticleSortKey(conn, sources, sortKeys[0], topK);
+
+        var merged = new List<RagSearchHit>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var key in sortKeys)
+        {
+            foreach (var hit in LoadByArticleSortKey(conn, sources, key, topK))
+            {
+                if (!seen.Add(hit.ChunkId))
+                    continue;
+                merged.Add(hit);
+            }
+        }
+
+        return merged;
+    }
+
     private static IReadOnlyList<RagSearchHit> LoadByArticleSortKey(
         SqliteConnection conn,
         IReadOnlyList<string> sources,
         long sortKey,
         int topK)
     {
+        if (sources.Count > 1)
+        {
+            var per = RagArticleSourceDiversifier.PerSourceTopK(topK, sources.Count);
+            return RagArticleSourceDiversifier.MergePerSource(
+                sources,
+                src => LoadByArticleSortKey(conn, [src], sortKey, per));
+        }
+
         var hits = QueryByArticleSortKey(conn, sources, sortKey, topK);
         if (hits.Count > 0)
             return hits;
@@ -80,13 +140,12 @@ internal static class RagStructuredSearch
         var cmd = conn.CreateCommand();
         var inClause = RagSqlBuilder.InClause(cmd, sources, "src");
         var matchParts = new List<string>();
+        // 本文中の「第N条」言及は拾わない（見出しヘッダのみ）
         for (var i = 0; i < prefixes.Count; i++)
         {
             var headerParam = $"$hp{i}";
-            var textParam = $"$tp{i}";
-            matchParts.Add($"(header_text LIKE {headerParam} OR text LIKE {textParam})");
+            matchParts.Add($"header_text LIKE {headerParam}");
             cmd.Parameters.AddWithValue(headerParam, prefixes[i] + "%");
-            cmd.Parameters.AddWithValue(textParam, "%" + prefixes[i] + "%");
         }
 
         var limit = Math.Clamp(Math.Max(topK, 4), 1, 16);
@@ -228,8 +287,10 @@ internal static class RagStructuredSearch
         RagArticleBoundaryIntent boundary,
         int topK)
     {
+        // 複数法令を横断して MIN/MAX すると別法の条が混ざるので、構造化条文がある資料を1つに絞る
+        var boundarySources = ResolveSingleBoundarySource(conn, sources);
         var cmd = conn.CreateCommand();
-        var inClause = RagSqlBuilder.InClause(cmd, sources, "src");
+        var inClause = RagSqlBuilder.InClause(cmd, boundarySources, "src");
         var agg = boundary == RagArticleBoundaryIntent.Last ? "MAX" : "MIN";
         cmd.CommandText = $"""
             SELECT text, source, header_text, page, chunk_id, parent_text, penalty_lead, definition_lead
@@ -259,9 +320,7 @@ internal static class RagStructuredSearch
             ? RagArticleQueryParser.FormatArticleLabel(targetKey)
             : hits[0].HeaderText;
         var sourceName = Path.GetFileName(hits[0].Source);
-        var boundaryWord = boundary == RagArticleBoundaryIntent.Last ? "最終" : "最初";
-        var metaText =
-            $"登録資料「{sourceName}」における{boundaryWord}条文番号は {label} です（article_sort_key から判定）。";
+        var metaText = RagBoundaryMetaFormatter.Format(boundary, sourceName, label);
         var metaHit = new RagSearchHit(
             metaText,
             hits[0].Source,
@@ -274,6 +333,30 @@ internal static class RagStructuredSearch
             "");
 
         return [metaHit, .. hits];
+    }
+
+    /// <summary>境界条クエリは資料を1つに限定（複数法令の条番号混線防止）。</summary>
+    private static IReadOnlyList<string> ResolveSingleBoundarySource(
+        SqliteConnection conn,
+        IReadOnlyList<string> sources)
+    {
+        if (sources.Count <= 1)
+            return sources;
+
+        foreach (var source in sources)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT 1 FROM rag_chunks
+                WHERE source = $s AND article_sort_key > 0
+                LIMIT 1
+                """;
+            cmd.Parameters.AddWithValue("$s", source);
+            if (cmd.ExecuteScalar() is not null)
+                return [source];
+        }
+
+        return [sources[0]];
     }
 
     private static IReadOnlyList<RagSearchHit> ReadHits(SqliteCommand cmd)

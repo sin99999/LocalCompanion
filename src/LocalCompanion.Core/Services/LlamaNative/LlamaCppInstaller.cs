@@ -545,12 +545,20 @@ internal static class LlamaCppInstaller
     private static JsonElement GetLatestRelease()
     {
         Exception? last = null;
-        var url = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest";
+        // /releases/latest は Windows ZIP 無しのタグ（例: v0.3.0）になることがある。
+        // バイナリ付きリリースを一覧から選ぶ。
+        var url = "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=30";
         for (var attempt = 1; attempt <= 3; attempt++)
         {
             try
             {
-                return Http.GetFromJsonAsync<JsonElement>(url).GetAwaiter().GetResult();
+                var releases = Http.GetFromJsonAsync<JsonElement>(url).GetAwaiter().GetResult();
+                var picked = PickReleaseWithWindowsBinaries(releases);
+                if (picked is not null)
+                    return picked.Value;
+
+                throw new InvalidOperationException(
+                    "llama.cpp の Windows 用 ZIP 付きリリースが見つかりませんでした。");
             }
             catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
             {
@@ -569,6 +577,31 @@ internal static class LlamaCppInstaller
         throw new InvalidOperationException(
             "llama.cpp の最新情報を取得できませんでした。ネットワーク制限またはダウンロード元の一時的な制限の可能性があります。しばらく待ってから再実行してください。",
             last);
+    }
+
+    /// <summary>Windows 向け llama バイナリ ZIP を含む、一覧上いちばん新しいリリース。</summary>
+    internal static JsonElement? PickReleaseWithWindowsBinaries(JsonElement releases)
+    {
+        if (releases.ValueKind != JsonValueKind.Array)
+            return null;
+
+        foreach (var release in releases.EnumerateArray())
+        {
+            if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                continue;
+
+            foreach (var asset in assets.EnumerateArray())
+            {
+                var name = asset.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "" : "";
+                if (name.Contains("bin-win-", StringComparison.OrdinalIgnoreCase)
+                    && name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    return release;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static bool GpuDevicesAvailable(string workDir)

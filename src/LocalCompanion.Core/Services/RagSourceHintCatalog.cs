@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace LocalCompanion.Services;
 
@@ -46,5 +46,25 @@ internal static class RagSourceHintCatalog
     {
         var hints = ExtractAllHints(query);
         return hints.Count > 0 ? hints[0] : null;
+    }
+
+    public static IReadOnlyList<(int Index, string Hint)> FindLegalHintSpans(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return Array.Empty<(int, string)>();
+
+        var found = new List<(int Index, string Hint)>();
+        foreach (var (pattern, hint) in Hints)
+        {
+            if (!LegalHints.Contains(hint))
+                continue;
+            foreach (Match match in pattern.Matches(query))
+                found.Add((match.Index, hint));
+        }
+
+        return found
+            .OrderBy(x => x.Index)
+            .ThenByDescending(x => x.Hint.Length)
+            .ToList();
     }
 }

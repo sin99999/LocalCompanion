@@ -26,4 +26,21 @@ public sealed class SingleInstanceGateTests
         Assert.Contains("すでに起動", SingleInstanceGate.GetAlreadyRunningMessage(AppLanguage.Japanese));
         Assert.Contains("already running", SingleInstanceGate.GetAlreadyRunningMessage(AppLanguage.English), StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void TryAcquireExclusiveFileLock_SecondAcquireOnSameFile_Fails()
+    {
+        var dir = Directory.CreateDirectory(
+            Path.Combine(Path.GetTempPath(), "lc-test-" + Guid.NewGuid().ToString("N"))).FullName;
+        var lockPath = Path.Combine(dir, "single.lock");
+        try
+        {
+            Assert.True(SingleInstanceGate.TryAcquireExclusiveFileLock(lockPath));
+            Assert.False(SingleInstanceGate.TryAcquireExclusiveFileLock(lockPath));
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { /* ignore */ }
+        }
+    }
 }

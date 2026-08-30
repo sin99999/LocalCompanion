@@ -25,6 +25,13 @@ public sealed class RagConversationGateTests
     }
 
     [Fact]
+    public void LooksLikeCrimeRisk_AbductionAndNonConsensualSex()
+    {
+        Assert.True(RagConversationGate.LooksLikeCrimeRisk("未成年略取とか無かった？"));
+        Assert.True(RagConversationGate.LooksLikeCrimeRisk("不同意性交とかは？"));
+    }
+
+    [Fact]
     public void Resolve_SoftTopic_UsesSoftTopic()
     {
         var message = "残業の法律ってどうなってる？";

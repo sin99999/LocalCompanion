@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
@@ -35,6 +35,58 @@ internal static class RagSourceHintResolver
             hints.Insert(0, primary);
 
         return plan with { SourceHint = primary, SourceHints = hints };
+    }
+
+    public static IReadOnlyList<string> FilterEnabled(RagQueryPlan plan, IReadOnlyList<string> enabledSources)
+    {
+        if (enabledSources.Count == 0)
+            return enabledSources;
+
+        if (plan.Intent == RagQueryIntent.Article && plan.SourceHints is { Count: > 1 })
+        {
+            var union = UnionByHints(enabledSources, plan.SourceHints);
+            if (union.Count > 0)
+                return union;
+        }
+
+        if (string.IsNullOrWhiteSpace(plan.SourceHint))
+            return enabledSources;
+
+        var one = UnionByHints(enabledSources, [plan.SourceHint]);
+        return one.Count > 0 ? one : enabledSources;
+    }
+
+    private static List<string> UnionByHints(IReadOnlyList<string> enabledSources, IReadOnlyList<string> hints)
+    {
+        var union = new List<string>();
+        foreach (var hint in hints)
+        {
+            if (string.IsNullOrWhiteSpace(hint))
+                continue;
+            foreach (var source in enabledSources)
+            {
+                if (!MatchesHint(source, hint))
+                    continue;
+                if (union.Exists(s => string.Equals(s, source, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                union.Add(source);
+            }
+        }
+
+        return union;
+    }
+
+    internal static bool MatchesHint(string source, string sourceHint)
+    {
+        if (string.IsNullOrWhiteSpace(sourceHint))
+            return true;
+        if (source.Contains(sourceHint, StringComparison.OrdinalIgnoreCase))
+            return true;
+        var fileName = Path.GetFileName(source);
+        if (fileName.Contains(sourceHint, StringComparison.OrdinalIgnoreCase))
+            return true;
+        var label = RagSourceLabel.Format(source);
+        return label.Contains(sourceHint, StringComparison.OrdinalIgnoreCase);
     }
 
     public static string? ResolvePrimary(string query, IReadOnlyList<string> enabledSources)

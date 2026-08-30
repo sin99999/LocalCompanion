@@ -8,6 +8,10 @@ internal static class RagFormalLegalCue
         if (string.IsNullOrWhiteSpace(query))
             return false;
 
+        if (RagArticleQueryParser.TryGetArticleNumber(query, out _)
+            && RagLegalQueryContext.LooksLikeLegalArticleQuery(query, sourceHint: null))
+            return true;
+
         return query.Contains("全文", StringComparison.Ordinal)
             || query.Contains("原文", StringComparison.Ordinal)
             || query.Contains("そのまま", StringComparison.Ordinal)

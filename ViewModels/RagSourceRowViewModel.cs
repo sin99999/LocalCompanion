@@ -17,8 +17,8 @@ public sealed partial class RagSourceRowViewModel : ObservableObject
         Source = source;
         Chunks = chunks;
         Exists = exists;
+        IsEnabled = isEnabled;
         _onEnabledChanged = onEnabledChanged;
-        _isEnabled = isEnabled;
         RefreshLocalization();
     }
 
@@ -35,10 +35,10 @@ public sealed partial class RagSourceRowViewModel : ObservableObject
     public string EnabledLabel => LocalizationService.Instance.Get("Settings.Rag.Source.UseInSearch");
 
     [ObservableProperty]
-    private bool _isEnabled;
+    public partial bool IsEnabled { get; set; }
 
     [ObservableProperty]
-    private string _detailText = "";
+    public partial string DetailText { get; set; } = "";
 
     partial void OnIsEnabledChanged(bool value) => _onEnabledChanged?.Invoke(Source, value);
 

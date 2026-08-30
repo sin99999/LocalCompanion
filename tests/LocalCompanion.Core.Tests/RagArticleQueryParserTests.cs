@@ -1,4 +1,4 @@
-using LocalCompanion.Services;
+﻿using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -10,6 +10,7 @@ public sealed class RagArticleQueryParserTests
     [InlineData("第８条（適用事業の範囲）", 8)]
     [InlineData("労働基準法 15条", 15)]
     [InlineData("刑法第199条", 199)]
+    [InlineData("労働基準法第999条の全文を出して", 999)]
     public void TryGetArticleNumber_ParsesJapaneseLegalQueries(string query, int expected)
     {
         Assert.True(RagArticleQueryParser.TryGetArticleNumber(query, out var n));
@@ -23,6 +24,13 @@ public sealed class RagArticleQueryParserTests
     public void TryGetArticleNumber_ReturnsFalseForGeneralQueries(string query)
     {
         Assert.False(RagArticleQueryParser.TryGetArticleNumber(query, out _));
+    }
+
+    [Fact]
+    public void GetArticleNumbers_CollectsComparisonQuery()
+    {
+        var numbers = RagArticleQueryParser.GetArticleNumbers("刑法4条と104条の違い");
+        Assert.Equal([4, 104], numbers);
     }
 
     [Fact]

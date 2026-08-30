@@ -507,7 +507,7 @@ public sealed class ChatService
                 conflictRuntime.StatusMessage);
         }
 
-        req = await EnrichRequestWithWebContextAsync(req, ct);
+        req = await EnrichRequestWithWebContextAsync(req, historyMode, ct);
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -515,9 +515,12 @@ public sealed class ChatService
         var hasImage = req.ImagesBase64 is { Length: > 0 };
         var hasFile = !string.IsNullOrWhiteSpace(req.AttachedText);
         var heavyRequest = IsHeavyRequest(hasImage, hasFile, req.AttachedText, _opt.RagLightAttachMaxChars);
-        var allowRagWithAttach = req.UseRag && effectiveMessage.Length >= 4 && !hasImage
-            && (!hasFile || (req.AttachedText?.Length ?? 0) <= _opt.RagLightAttachMaxChars)
-            && _rag.GetChunkCount() > 0;
+        var allowRagWithAttach = ChatRagAttachPolicy.Allow(
+            req.UseRag,
+            effectiveMessage,
+            req.AttachedText,
+            _rag.GetChunkCount(),
+            _opt.RagLightAttachMaxChars);
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
@@ -532,7 +535,7 @@ public sealed class ChatService
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
             var (ragResult, ragMode) = await TrySearchRagForChatAsync(effectiveMessage, previousUser, ct);
             if (ragMode != RagConversationMode.Skip
-                && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out var verbatimReply, out ragSources))
+                && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, ragMode, out var verbatimReply, out ragSources))
             {
                 var finalVerbatim = await FinalizeReplyWithExportAsync(
                     verbatimReply, exportRequest, ragSources, japaneseReply, historyMode.SessionId, ct);
@@ -562,8 +565,12 @@ public sealed class ChatService
             }
 
             if (ragResult is not null && ragMode != RagConversationMode.Skip)
+            {
                 ragSources = TryAppendRagHits(
                     systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply, ragMode);
+                if (ragSources is null)
+                    systemParts.Add(ChatSystemPromptTexts.RagEmptyHitsInstruction(japaneseReply, ragResult.SearchFailed));
+            }
         }
         else if (!req.UseRag)
         {
@@ -682,7 +689,7 @@ public sealed class ChatService
             yield break;
         }
 
-        req = await EnrichRequestWithWebContextAsync(req, ct);
+        req = await EnrichRequestWithWebContextAsync(req, historyMode, ct);
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -690,9 +697,12 @@ public sealed class ChatService
         var hasImage = req.ImagesBase64 is { Length: > 0 };
         var hasFile = !string.IsNullOrWhiteSpace(req.AttachedText);
         var heavyRequest = IsHeavyRequest(hasImage, hasFile, req.AttachedText, _opt.RagLightAttachMaxChars);
-        var allowRagWithAttach = req.UseRag && effectiveMessage.Length >= 4 && !hasImage
-            && (!hasFile || (req.AttachedText?.Length ?? 0) <= _opt.RagLightAttachMaxChars)
-            && _rag.GetChunkCount() > 0;
+        var allowRagWithAttach = ChatRagAttachPolicy.Allow(
+            req.UseRag,
+            effectiveMessage,
+            req.AttachedText,
+            _rag.GetChunkCount(),
+            _opt.RagLightAttachMaxChars);
         var runtime = await _models.GetRuntimeStatusAsync(_llama, ct);
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
@@ -708,7 +718,7 @@ public sealed class ChatService
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
             var (ragResult, ragMode) = await TrySearchRagForChatAsync(effectiveMessage, previousUser, ct);
             if (ragMode != RagConversationMode.Skip
-                && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, out verbatimReply, out ragSources))
+                && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, ragMode, out verbatimReply, out ragSources))
             {
                 // handled below
             }
@@ -716,6 +726,8 @@ public sealed class ChatService
             {
                 ragSources = TryAppendRagHits(
                     systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply, ragMode);
+                if (ragSources is null)
+                    systemParts.Add(ChatSystemPromptTexts.RagEmptyHitsInstruction(japaneseReply, ragResult.SearchFailed));
             }
         }
         else if (!req.UseRag)
@@ -1122,7 +1134,10 @@ public sealed class ChatService
         return string.Join("\n\n", parts);
     }
 
-    private async Task<ChatRequestDto> EnrichRequestWithWebContextAsync(ChatRequestDto req, CancellationToken ct)
+    private async Task<ChatRequestDto> EnrichRequestWithWebContextAsync(
+        ChatRequestDto req,
+        HistoryMode historyMode,
+        CancellationToken ct)
     {
         // 1) メッセージ内 URL を自動取得
         req = await ChatInlineWebContextBuilder.EnrichAsync(
@@ -1132,7 +1147,8 @@ public sealed class ChatService
             Math.Max(1000, _opt.MaxAttachTextChars),
             ct);
 
-        // 2) URL が無く調査意図があるときだけ Web 検索
+        // 2) URL が無く調査意図があるときだけ Web 検索（追質問は前ターン込みで RAG と揃える）
+        var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
         req = await ChatAgentResearchEnricher.EnrichAsync(
             req,
             _opt.WebSearchEnabled,
@@ -1141,6 +1157,7 @@ public sealed class ChatService
             Math.Clamp(_opt.WebSearchFetchTopK, 0, 4),
             Math.Max(1000, _opt.InlineUrlMaxChars),
             Math.Max(1000, _opt.MaxAttachTextChars),
+            previousUser,
             ct);
 
         return req;
@@ -1394,11 +1411,8 @@ public sealed class ChatService
             return null;
 
         var ragSources = hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
-        var useSoftChatMode = conversationMode is RagConversationMode.SoftTopic or RagConversationMode.RiskCaution;
-        var usePersonaMode = useSoftChatMode || (isCharacter && (
-            plan.ResponseMode == RagResponseMode.PersonaSynthesis
-            || plan.Intent == RagQueryIntent.Advisory
-            || !RagFormalLegalCue.IsFormalLegalQuery(userMessage)));
+        var usePersonaMode = RagArticleAnswerPolicy.UsePersonaRagInstruction(
+            isCharacter, plan, userMessage, conversationMode);
 
         if (usePersonaMode)
         {
@@ -1420,6 +1434,9 @@ public sealed class ChatService
             if (hits.Any(static h => RagPenaltyTextHelper.ExtractLeadingPenaltySentence(h.PromptText) is not null))
                 systemParts.Add(ChatSystemPromptTexts.RagPenaltyScopeInstruction(japanese));
         }
+
+        if (plan.Intent == RagQueryIntent.Article)
+            systemParts.Add(ChatSystemPromptTexts.RagArticleScopeInstruction(japanese));
 
         var ragHeader = ChatSystemPromptTexts.RagHitsHeader(japanese);
         systemParts.Add(ragHeader + "\n" + FormatRagHitsForPrompt(hits, plan));
@@ -1465,16 +1482,7 @@ public sealed class ChatService
         if (string.IsNullOrWhiteSpace(sessionId))
             return null;
 
-        foreach (var (role, content) in LoadRecentSessionRows(sessionId, 24))
-        {
-            if (string.Equals(role, "user", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(content))
-            {
-                return content;
-            }
-        }
-
-        return null;
+        return RagHistoryTopicPicker.PickPreviousUserTopic(LoadRecentSessionRows(sessionId, 24));
     }
 
     private static bool TryResolveVerbatimReply(
@@ -1482,6 +1490,7 @@ public sealed class ChatService
         bool isCharacter,
         string userMessage,
         bool japanese,
+        RagConversationMode conversationMode,
         out string reply,
         out string[]? sources)
     {
@@ -1490,11 +1499,26 @@ public sealed class ChatService
         if (ragResult is null)
             return false;
 
-        var allowCharacterVerbatim = !isCharacter
-            || ragResult.Plan.Intent == RagQueryIntent.SourceCatalog
-            || RagFormalLegalCue.IsFormalLegalQuery(userMessage);
-        if (!allowCharacterVerbatim)
+        // 危険話題はキャラでも LLM 合成より先に機械引用（推論 OFF でも罰則を落とさない）
+        if (RagRiskCautionResponder.TryFormat(
+                conversationMode, ragResult.Hits, userMessage, japanese, out reply))
+        {
+            sources = ragResult.Hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
+            return true;
+        }
+
+        if (!RagArticleAnswerPolicy.AllowCharacterVerbatim(isCharacter, ragResult.Plan, userMessage))
             return false;
+
+        if (RagArticleHitFilter.IsAmbiguousSources(ragResult.Plan, ragResult.Hits))
+        {
+            var names = RagArticleHitFilter.DistinctMatchingSources(ragResult.Plan, ragResult.Hits);
+            var lang = LocalizationService.Instance?.Current
+                ?? (japanese ? AppLanguage.Japanese : AppLanguage.English);
+            reply = RagArticleAmbiguousFormatter.Format(ragResult.Plan, names, lang);
+            sources = names.ToArray();
+            return true;
+        }
 
         if (ragResult.Plan.ResponseMode == RagResponseMode.Verbatim
             && RagVerbatimResponder.TryFormat(ragResult.Plan, ragResult.Hits, japanese, out reply))
@@ -1503,7 +1527,8 @@ public sealed class ChatService
             return true;
         }
 
-        if (RagVerbatimGuard.ShouldBlockLlm(ragResult.Plan))
+        if (RagArticleHitFilter.IsMiss(ragResult.Plan, ragResult.Hits)
+            || RagVerbatimGuard.ShouldBlockLlm(ragResult.Plan))
         {
             reply = RagVerbatimGuard.BuildMissReply(ragResult.Plan, japanese);
             sources = Array.Empty<string>();
@@ -1523,9 +1548,12 @@ public sealed class ChatService
         if (mode == RagConversationMode.Skip)
             return (null, mode);
 
-        var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, ct);
+        var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, plan, ct);
         if (result is null)
-            return (null, mode);
+        {
+            // 呼び出し側キャンセルなど。条文は創作ブロック、一般も沈黙させず未完了扱い。
+            return (new RagSearchResult(Array.Empty<RagSearchHit>(), plan, SearchFailed: true), mode);
+        }
 
         return (RagConversationGate.ApplyHitPolicy(result, currentMessage, mode), mode);
     }
@@ -1533,6 +1561,7 @@ public sealed class ChatService
     private async Task<RagSearchResult?> TrySearchRagWithPlanAsync(
         string currentMessage,
         string? previousUserMessage,
+        RagQueryPlan plan,
         CancellationToken ct)
     {
         try
@@ -1544,12 +1573,12 @@ public sealed class ChatService
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             StartupLog.Write("RAG search timed out.");
-            return null;
+            return new RagSearchResult(Array.Empty<RagSearchHit>(), plan, SearchFailed: true);
         }
         catch (Exception ex)
         {
             StartupLog.Write(ex, "RAG search failed");
-            return null;
+            return new RagSearchResult(Array.Empty<RagSearchHit>(), plan, SearchFailed: true);
         }
     }
 

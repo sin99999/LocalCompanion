@@ -4,6 +4,8 @@ description: >-
   LocalCompanion distribution, ZIP packaging, GitHub Releases, and public
   visibility. Use when packaging distribution ZIP, publishing to GitHub, writing release
   notes, push vs squash, Private/Public repo, or note article about releases.
+  Also when Agent finished LC code/UI changes and should refresh dist ZIP without asking
+  (本人: Debug より dist 解凍の方が楽).
 ---
 
 # LocalCompanion — 配布・GitHub・Release
@@ -14,6 +16,25 @@ description: >-
 - GitHub Release 作成、Release 説明文の執筆
 - `git push` 前（開発用 commit をそのまま載せない判断）
 - note / README の配布向け文案
+- **Agent で LC に遊び方・挙動が変わる変更を入れたあと**（下の「dist ZIP を作り直す」）
+
+## dist ZIP を作り直す（📅 2026-08-29・メンテナ）
+
+メンテナ方針: LC に触って分かる変更のあと、聞かれなくても `package-zip.ps1` を焼く。リポ開き直しや Debug より、dist 解凍の方が確認しやすい。
+
+| やる | やらない |
+|------|----------|
+| チャット／設定／RAG／起動など **触って分かる変更** のあと、聞かれなくても `package-zip.ps1` | コメント・テストだけ・CHANGELOG 字句だけのたびに焼く |
+| 別リポの Cursor 机からでも、このリポ root で焼く | 「cd 付きコマンドだけ出して終わり」（焼けるなら焼く） |
+| 焼き終わったら ZIP のフルパスを一言 | GitHub Release まで勝手に上げる（頼まれたときだけ） |
+
+```powershell
+# リポ root（LocalCompanionWinUI）で
+.\scripts\package-zip.ps1
+```
+
+出力: `dist\LocalCompanion-{Version}.zip`  
+（`package-zip.ps1` が中で publish する。Version は csproj。上書きでよい）
 
 ## コマンド（リポ root・PowerShell）
 

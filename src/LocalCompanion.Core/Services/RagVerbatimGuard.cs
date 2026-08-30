@@ -1,4 +1,4 @@
-using LocalCompanion.Models;
+﻿using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
 
@@ -27,12 +27,12 @@ internal static class RagVerbatimGuard
         {
             var label = RagArticleQueryParser.FormatArticleLabel(plan.ArticleSortKey.Value);
             return japanese
-                ? $"登録資料から{label}を特定できませんでした。Settings → RAG で該当資料を再取込するか、条番号付き Markdown（#### 第N条）で取り込んでください。"
-                : $"Could not locate {label} in registered materials. Re-import the source from Settings → RAG, preferably as Markdown with #### Article N headings.";
+                ? $"登録資料を探しましたが、{label}は見つかりませんでした。"
+                : $"Searched the registered materials, but {label} was not found.";
         }
 
         return japanese
-            ? "登録資料から該当箇所を特定できませんでした。資料の再取込または質問の言い換えをお試しください。"
-            : "Could not locate a matching passage in registered materials. Try re-importing sources or rephrasing the question.";
+            ? "登録資料を探しましたが、該当箇所は見つかりませんでした。"
+            : "Searched the registered materials, but no matching passage was found.";
     }
 }

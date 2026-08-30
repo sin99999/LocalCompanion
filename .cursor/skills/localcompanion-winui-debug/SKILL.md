@@ -38,7 +38,7 @@ description: >-
 ## 編集前チェック
 
 - [ ] `SettingsPage.xaml` / `ChatPage.xaml` / `MainWindow.xaml` を **開いてから** 1行 patch
-- [ ] 製品 UI 文言は `LocalizationResources.cs`（日英ペア）
+- [ ] 製品 UI 文言は `LocalizationResources*.cs`（7 言語。足りないキーは日本語）
 - [ ] 変更後: `dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64`
 
 ## 確認

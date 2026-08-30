@@ -11,6 +11,7 @@ internal static class ChatExportPathResolver
     [
         Environment.GetFolderPath(Environment.SpecialFolder.Windows),
         Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
         Environment.GetFolderPath(Environment.SpecialFolder.System),
     ];
 
@@ -27,7 +28,10 @@ internal static class ChatExportPathResolver
             ChatExportTargetKind.UserData => ResolveKnownDirectory(
                 AppPaths.ResolveUserDataDirectory(configuredDataDirectory),
                 usedFallback: false),
-            ChatExportTargetKind.AppRoot => ResolveKnownDirectory(AppPaths.Current.Root, usedFallback: false),
+            // exe 横への書き込みは拒否し、ユーザーデータの exports へ逃がす
+            ChatExportTargetKind.AppRoot => ResolveKnownDirectory(
+                Path.Combine(AppPaths.ResolveUserDataDirectory(configuredDataDirectory), "exports"),
+                usedFallback: true),
             ChatExportTargetKind.RemovableStorage => ResolveRemovableStorage(),
             _ => ChatExportPathResolution.Fail(
                 LocalizationService.Instance.Get("Chat.Export.Error.Destination")),
@@ -100,8 +104,8 @@ internal static class ChatExportPathResolver
             return ChatExportPathResolution.Fail(loc.Get("Chat.Export.Error.PathInvalid"));
         }
 
-        if (IsBlockedPath(fullPath))
-            return ChatExportPathResolution.Fail(loc.Format("Chat.Export.Error.PathDenied", fullPath));
+        if (IsDriveRoot(fullPath) || IsBlockedPath(fullPath))
+            return ChatExportPathResolution.Fail(FormatPathDenied(fullPath));
 
         if (File.Exists(fullPath))
             fullPath = Path.GetDirectoryName(fullPath) ?? fullPath;
@@ -119,9 +123,17 @@ internal static class ChatExportPathResolver
         }
 
         if (!CanWriteToDirectory(fullPath))
-            return ChatExportPathResolution.Fail(loc.Format("Chat.Export.Error.PathDenied", fullPath));
+            return ChatExportPathResolution.Fail(FormatPathDenied(fullPath));
 
         return ChatExportPathResolution.Ok(fullPath, usedFallback: false);
+    }
+
+    private static string FormatPathDenied(string fullPath)
+    {
+        var loc = LocalizationService.Instance;
+        return loc is null
+            ? $"Path denied: {fullPath}"
+            : loc.Format("Chat.Export.Error.PathDenied", fullPath);
     }
 
     private static ChatExportPathResolution ResolveSpecialFolder(
@@ -232,6 +244,24 @@ internal static class ChatExportPathResolver
         }
 
         return false;
+    }
+
+    /// <summary>ドライブ根（例: C:\）への書き出しは拒否する。</summary>
+    internal static bool IsDriveRoot(string fullPath)
+    {
+        try
+        {
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrWhiteSpace(root))
+                return false;
+            var normalized = Path.GetFullPath(fullPath).TrimEnd('\\');
+            var rootNorm = Path.GetFullPath(root).TrimEnd('\\');
+            return normalized.Equals(rootNorm, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     internal sealed record RemovableDriveCandidate(string RootDirectory, string Label);

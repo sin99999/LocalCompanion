@@ -8,6 +8,24 @@ public static class CompanionStartup
     private static readonly object StartupProgressOwner = new();
     private static int _processExitHooked;
 
+    public static void EnsureProcessExitHook()
+    {
+        if (Interlocked.Exchange(ref _processExitHooked, 1) == 0)
+        {
+            AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+            {
+                try
+                {
+                    Shutdown();
+                }
+                catch
+                {
+                    /* 終了処理中の例外は無視 */
+                }
+            };
+        }
+    }
+
     public static async Task RunAsync(Action<StartupProgressReport> reportProgress, CancellationToken ct = default)
     {
         StartupProgressScope? progressScope = null;
@@ -16,20 +34,7 @@ public static class CompanionStartup
             progressScope = StartupProgressScope.Acquire(StartupProgressOwner, reportProgress);
             var paths = AppPaths.Current;
             AppBootstrap.RegisterShutdown(paths);
-            if (Interlocked.Exchange(ref _processExitHooked, 1) == 0)
-            {
-                AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-                {
-                    try
-                    {
-                        Shutdown();
-                    }
-                    catch
-                    {
-                        /* 終了処理中の例外は無視 */
-                    }
-                };
-            }
+            EnsureProcessExitHook();
 
             var loc = LocalizationService.Instance;
             StartupProgress.ReportKey("Startup.Preparing", 0);

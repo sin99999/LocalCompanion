@@ -187,9 +187,43 @@ public sealed class ChatAgentResearchEnricherTests
     [InlineData("量子コンピュータについて調べて", true)]
     [InlineData("search the web for quantum", true)]
     [InlineData("こんにちは", false)]
+    [InlineData("ネットワークが切れた", false)]
+    [InlineData("インターネット回線が遅い", false)]
+    [InlineData("RAGの資料から検索して、どんな刑に相当するか提示する仕組みのテスト", false)]
+    [InlineData("登録資料を検索して第11条を出して", false)]
+    [InlineData("刑法235条について調べて", false)]
+    [InlineData("国外犯を調べて", false)]
+    [InlineData("労基法第37条を検索して", false)]
+    [InlineData("FTLとは調べて", false)]
+    [InlineData("就業規則を調べて", false)]
+    [InlineData("ウェブでFTLとは調べて", true)]
+    [InlineData("ウェブで最新の為替を調べて", true)]
+    [InlineData("ネットで天気を検索して", true)]
+    [InlineData("ネットからフェルンを探してプロンプトを教えて", true)]
+    [InlineData("ネットやらからフェルンを探してプロンプトを教えてくれない？", true)]
+    [InlineData("Stable Diffusionで葬送のフリーレンのフェルンを表現したい。ネットやらからフェルンを探してプロンプトを教えてくれない？", true)]
+    [InlineData("インターネットから今日の天気を教えて", true)]
+    [InlineData("最新情報の刑法4条を調べて", false)]
+    [InlineData("それを調べて", false)]
     public void LooksLikeResearchIntent_DetectsCues(string message, bool expected)
     {
         Assert.Equal(expected, ChatAgentResearchEnricher.LooksLikeResearchIntent(message));
+    }
+
+    [Theory]
+    [InlineData("それを調べて", "刑法235条は？", false)]
+    [InlineData("もっと詳しく調べて", "刑法235条の罰則は？", false)]
+    [InlineData("最新情報を調べて", "刑法235条は？", false)]
+    [InlineData("それを調べて", "今日の東京の天気は？", true)]
+    [InlineData("最新情報を調べて", "今日の東京の天気は？", true)]
+    public void LooksLikeResearchIntent_UsesPreviousTurnForLocalVsWeb(
+        string message,
+        string previous,
+        bool expectedWeb)
+    {
+        Assert.Equal(
+            expectedWeb,
+            ChatAgentResearchEnricher.LooksLikeResearchIntent(message, previous));
     }
 
     [Fact]
@@ -199,6 +233,23 @@ public sealed class ChatAgentResearchEnricherTests
         Assert.DoesNotContain("調べて", q);
         Assert.DoesNotContain("デスクトップ", q);
         Assert.Contains("刑法", q);
+    }
+
+    [Fact]
+    public void BuildSearchQuery_StripsColloquialNetCue()
+    {
+        var q = ChatAgentResearchEnricher.BuildSearchQuery(
+            "ネットやらからフェルンを探してプロンプトを教えてくれない？");
+        Assert.DoesNotContain("ネットやら", q, StringComparison.Ordinal);
+        Assert.Contains("フェルン", q, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildSearchQuery_FollowUpPronoun_IncludesPriorTopic()
+    {
+        var q = ChatAgentResearchEnricher.BuildSearchQuery("それを調べて", "今日の東京の天気は？");
+        Assert.Contains("天気", q);
+        Assert.DoesNotContain("調べて", q);
     }
 
     [Fact]

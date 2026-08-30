@@ -28,19 +28,21 @@ internal static class RagConversationGate
     private static readonly string[] CrimeRiskCues =
     [
         "盗む", "盗み", "窃盗", "強盗", "万引き", "空き巣", "横領", "詐欺", "恐喝",
-        "殴る", "殴り", "暴行", "傷害", "殺す", "殺し", "殺害", "監禁", "誘拐",
-        "放火", "脅迫", "ストーカー", "盗撮", "わいせつ", "賄賂", "贈賄", "収賄",
+        "殴る", "殴り", "暴行", "傷害", "殺す", "殺し", "殺害", "監禁", "誘拐", "略取",
+        "放火", "脅迫", "ストーカー", "盗撮", "わいせつ", "不同意性交", "強制性交", "性交",
+        "賄賂", "贈賄", "収賄",
         "脱税", "覚せい剤", "覚醒剤", "大麻", "コカイン", "不正アクセス",
         "闇バイト", "特殊詐欺", "振り込め", "リベンジポルノ", "児童ポルノ",
         "違法", "犯罪", "捕まる", "逮捕", "起訴",
         "steal", "theft", "fraud", "murder", "assault", "bribe", "illegal", "crime",
+        "kidnap", "abduction",
     ];
 
     private static readonly string[] SoftTopicCues =
     [
         "法律", "法令", "条文", "罰則", "刑法", "民法", "刑訴", "労働", "就業",
         "契約", "残業", "有給", "税金", "脱税", "規約", "条例", "資料", "RAG",
-        "調べ", "参照", "根拠", "何条", "合法", "違法", "犯罪", "罰",
+        "調べ", "参照", "根拠", "何条", "合法", "違法", "犯罪", "罰", "国外犯",
         "definition", "article", "penalty", "statute", "law ",
     ];
 
@@ -119,14 +121,18 @@ internal static class RagConversationGate
         {
             // 危険話題は法令資料を優先（条文本文に「万引き」等が無くても拾う）
             var legal = hits.Where(IsLegalSource).Take(3).ToList();
-            hits = legal.Count > 0 ? legal : FilterWeakHits(hits, userMessage);
+            var filterQuery = RagSoftQueryExpander.Expand(userMessage);
+            hits = legal.Count > 0 ? legal : FilterWeakHits(hits, filterQuery);
         }
         else if (mode == RagConversationMode.SoftTopic)
         {
-            hits = FilterWeakHits(hits, userMessage);
+            // 残業→労働時間など、本文に出やすい語で床と順位を見る
+            var filterQuery = RagSoftQueryExpander.Expand(userMessage);
+            hits = FilterWeakHits(hits, filterQuery);
+            hits = RagSoftHitRanker.OrderByNeedleOverlap(hits, filterQuery);
         }
 
-        return new RagSearchResult(hits, result.Plan);
+        return new RagSearchResult(hits, result.Plan, result.SearchFailed);
     }
 
     public static IReadOnlyList<RagSearchHit> FilterWeakHits(
@@ -173,6 +179,7 @@ internal static class RagConversationGate
         string.Concat(
             hit.SourceFileName, "\n",
             hit.HeaderText, "\n",
+            hit.SectionPath, "\n",
             hit.PromptText, "\n",
             hit.DefinitionLead, "\n",
             hit.PenaltyLead);

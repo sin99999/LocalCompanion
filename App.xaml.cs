@@ -50,6 +50,9 @@ public partial class App : Application
             StartupLog.Write(e.Exception, "UnobservedTaskException");
             e.SetObserved();
         };
+
+        AppBootstrap.RegisterShutdown(AppPaths.Current);
+        CompanionStartup.EnsureProcessExitHook();
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

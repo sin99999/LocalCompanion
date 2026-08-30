@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 using LocalCompanion.Models;
 
@@ -29,16 +29,51 @@ internal static class RagArticleQueryParser
 
     public static bool TryGetArticleNumber(string query, out int articleNumber)
     {
-        articleNumber = 0;
+        var numbers = GetArticleNumbers(query);
+        if (numbers.Count == 0)
+        {
+            articleNumber = 0;
+            return false;
+        }
+
+        articleNumber = numbers[0];
+        return true;
+    }
+
+    /// <summary>「4条と104条」のように複数あるとき、先頭から重複なし。</summary>
+    public static IReadOnlyList<int> GetArticleNumbers(string query)
+    {
+        var list = new List<int>();
         if (string.IsNullOrWhiteSpace(query))
-            return false;
+            return list;
 
-        var match = ArticlePattern.Match(query);
-        if (!match.Success)
-            return false;
+        foreach (Match match in ArticlePattern.Matches(query))
+        {
+            var digits = NormalizeDigits(match.Groups[1].Value);
+            if (!int.TryParse(digits, out var n) || n <= 0)
+                continue;
+            if (!list.Contains(n))
+                list.Add(n);
+        }
 
-        var digits = NormalizeDigits(match.Groups[1].Value);
-        return int.TryParse(digits, out articleNumber) && articleNumber > 0;
+        return list;
+    }
+
+    internal static IReadOnlyList<(int Index, int Number)> GetArticleNumberSpans(string query)
+    {
+        var list = new List<(int Index, int Number)>();
+        if (string.IsNullOrWhiteSpace(query))
+            return list;
+
+        foreach (Match match in ArticlePattern.Matches(query))
+        {
+            var digits = NormalizeDigits(match.Groups[1].Value);
+            if (!int.TryParse(digits, out var n) || n <= 0)
+                continue;
+            list.Add((match.Index, n));
+        }
+
+        return list;
     }
 
     public static bool TryGetBoundaryIntent(string query, out RagArticleBoundaryIntent intent)

@@ -1,9 +1,37 @@
-﻿namespace LocalCompanion.Localization;
+namespace LocalCompanion.Localization;
 
-internal static class LocalizationResources
+internal static partial class LocalizationResources
 {
-    internal static IReadOnlyDictionary<string, string> For(AppLanguage language) =>
-        language == AppLanguage.English ? English : Japanese;
+    internal static IReadOnlyDictionary<string, string> For(AppLanguage language)
+    {
+        if (language == AppLanguage.Japanese)
+            return Japanese;
+
+        return Overlays.GetOrAdd(language, static lang => Merge(Japanese, Pack(lang)));
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<AppLanguage, IReadOnlyDictionary<string, string>> Overlays = new();
+
+    private static IReadOnlyDictionary<string, string> Pack(AppLanguage language) => language switch
+    {
+        AppLanguage.English => English,
+        AppLanguage.Spanish => Spanish,
+        AppLanguage.Portuguese => Portuguese,
+        AppLanguage.Russian => Russian,
+        AppLanguage.ChineseSimplified => ChineseSimplified,
+        AppLanguage.Korean => Korean,
+        _ => Japanese,
+    };
+
+    private static Dictionary<string, string> Merge(
+        IReadOnlyDictionary<string, string> fallback,
+        IReadOnlyDictionary<string, string> pack)
+    {
+        var merged = new Dictionary<string, string>(fallback, StringComparer.Ordinal);
+        foreach (var kv in pack)
+            merged[kv.Key] = kv.Value;
+        return merged;
+    }
 
     private static readonly Dictionary<string, string> Japanese = new()
     {
@@ -17,6 +45,7 @@ internal static class LocalizationResources
         ["Splash.Wait"] = "しばらくお待ちください…",
         ["Splash.Retry"] = "再試行",
         ["Splash.Exit"] = "終了",
+        ["Splash.Language.Title"] = "言語を選択してください",
 
         ["Common.Error"] = "エラー",
         ["Common.Yes"] = "はい",
@@ -42,8 +71,10 @@ internal static class LocalizationResources
         ["Character.SelfImprove.Confirm.Message"] = "「{0}」の性格・指示を、次の理由で変更したいと提案しています。内容を確認し、よければ承認してください。承認するまでファイルは書き換わりません。",
         ["Character.SelfImprove.Confirm.Approve"] = "承認して保存",
         ["Character.SelfImprove.Confirm.Reject"] = "却下",
-        ["Character.SelfImprove.Diff.Before"] = "【変更前（差分付近）】",
-        ["Character.SelfImprove.Diff.After"] = "【変更後（差分付近）】",
+        ["Character.SelfImprove.Diff.Before"] = "【変更前】",
+        ["Character.SelfImprove.Diff.After"] = "【変更後】",
+        ["Character.SelfImprove.Diff.New"] = "【新規追加】",
+        ["Character.SelfImprove.Diff.Deleted"] = "【削除】",
         ["Character.SelfImprove.Reason.Fallback"] = "最近の会話から、少し直した方がよいと判断しました。",
         ["Character.SelfImprove.Reason.RulesFallback"] = "会話で挙げたルールを、キャラクター設定へ反映する提案です。",
         ["Character.SelfImprove.Status.Approved"] = "キャラクター設定を更新しました。",
@@ -67,12 +98,16 @@ internal static class LocalizationResources
         ["Chat.Welcome.Default"] = "メッセージを入力して、会話を始められます。",
         ["Chat.UserLabel"] = "あなた",
         ["Chat.ErrorTitle"] = "エラー",
-        ["Chat.Rag"] = "RAG",
+        ["Chat.Rag"] = "資料検索（RAG）",
+        ["Chat.Rag.Boundary.First"] = "登録資料「{0}」の最初の条文番号は {1} です。",
+        ["Chat.Rag.Boundary.Last"] = "登録資料「{0}」の最後の条文番号は {1} です。",
+        ["Chat.Rag.Article.Ambiguous"] = "登録資料に{0}が複数あります（{1}）。法令名を付けて聞き直してください。",
         ["Chat.History"] = "履歴",
         ["Chat.Reasoning"] = "推論",
         ["Chat.ClearHistory"] = "この履歴を削除",
         ["Chat.ClearHistory.Confirm.Title"] = "履歴を削除しますか",
         ["Chat.ClearHistory.Confirm.Message"] = "現在表示中のチャット内容と、左側の会話履歴からこのスレッドが削除されます。この操作は取り消せません。",
+        ["Chat.DeleteThread.Confirm.Message"] = "この会話履歴を削除します。いま表示中の会話であれば画面の内容も消えます。この操作は取り消せません。",
         ["Chat.ClearHistory.Confirm.DontAskAgain"] = "次回から確認しない",
         ["Chat.Send"] = "送信",
         ["Chat.Stop"] = "■",
@@ -185,10 +220,10 @@ internal static class LocalizationResources
         ["Settings.General.ConfirmHistoryDelete.Hint"] = "オフにすると確認ダイアログを表示しません。基本設定からいつでも再度オンにできます。",
         ["Settings.General.Saved"] = "表示名・フォントなどを保存しました。音声入力と履歴削除の確認は変更時に自動で保存されます。",
         ["Settings.General.Reset"] = "初期設定に戻す",
-        ["Settings.General.ResetDone"] = "基本設定を初期値に戻しました。",
+        ["Settings.General.ResetDone"] = "基本設定を初期値に戻しました。長期記憶・RAG・キャラクター設定はそのままです。",
         ["Settings.About.Section"] = "情報・メンテナンス",
         ["Settings.About.PrivacyHeader"] = "プライバシーについて",
-        ["Settings.About.PrivacyNote"] = "会話・RAG 資料・添付の本文処理は PC 内で完結します。任意の更新確認で GitHub にアクセスすることがあり、VOICEVOX 利用時は VOICEVOX の更新確認でも GitHub にアクセスすることがあります。初回セットアップや mmproj 取得では Hugging Face 等へアクセスすることがあります。URL 読み込み時や、メッセージ内の URL・調査意図による Web 検索時は、その先のサイトへアクセスします。既定の Web 検索は DuckDuckGo（HTML）で、検索語がそのサービスへ送られます。オフにするときは appsettings.json の WebSearchEnabled を false にしてください。音声入力は Windows の音声認識を使うため、環境によってはオンライン認識になることがあります。",
+        ["Settings.About.PrivacyNote"] = "会話・RAG 資料・添付の本文処理は PC 内で完結します。任意の更新確認で GitHub にアクセスすることがあり、VOICEVOX 利用時は VOICEVOX の更新確認でも GitHub にアクセスすることがあります。初回セットアップや mmproj 取得では Hugging Face 等へアクセスすることがあります。URL 読み込み時や、メッセージ内の URL・調査意図による Web 検索時は、その先のサイトへアクセスします。既定の Web 検索は DuckDuckGo（HTML）で、検索語がそのサービスへ送られます。オフにするときは appsettings.json の WebSearchEnabled を false にしてください。音声入力は Windows の音声認識を使うため、環境によってはオンライン認識になることがあります。法令条文や「資料から検索」の質問では、Web 検索より登録資料（RAG）を優先します。チャットで保存を依頼すると、指定先へテキストファイルを作成することがあります（ローカル書き込み。同名ファイルがあるときはチャットで確認します）。アプリ内ヘルプは日本語または英語で開きます。",
         ["Settings.About.Licenses"] = "ライセンス情報",
         ["Settings.About.OpenLogFolder"] = "ログフォルダーを開く",
         ["Settings.About.OpenTroubleshooting"] = "トラブルシューティング",
@@ -199,6 +234,11 @@ internal static class LocalizationResources
         ["Settings.Language.Display"] = "表示言語 (Display Language)",
         ["Settings.Language.Option.Ja"] = "日本語",
         ["Settings.Language.Option.En"] = "English",
+        ["Settings.Language.Option.Es"] = "Español",
+        ["Settings.Language.Option.Ru"] = "Русский",
+        ["Settings.Language.Option.Zh"] = "简体中文",
+        ["Settings.Language.Option.Ko"] = "한국어",
+        ["Settings.Language.Option.Pt"] = "Português",
         ["Settings.Language.Saved"] = "言語設定を保存しました。",
         ["Settings.Model.ChatGguf"] = "チャット用 GGUF",
         ["Settings.Model.MmprojHint"] = "vision 用 mmproj は、選択した GGUF 名から models フォルダ内を自動検索します。既知モデルでローカルに無い場合は自動ダウンロードを試みます。",
@@ -303,7 +343,7 @@ internal static class LocalizationResources
         ["Settings.Rag.Source.ChunksMissing"] = "{0} チャンク · 元ファイルなし",
         ["Settings.Voicevox.Enabled"] = "読み上げを有効",
         ["Settings.Memory.Enabled"] = "長期記憶を使う",
-        ["Settings.Memory.Enabled.Hint"] = "キャラクターごとに短い記憶をため、そのキャラクターとの会話の途中で自然に思い出して返します。デフォルト AI には長期記憶はありません。画面上で一覧管理はしません。",
+        ["Settings.Memory.Enabled.Hint"] = "キャラクターごとに短い記憶をため、今の話題と関連するときだけ自然に思い出して返します（あいさつなど無関係な短文では差し込みません）。デフォルト AI には長期記憶はありません。画面上で一覧管理はしません。",
         ["Settings.Memory.AutoExtract"] = "会話終了時に自動で記憶を抽出",
         ["Settings.Memory.AutoExtract.Hint"] = "名前付きキャラクターとの会話を終えるときやアプリを閉じるとき、ローカル AI がそのキャラクター用に短い記憶を 0〜3 件内部保存します。デフォルト AI では抽出しません。同じ会話の直前の発言は「履歴」オプションが担当します。",
         ["Settings.SpeechInput.Enabled"] = "音声入力を使う",
@@ -339,11 +379,11 @@ internal static class LocalizationResources
         ["Voicevox.Install.ConfiguredPathNotFound"] = "VOICEVOX が見つかりません。設定された場所（{0}）を確認してください。",
 
         ["FirstRun.Setup.Title"] = "初回セットアップ",
-        ["FirstRun.Setup.Description"] = "初回セットアップでは、推論エンジン（llama.cpp）の準備と、Google の軽量チャットモデル Gemma 4 E2B（QAT）の取得を行います。お使いの GPU を確認し、最適な設定で起動します。完了までしばらくお待ちください。",
-        ["FirstRun.Setup.OwnModelHint"] = "お手持ちの GGUF がある場合は、フォルダを指定できます。指定したフォルダ内のファイルは読み取るだけで、変更しません。vision 用の補助ファイル（mmproj）が必要な場合は、アプリ側に取得します。",
-        ["FirstRun.Setup.Continue"] = "次へ（自動セットアップ）",
-        ["FirstRun.Setup.ChooseFolder"] = "フォルダを選ぶ…",
-        ["FirstRun.Setup.Error.NoGguf"] = "選択したフォルダにチャット用 GGUF が見つかりませんでした。別のフォルダを選ぶか、「次へ」で自動セットアップを続けてください。",
+        ["FirstRun.Setup.Description"] = "まず、お手持ちの GGUF モデルがあるフォルダを指定してください。無い場合だけ、推論エンジン（llama.cpp）の準備と Google の軽量モデル Gemma 4 E2B（QAT）の自動取得に進みます。",
+        ["FirstRun.Setup.OwnModelHint"] = "指定したフォルダは読み取り専用です（ファイルは変更しません）。vision 用の補助ファイル（mmproj）が必要な場合は、アプリ側に取得します。",
+        ["FirstRun.Setup.Continue"] = "持っていない（自動で取得）",
+        ["FirstRun.Setup.ChooseFolder"] = "GGUF フォルダを選ぶ…",
+        ["FirstRun.Setup.Error.NoGguf"] = "選択したフォルダにチャット用 GGUF が見つかりませんでした。別のフォルダを選ぶか、「持っていない（自動で取得）」を押してください。",
         ["FirstRun.Setup.Error.InvalidFolder"] = "フォルダを開けませんでした。もう一度お試しください。",
 
         ["Startup.Preparing"] = "起動準備をしています…",
@@ -466,12 +506,13 @@ internal static class LocalizationResources
         ["Nav.Settings"] = "Settings",
         ["Nav.CharacterDefault"] = "Character (Default)",
         ["Nav.ConversationHistory"] = "Conversation history",
-        ["Nav.Language"] = "Language (言語設定)",
+        ["Nav.Language"] = "Language",
 
         ["Splash.Subtitle"] = "Starting LocalCompanion…",
         ["Splash.Wait"] = "Please wait…",
         ["Splash.Retry"] = "Retry",
         ["Splash.Exit"] = "Exit",
+        ["Splash.Language.Title"] = "Choose your language",
 
         ["Common.Error"] = "Error",
         ["Common.Yes"] = "Yes",
@@ -497,8 +538,10 @@ internal static class LocalizationResources
         ["Character.SelfImprove.Confirm.Message"] = "\"{0}\" proposes updating personality/instructions for this reason. Review the change and approve only if you agree. The file is not rewritten until you approve.",
         ["Character.SelfImprove.Confirm.Approve"] = "Approve and save",
         ["Character.SelfImprove.Confirm.Reject"] = "Decline",
-        ["Character.SelfImprove.Diff.Before"] = "[Before (near the change)]",
-        ["Character.SelfImprove.Diff.After"] = "[After (near the change)]",
+        ["Character.SelfImprove.Diff.Before"] = "[Before]",
+        ["Character.SelfImprove.Diff.After"] = "[After]",
+        ["Character.SelfImprove.Diff.New"] = "[New]",
+        ["Character.SelfImprove.Diff.Deleted"] = "[Removed]",
         ["Character.SelfImprove.Reason.Fallback"] = "Based on the recent chat, a small tweak seemed helpful.",
         ["Character.SelfImprove.Reason.RulesFallback"] = "This proposal adds the rules listed in chat into the character settings.",
         ["Character.SelfImprove.Status.Approved"] = "Character settings were updated.",
@@ -522,12 +565,16 @@ internal static class LocalizationResources
         ["Chat.Welcome.Default"] = "Type a message to start chatting.",
         ["Chat.UserLabel"] = "You",
         ["Chat.ErrorTitle"] = "Error",
-        ["Chat.Rag"] = "RAG",
+        ["Chat.Rag"] = "Document search (RAG)",
+        ["Chat.Rag.Boundary.First"] = "In registered source \"{0}\", the first article number is {1}.",
+        ["Chat.Rag.Boundary.Last"] = "In registered source \"{0}\", the last article number is {1}.",
+        ["Chat.Rag.Article.Ambiguous"] = "Several registered sources have {0} ({1}). Please ask again with the statute name.",
         ["Chat.History"] = "History",
         ["Chat.Reasoning"] = "Reasoning",
         ["Chat.ClearHistory"] = "Delete this history",
         ["Chat.ClearHistory.Confirm.Title"] = "Delete this history?",
         ["Chat.ClearHistory.Confirm.Message"] = "The chat currently on screen and this thread in the conversation history on the left will be deleted. This action cannot be undone.",
+        ["Chat.DeleteThread.Confirm.Message"] = "This conversation history will be deleted. If it is the chat currently on screen, the screen will be cleared too. This action cannot be undone.",
         ["Chat.ClearHistory.Confirm.DontAskAgain"] = "Do not ask again",
         ["Chat.Send"] = "Send",
         ["Chat.Stop"] = "■",
@@ -634,10 +681,10 @@ internal static class LocalizationResources
         ["Settings.General.ConfirmHistoryDelete.Hint"] = "When off, the confirmation dialog is not shown. You can turn it back on here at any time.",
         ["Settings.General.Saved"] = "Display name and fonts saved. Speech input and history-delete confirmation save automatically when changed.",
         ["Settings.General.Reset"] = "Restore defaults",
-        ["Settings.General.ResetDone"] = "General settings were restored to defaults.",
+        ["Settings.General.ResetDone"] = "General settings were restored to defaults. Long-term memory, RAG, and character settings were left unchanged.",
         ["Settings.About.Section"] = "About & maintenance",
         ["Settings.About.PrivacyHeader"] = "Privacy",
-        ["Settings.About.PrivacyNote"] = "Conversation, RAG, and attachment text are processed on this PC. Optional update checks may contact GitHub; when VOICEVOX is installed, VOICEVOX update checks may also contact GitHub. First-time setup and mmproj download may access Hugging Face and similar hosts. Loading a URL, URLs written in a message, or research-style web search may access those remote sites. The default web search uses DuckDuckGo (HTML) and sends the query to that service. Set WebSearchEnabled to false in appsettings.json to turn it off. Speech input uses Windows speech recognition, which may be online depending on your environment.",
+        ["Settings.About.PrivacyNote"] = "Conversation, RAG, and attachment text are processed on this PC. Optional update checks may contact GitHub; when VOICEVOX is installed, VOICEVOX update checks may also contact GitHub. First-time setup and mmproj download may access Hugging Face and similar hosts. Loading a URL, URLs written in a message, or research-style web search may access those remote sites. The default web search uses DuckDuckGo (HTML) and sends the query to that service. Set WebSearchEnabled to false in appsettings.json to turn it off. Speech input uses Windows speech recognition, which may be online depending on your environment. For statute or registered-document questions (including “search materials”), local RAG is preferred over web search. Asking the chat to save a reply may create a text file on this PC (local write; same-name files are confirmed in chat). In-app help opens in Japanese or English.",
         ["Settings.About.Licenses"] = "License information",
         ["Settings.About.OpenLogFolder"] = "Open log folder",
         ["Settings.About.OpenTroubleshooting"] = "Troubleshooting",
@@ -654,6 +701,11 @@ internal static class LocalizationResources
         ["Settings.Language.Display"] = "Display Language",
         ["Settings.Language.Option.Ja"] = "日本語",
         ["Settings.Language.Option.En"] = "English",
+        ["Settings.Language.Option.Es"] = "Español",
+        ["Settings.Language.Option.Ru"] = "Русский",
+        ["Settings.Language.Option.Zh"] = "简体中文",
+        ["Settings.Language.Option.Ko"] = "한국어",
+        ["Settings.Language.Option.Pt"] = "Português",
         ["Settings.Language.Saved"] = "Language settings saved.",
         ["Settings.Model.ChatGguf"] = "Chat GGUF",
         ["Settings.Model.MmprojHint"] = "Vision mmproj files are searched automatically in the models folder from the selected GGUF name. Known models may trigger an automatic download if missing locally.",
@@ -758,7 +810,7 @@ internal static class LocalizationResources
         ["Settings.Rag.Source.ChunksMissing"] = "{0} chunk(s) · source file missing",
         ["Settings.Voicevox.Enabled"] = "Enable speech",
         ["Settings.Memory.Enabled"] = "Use long-term memory",
-        ["Settings.Memory.Enabled.Hint"] = "Stores short facts per character and may bring them up naturally in that character's chats. The default AI has no long-term memory. There is no on-screen memory list.",
+        ["Settings.Memory.Enabled.Hint"] = "Stores short facts per character and may bring them up only when they relate to the current topic (not on unrelated short greetings). The default AI has no long-term memory. There is no on-screen memory list.",
         ["Settings.Memory.AutoExtract"] = "Auto-extract memories when a chat ends",
         ["Settings.Memory.AutoExtract.Hint"] = "When you end a named character's chat or close the app, the local AI may save up to 3 short facts for that character. The default AI does not extract memories. The History option covers recent turns in the same conversation.",
         ["Settings.SpeechInput.Enabled"] = "Use speech input",
@@ -794,11 +846,11 @@ internal static class LocalizationResources
         ["Voicevox.Install.ConfiguredPathNotFound"] = "VOICEVOX was not found. Check the configured location ({0}).",
 
         ["FirstRun.Setup.Title"] = "First-time setup",
-        ["FirstRun.Setup.Description"] = "On first setup, we prepare the inference engine (llama.cpp) and download Google’s lightweight chat model Gemma 4 E2B (QAT). We detect your GPU and apply suitable settings automatically. This may take a few minutes.",
-        ["FirstRun.Setup.OwnModelHint"] = "If you already have GGUF models, you can choose their folder. We only read from it; your files are not modified. If a vision helper file (mmproj) is needed, we download it to the app folder.",
-        ["FirstRun.Setup.Continue"] = "Continue with default setup",
-        ["FirstRun.Setup.ChooseFolder"] = "Choose folder…",
-        ["FirstRun.Setup.Error.NoGguf"] = "No chat GGUF files were found in the selected folder. Choose another folder, or press Continue to use the default setup.",
+        ["FirstRun.Setup.Description"] = "First, choose the folder that already has your GGUF models. Only if you do not have one, we prepare the inference engine (llama.cpp) and download Google’s lightweight chat model Gemma 4 E2B (QAT).",
+        ["FirstRun.Setup.OwnModelHint"] = "The folder is read-only (your files are not modified). If a vision helper file (mmproj) is needed, we download it to the app folder.",
+        ["FirstRun.Setup.Continue"] = "I don’t have one (download)",
+        ["FirstRun.Setup.ChooseFolder"] = "Choose GGUF folder…",
+        ["FirstRun.Setup.Error.NoGguf"] = "No chat GGUF files were found in the selected folder. Choose another folder, or press “I don’t have one (download)”.",
         ["FirstRun.Setup.Error.InvalidFolder"] = "Could not open that folder. Please try again.",
 
         ["Startup.Preparing"] = "Preparing to start…",

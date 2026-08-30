@@ -33,14 +33,25 @@ public sealed class ChatSystemPromptTextsTests
     }
 
     [Fact]
+    public void RagMissInstruction_ForbidsInventingArticles()
+    {
+        var ja = ChatSystemPromptTexts.RagMissInstruction(japanese: true);
+        Assert.Contains("見つかりませんでした", ja);
+        Assert.Contains("推測で作らない", ja);
+    }
+
+    [Fact]
     public void SpontaneousMemoryInstruction_DisallowsMemoryListMetaTalk()
     {
         var ja = ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: true);
-        Assert.Contains("ひとつだけ", ja);
+        Assert.Contains("1件まで", ja);
+        Assert.Contains("そういえば", ja);
         Assert.Contains("メタ説明は禁止", ja);
+        Assert.DoesNotContain("たまに", ja);
 
         var en = ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: false);
-        Assert.Contains("occasionally", en, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("at most one", en, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("occasionally", en, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Do not mention databases", en);
     }
 
@@ -50,10 +61,12 @@ public sealed class ChatSystemPromptTextsTests
         var ja = ChatSystemPromptTexts.AttachmentInstruction(japanese: true);
         Assert.Contains("参考URL", ja);
         Assert.Contains("参考:", ja);
+        Assert.Contains("登録資料しか調べられない", ja);
 
         var en = ChatSystemPromptTexts.AttachmentInstruction(japanese: false);
         Assert.Contains("Reference URLs", en);
         Assert.Contains("Sources:", en);
+        Assert.Contains("registered documents", en);
     }
 
     [Fact]
@@ -65,6 +78,8 @@ public sealed class ChatSystemPromptTextsTests
         Assert.Contains("心の中の長期記憶", block);
         Assert.Contains("好きな飲み物は麦茶", block);
         Assert.Contains("メタな言い方はしない", block);
+        Assert.Contains("そういえば", block);
+        Assert.DoesNotContain("穏やかで隙", block);
     }
 
     [Fact]
@@ -81,6 +96,8 @@ public sealed class ChatSystemPromptTextsTests
             ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: true),
             ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese: true),
             ChatSystemPromptTexts.RagAdvisoryInstruction(japanese: true),
+            ChatSystemPromptTexts.RagArticleScopeInstruction(japanese: true),
+            ChatSystemPromptTexts.RagCitationFirstInstruction(japanese: true),
         };
 
         foreach (var text in texts)
@@ -88,5 +105,17 @@ public sealed class ChatSystemPromptTextsTests
             var stripped = text.Replace("キャラクター", string.Empty, StringComparison.Ordinal);
             Assert.DoesNotContain("キャラ", stripped);
         }
+    }
+
+    [Fact]
+    public void RagPersonaReferenceInstruction_ForbidsMixingUnaskedArticles()
+    {
+        var ja = ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese: true);
+        Assert.DoesNotContain("関連する条項チェック", ja);
+        Assert.Contains("指定されていない条番号", ja);
+
+        var scope = ChatSystemPromptTexts.RagArticleScopeInstruction(japanese: true);
+        Assert.Contains("質問された条", scope);
+        Assert.Contains("関連", scope);
     }
 }

@@ -60,7 +60,7 @@
             <NavigationView.FooterMenuItems>
                 <NavigationViewItem
                     x:Name="LanguageNavItem"
-                    Content="Language Settings"
+                    Content="Language"
                     SelectsOnInvoked="False"
                     Tag="language">
                     <NavigationViewItem.Icon>
@@ -101,6 +101,7 @@
                         x:Name="ThreadList"
                         Grid.Row="2"
                         HorizontalAlignment="Stretch"
+                        RightTapped="OnThreadListRightTapped"
                         SelectionChanged="OnThreadSelected"
                         SelectionMode="Single">
                         <ListView.ItemContainerStyle>
@@ -143,41 +144,11 @@
                     Text="LocalCompanion" />
 
                 <StackPanel x:Name="LanguagePickerPanel" Spacing="12" Visibility="Collapsed">
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        FontSize="20"
-                        FontWeight="SemiBold"
-                        Text="言語を選択してください"
-                        TextAlignment="Center" />
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource BodyTextBlockStyle}"
-                        Text="Choose your language"
-                        TextAlignment="Center" />
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="表示言語を選んでください。後から左下の Language メニューで変更できます。&#x0a;&#x0a;Choose the display language. You can change it later from the Language menu at the bottom left."
-                        TextAlignment="Center"
-                        TextWrapping="WrapWholeWords" />
+                    <StackPanel x:Name="LanguagePickerTitles" Spacing="2" />
                     <StackPanel
+                        x:Name="LanguagePickerButtons"
                         HorizontalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="12">
-                        <Button
-                            x:Name="PickJapaneseButton"
-                            MinWidth="140"
-                            Click="OnPickJapaneseClick"
-                            Content="日本語"
-                            Style="{StaticResource AccentButtonStyle}" />
-                        <Button
-                            x:Name="PickEnglishButton"
-                            MinWidth="140"
-                            Click="OnPickEnglishClick"
-                            Content="English" />
-                    </StackPanel>
+                        Spacing="8" />
                 </StackPanel>
 
                 <StackPanel x:Name="FirstRunSetupPanel" Spacing="12" Visibility="Collapsed">
@@ -222,15 +193,16 @@
                         HorizontalAlignment="Center"
                         Orientation="Horizontal"
                         Spacing="12">
-                        <Button
-                            x:Name="FirstRunContinueButton"
-                            MinWidth="180"
-                            Click="OnFirstRunContinueClick"
-                            Style="{StaticResource AccentButtonStyle}" />
+                        <!-- 手持ち GGUF を先に聞く（無駄な既定モデル DL を避ける） -->
                         <Button
                             x:Name="FirstRunChooseFolderButton"
+                            MinWidth="180"
+                            Click="OnFirstRunChooseFolderClick"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <Button
+                            x:Name="FirstRunContinueButton"
                             MinWidth="160"
-                            Click="OnFirstRunChooseFolderClick" />
+                            Click="OnFirstRunContinueClick" />
                     </StackPanel>
                 </StackPanel>
 

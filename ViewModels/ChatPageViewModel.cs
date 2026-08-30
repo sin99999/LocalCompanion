@@ -350,6 +350,38 @@ public partial class ChatPageViewModel : ObservableObject
         }
     }
 
+    /// <summary>左ペインの会話履歴から指定セッションを削除する。表示中なら画面もクリアする。</summary>
+    public async Task DeleteConversationSessionAsync(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return;
+
+        if (string.Equals(_activeSessionId, sessionId, StringComparison.Ordinal))
+        {
+            if (!CanMutateConversation)
+            {
+                NotifyBusyMutationBlocked();
+                return;
+            }
+
+            await ClearHistoryAsync();
+            return;
+        }
+
+        await _sessionFinalizeGate.WaitAsync();
+        try
+        {
+            if (_chat.GetSession(sessionId) is not null)
+                _chat.DeleteSession(sessionId);
+            SetStatusByKey("Chat.Status.HistoryCleared", 1);
+            ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            _sessionFinalizeGate.Release();
+        }
+    }
+
     public event EventHandler? ConversationThreadsChanged;
 
     public void LoadConversationSession(string sessionId) =>

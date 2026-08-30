@@ -117,28 +117,28 @@ internal static class ChatSystemPromptTexts
             ? "【記憶の区別】「【参考資料（RAG）】」がある場合のみ資料データベース由来と述べる。テキスト添付は当該メッセージのみ有効。それ以外は過去の会話履歴とする。RAGに未登録の内容を資料由来と述べない。"
             : "[Memory] Mention the document database only when [Reference materials (RAG)] is present. Text attachments apply only to the current message. Otherwise treat content as chat history. Do not claim document-database sources for content not in RAG.";
 
-    /// <summary>長期記憶ブロックが載っているときにだけ付ける。不意打ちで自然に触れる指示。</summary>
+    /// <summary>長期記憶ブロックが載っているときにだけ付ける。関連があるときだけ自然に触れる指示。</summary>
     internal static string SpontaneousMemoryInstruction(bool japanese) =>
         japanese
             ? """
               【長期記憶の出し方】
-              - 上の長期記憶はあなたが前から知っている個人的なこと。設定画面やリストではない
-              - たまに、会話の合間や関係しそうなタイミングで、自然な口調でひとつだけ触れてよい
-              - 「覚えてる？」「前に言ってくれたよね」など、キャラクターとして自然ならOK。全部並べない
+              - 上の長期記憶は検索で今の話題に関連が出たときだけ載っている。無関係なら回想しない
+              - つながるときだけ、1件まで「そういえば昔〜って言ってたね」「前に〜って話してたよね」系で触れてよい
+              - 毎ターン出さない。一覧化・列挙・クイズ化しない
               - 「記憶から」「DBに保存」などのメタ説明は禁止。無理に話題を変えない
               """.Trim()
             : """
               [How to use long-term memory]
-              - The memories above are personal things you already know — not a settings list.
-              - Occasionally, when it fits or the chat has a quiet opening, casually mention about one.
-              - Natural lines like "you said that before" are fine. Do not dump the whole list.
+              - The memories above are only injected when search found a link to this turn. If unrelated, do not recall them.
+              - When they connect, mention at most one as a soft callback (e.g. "you mentioned that before").
+              - Do not dump a list or quiz the user every turn.
               - Do not mention databases or settings. Do not force a topic change.
               """.Trim();
 
     internal static string AttachmentInstruction(bool japanese) =>
         japanese
-            ? "ユーザーがテキストファイル・URL・Web検索結果を添付した場合は、【添付】の全文を読んで質問に答えてください（RAG登録とは別）。ローカル環境から届かない情報は、添付に無い内容を断定しないでください。添付に【参考URL】がある場合は、回答の末尾に「参考:」としてその URL を短く列挙してください（添付に無い URL を作らない）。"
-            : "If the user attached a text file, URL content, or web search results, read the full [Attachment] section and answer (separate from RAG registration). Do not invent facts that are not in the attachment when the answer depends on remote pages. When the attachment includes [Reference URLs], end with a short \"Sources:\" list of those URLs (do not invent URLs).";
+            ? "ユーザーがテキストファイル・URL・Web検索結果を添付した場合は、【添付】の全文を読んで質問に答えてください（RAG登録とは別）。ユーザーがネットやウェブで調べるよう頼んだとき、または添付が Web 検索結果のときは、「登録資料しか調べられない」とは言わない。ローカル環境から届かない情報は、添付に無い内容を断定しないでください。添付に【参考URL】がある場合は、回答の末尾に「参考:」としてその URL を短く列挙してください（添付に無い URL を作らない）。"
+            : "If the user attached a text file, URL content, or web search results, read the full [Attachment] section and answer (separate from RAG registration). When the user asked to search the web/net, or the attachment is web search results, do not claim you can only look at registered documents. Do not invent facts that are not in the attachment when the answer depends on remote pages. When the attachment includes [Reference URLs], end with a short \"Sources:\" list of those URLs (do not invent URLs).";
 
     internal static string ImageInstruction(bool japanese) =>
         japanese
@@ -147,6 +147,36 @@ internal static class ChatSystemPromptTexts
 
     internal static string RagHitsHeader(bool japanese) =>
         japanese ? "【参考資料（RAG・資料DB検索）】" : "[Reference materials (RAG)]";
+
+    internal static string RagMissInstruction(bool japanese) =>
+        japanese
+            ? """
+              【RAG・資料なし】
+              登録資料を目次（資料名・見出し）から探したが、今回の質問に合う断片は見つかりませんでした。
+              資料に無い条文番号・罰則・数値を推測で作らない。分からないときは分からないと言う。
+              """.Trim()
+            : """
+              [RAG — no matching passage]
+              Registered documents were searched via titles and headings, but no matching passage was found.
+              Do not invent article numbers, penalties, or figures that are not in the materials. If unknown, say so.
+              """.Trim();
+
+    /// <summary>検索タイムアウト・例外など、ヒット無しとは別に「検索できなかった」とき。</summary>
+    internal static string RagSearchFailedInstruction(bool japanese) =>
+        japanese
+            ? """
+              【RAG・検索未完了】
+              登録資料の検索が時間内に終わらないか、一時的に失敗しました（資料が無いとは限りません）。
+              資料に無い条文番号・罰則・数値を推測で作らない。分からないときは分からないと言う。
+              """.Trim()
+            : """
+              [RAG — search incomplete]
+              Searching registered documents timed out or failed temporarily (materials may still exist).
+              Do not invent article numbers, penalties, or figures that are not in the materials. If unknown, say so.
+              """.Trim();
+
+    internal static string RagEmptyHitsInstruction(bool japanese, bool searchFailed) =>
+        searchFailed ? RagSearchFailedInstruction(japanese) : RagMissInstruction(japanese);
 
     internal static string RagPriorityInstruction(bool japanese) =>
         japanese
@@ -183,6 +213,7 @@ internal static class ChatSystemPromptTexts
               直後の「【参考資料（RAG・資料DB検索）】」を根拠に答える。
               - 回答の冒頭で、資料の該当箇所を短く引用する（見出し・条文・ページを明示）
               - 引用のあとに、平易な説明を付けてよい
+              - 質問で指定された条だけを扱う。資料に無い他条の罪名・罰則を「関連」として足さない
               - 資料にない条文番号・数値・罰則を一般知識から補わない
               - 添付テキストがある場合は、添付と RAG の両方を参照し、矛盾するときは RAG 登録資料を優先する
               """.Trim()
@@ -191,6 +222,7 @@ internal static class ChatSystemPromptTexts
               Use the "[Reference materials (RAG)]" section below as grounds.
               - Begin with a short quote from the materials (heading, article, page)
               - You may add a plain explanation after the quote
+              - Discuss only the article asked about; do not add other offenses as "related"
               - Do not supplement with general knowledge for numbers or penalties not in the materials
               - If an attachment is present, use both attachment and RAG; prefer registered RAG sources on conflict
               """.Trim();
@@ -210,6 +242,21 @@ internal static class ChatSystemPromptTexts
               - Do not add penalties for offenses not asked about and not covered in the materials
               """.Trim();
 
+    internal static string RagArticleScopeInstruction(bool japanese) =>
+        japanese
+            ? """
+              【条番号回答の範囲（必須）】
+              - 質問された条の資料本文だけを使う
+              - 他の条の罪名・罰則・要点を「関連」「近くの条」として足さない
+              - 資料本文に出てこない条番号を一般知識から補わない
+              """.Trim()
+            : """
+              [Article answer scope — required]
+              - Use only the supplied text of the article that was asked about
+              - Do not add other offenses or penalties as "related" or "nearby articles"
+              - Do not add article numbers that are not in the supplied text
+              """.Trim();
+
     internal static string RagDisabledNote(bool japanese) =>
         japanese
             ? "【RAG】オフ。資料DB（RAG）は参照していない。過去の会話や、このメッセージの添付以外の資料を読んだとは言わない。"
@@ -220,7 +267,7 @@ internal static class ChatSystemPromptTexts
             ? """
               【RAG・キャラクター会話モード】
               直後の参考資料を、キャラクターの口調・人格を保ったまま自然に織り込む。
-              - 軽いネタや「関連する条項チェック！」のような突然の条文参照もよい（資料に根拠がある場合）
+              - 触れるのは参考資料に書いてある範囲だけ。質問で指定されていない条番号・罪名を「関連」として足さない
               - 刑期・罰金・金額は資料どおり。資料にない条文番号は断定せず「資料だと〜」「この資料の範囲だと」
               - 堅い法律文書口調・説教は禁止。相棒として会話の温度感を最優先
               - 資料名（規程ファイル名など）を会話にさりげなく入れてよい
@@ -230,7 +277,7 @@ internal static class ChatSystemPromptTexts
             : """
               [RAG — character conversation mode]
               Weave the reference materials below into your reply while keeping the character's voice.
-              - Light asides and casual article references are fine when grounded in the materials
+              - Stay within the supplied passages; do not add other article numbers or offenses as "related"
               - Use penalty amounts and numbers exactly as in the materials; do not invent article numbers
               - Avoid stiff legal-document tone; prioritize the conversational vibe
               - You may mention file names naturally; skip forced citations when materials are irrelevant

@@ -18,7 +18,7 @@ internal static class RagPenaltyTopicParser
         var match = PenaltyTopicPattern.Match(query);
         if (match.Success)
         {
-            var topic = match.Groups[1].Value.Trim();
+            var topic = NormalizeTopicKeyword(match.Groups[1].Value.Trim());
             if (topic.Length >= 2)
             {
                 keyword = topic;
@@ -40,16 +40,31 @@ internal static class RagPenaltyTopicParser
 
     public static IReadOnlyList<string> BuildTextPatterns(string keyword)
     {
-        var patterns = new List<string> { keyword };
-        if (string.Equals(keyword, "贈賄", StringComparison.Ordinal))
+        var normalized = NormalizeTopicKeyword(keyword);
+        var patterns = new List<string> { normalized };
+        if (!string.Equals(normalized, keyword, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(keyword))
+            patterns.Add(keyword);
+        if (string.Equals(normalized, "贈賄", StringComparison.Ordinal))
             patterns.Add("賄賂を供与");
-        else if (string.Equals(keyword, "受賄", StringComparison.Ordinal))
+        else if (string.Equals(normalized, "受賄", StringComparison.Ordinal))
             patterns.Add("賄賂を収受");
         return patterns;
     }
 
+    /// <summary>「住居侵入罪」→「住居侵入」など、見出し照合用に末尾の「罪」を外す。</summary>
+    internal static string NormalizeTopicKeyword(string topic)
+    {
+        if (string.IsNullOrWhiteSpace(topic))
+            return "";
+        var t = topic.Trim();
+        if (t.Length >= 3 && t.EndsWith("罪", StringComparison.Ordinal))
+            return t[..^1];
+        return t;
+    }
+
     private static readonly string[] DirectKeywords =
     [
-        "贈賄", "受賄", "殺人", "傷害", "窃盗", "詐欺", "強盗", "放火", "偽造",
+        "贈賄", "受賄", "殺人", "傷害", "窃盗", "詐欺", "強盗", "放火", "偽造", "国外犯",
     ];
 }

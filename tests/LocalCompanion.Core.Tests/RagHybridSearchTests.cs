@@ -25,6 +25,14 @@ public sealed class RagHybridSearchTests
     }
 
     [Fact]
+    public void FuseRrf_VectorLaneEmpty_StillReturnsFtsOrder()
+    {
+        var ftsIds = new long[] { 7, 8, 9 };
+        var fused = RagHybridSearch.FuseRrf(ftsIds, Array.Empty<long>(), topK: 2, rrfK: 60, weightFts: 0.5, weightVec: 0.5);
+        Assert.Equal(new long[] { 7, 8 }, fused);
+    }
+
+    [Fact]
     public void ResolveWeights_ArticleQuery_BoostsFts()
     {
         var (fts, vec) = RagHybridSearch.ResolveWeights("労基法の第8条全文", baseFts: 0.4, baseVec: 0.6);

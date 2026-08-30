@@ -161,9 +161,7 @@ public static class WindowsNativeFileDialog
 
     private static void ApplyDialogCulture()
     {
-        var culture = LocalizationService.Instance.Current == AppLanguage.Japanese
-            ? new CultureInfo("ja-JP")
-            : new CultureInfo("en-US");
+        var culture = new CultureInfo(AppLanguages.ToBcp47(LocalizationService.Instance.Current));
         Thread.CurrentThread.CurrentCulture = culture;
         Thread.CurrentThread.CurrentUICulture = culture;
     }

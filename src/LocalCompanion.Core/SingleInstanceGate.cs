@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Windows.Forms;
 using LocalCompanion.Localization;
 
@@ -25,9 +24,9 @@ public static class SingleInstanceGate
         }
         catch (Exception ex)
         {
-            // Mutex が使えない環境では起動を優先（終了時の Job Object 等で緩和）
-            StartupLog.Write($"SingleInstanceGate fail-open: {ex.Message}");
-            return true;
+            // Mutex が使えないときは、二重 llama を避けるためファイルロックへ倒す。
+            StartupLog.Write($"SingleInstanceGate mutex failed, file lock: {ex.Message}");
+            return TryAcquireCanonicalExclusiveFileLock();
         }
     }
 
@@ -71,13 +70,8 @@ public static class SingleInstanceGate
                     continue;
 
                 var text = lang.GetString();
-                if (string.Equals(text, "en", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(text, "english", StringComparison.OrdinalIgnoreCase))
-                    return AppLanguage.English;
-
-                if (string.Equals(text, "ja", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(text, "japanese", StringComparison.OrdinalIgnoreCase))
-                    return AppLanguage.Japanese;
+                if (AppLanguages.TryParse(text, out var parsed))
+                    return parsed;
             }
         }
         catch (Exception ex)
@@ -85,10 +79,52 @@ public static class SingleInstanceGate
             StartupLog.Write($"SingleInstanceGate language peek failed: {ex.Message}");
         }
 
-        return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("en", StringComparison.OrdinalIgnoreCase)
-            ? AppLanguage.English
-            : AppLanguage.Japanese;
+        return AppLanguages.FromUiCulture();
     }
+
+    private static FileStream? _fallbackLock;
+
+    internal static string ResolveFallbackLockPath() =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "LocalCompanionLlama",
+            ".localcompanion-single-instance.lock");
+
+    /// <summary>同じパスを 2 回取れなければ false（他インスタンスが保持中）。</summary>
+    internal static bool TryAcquireExclusiveFileLock(string lockFilePath)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(lockFilePath);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+
+            var stream = new FileStream(
+                lockFilePath,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None);
+            _fallbackLock = stream;
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // 想定外の失敗で「既に起動」誤表示→起動不能にしない（二重起動より起動優先）
+            StartupLog.Write($"SingleInstanceGate file lock unexpected, allow start: {ex.Message}");
+            return true;
+        }
+    }
+
+    private static bool TryAcquireCanonicalExclusiveFileLock() =>
+        TryAcquireExclusiveFileLock(ResolveFallbackLockPath());
 
     private static IEnumerable<string> EnumerateLanguageSettingDirectories()
     {

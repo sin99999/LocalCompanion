@@ -196,25 +196,11 @@ public sealed class MemoryService
 
         var topK = Math.Clamp(_opt.MemoryTopK, 1, 12);
         var related = await SearchAsync(userMessage, presetKey, topK, ct);
-        if (related.Count > 0)
-            return related;
-
-        // 直近メッセージに似た記憶が無くても、ときどき「昔の話」をそっと渡す（不意打ち感）
-        if (!ShouldOfferCasualRecall(userMessage))
+        if (related.Count == 0)
             return Array.Empty<UserMemoryRecord>();
 
-        var pool = List(presetKey, Math.Max(8, topK * 3));
-        if (pool.Count == 0)
-            return Array.Empty<UserMemoryRecord>();
-
-        var pick = Math.Min(2, Math.Min(topK, pool.Count));
-        if (pool.Count <= pick)
-            return pool;
-
-        // 決定的シャッフル（日付＋件数）で毎回同じにならないようにする
-        var seed = DateTime.UtcNow.DayOfYear * 397 ^ pool.Count * 31 ^ userMessage.Length;
-        var rng = new Random(seed);
-        return pool.OrderBy(_ => rng.Next()).Take(pick).ToList();
+        // プロンプトには最も関連の1件だけ（無関係な昔話の差し込み防止）
+        return related.Take(1).ToList();
     }
 
     public static string FormatForSystemPrompt(IReadOnlyList<UserMemoryRecord> memories, bool japanese)
@@ -230,32 +216,18 @@ public sealed class MemoryService
             ? """
               使い方:
               - これらはあなたが以前から知っていること。資料や設定画面の話ではない。
-              - 毎ターン全部は出さない。関係があるとき、または会話が穏やかで隙があるときだけ、自然な口調で1つほど触れてもよい。
+              - 今のユーザー発話と直接つながるときだけ、1件まで「そういえば昔〜って言ってたね」「前に〜って話してたよね」系で触れてよい。
+              - つながらない・薄いターンは回想しない（沈黙でよい）。無理に話題を変えない。
               - 「記憶リスト」「保存済み」「設定の記憶」などメタな言い方はしない。
-              - 無理やり話題をねじ曲げない。無関係なら使わなくてよい。
               """.Trim()
             : """
               How to use:
               - Treat these as things you already know about the user — not documents or settings UI.
-              - Do not dump every item. When relevant, or when the chat has a quiet opening, you may naturally mention about one.
+              - Only when they clearly connect to this user turn, mention at most one as a soft callback (e.g. "you mentioned that before").
+              - If the link is weak or missing, stay silent. Do not force a topic change.
               - Do not talk about memory lists, saved memories, or settings.
-              - Do not force a topic change. Skip them when irrelevant.
               """.Trim();
         return header + "\n" + guidance + "\n" + string.Join("\n", lines);
-    }
-
-    /// <summary>短文のあいさつ・相槌など、不意の回想を挟みやすい発話。</summary>
-    private static bool ShouldOfferCasualRecall(string userMessage)
-    {
-        var t = userMessage.Trim();
-        if (t.Length == 0 || t.Length > 48)
-            return false;
-
-        // 質問というより、場をつなぐ系
-        if (t.Contains('？') || t.Contains('?'))
-            return t.Length <= 20;
-
-        return true;
     }
 
     /// <summary>セッションから記憶を抽出し、新規に保存できた件数を返す。プレーンAIセッションは 0。</summary>
@@ -357,6 +329,22 @@ public sealed class MemoryService
 
     private async Task IndexMemoryAsync(long id, string content, CancellationToken ct)
     {
+        // FTS は先に確定（埋め込み失敗で巻き戻さない）
+        try
+        {
+            using var conn = _db.Open();
+            conn.Open();
+            PrepareIndexes(conn);
+            using var tx = conn.BeginTransaction();
+            _index.IndexContent(conn, id, content, tx);
+            tx.Commit();
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "Memory FTS index failed");
+            return;
+        }
+
         try
         {
             if (!await _llama.EmbeddingsSupportedAsync(ct))
@@ -370,15 +358,13 @@ public sealed class MemoryService
             conn.Open();
             PrepareIndexes(conn);
             using var tx = conn.BeginTransaction();
-            _index.IndexContent(conn, id, content, tx);
             _index.EnsureVectorTable(conn, embedding.Length, tx);
             _index.InsertVector(conn, id, embedding, tx);
             tx.Commit();
         }
         catch (Exception ex)
         {
-            // 埋め込み失敗でも本文保存は成功扱い（FTS 再構築や次回埋め込みに委ねる）
-            StartupLog.Write(ex, "Memory index failed");
+            StartupLog.Write(ex, "Memory vector index failed");
         }
     }
 

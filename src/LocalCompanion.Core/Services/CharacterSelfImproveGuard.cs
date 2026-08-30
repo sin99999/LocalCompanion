@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 using LocalCompanion.Localization;
 
@@ -38,44 +38,92 @@ public static partial class CharacterSelfImproveGuard
         return null;
     }
 
-    public static string BuildDiffPreview(string currentPersona, string proposedPersona, int radius = 160)
+    /// <summary>変更行だけを前後／新規／削除で見せる。共通の前後行は省略する。</summary>
+    public static string BuildDiffPreview(string currentPersona, string proposedPersona, int maxLinesEach = 40)
     {
-        var before = (currentPersona ?? string.Empty).Trim();
-        var after = (proposedPersona ?? string.Empty).Trim();
-        if (string.Equals(before, after, StringComparison.Ordinal))
+        var beforeLines = SplitLines(currentPersona);
+        var afterLines = SplitLines(proposedPersona);
+        if (beforeLines.Count == afterLines.Count
+            && beforeLines.SequenceEqual(afterLines))
             return string.Empty;
 
-        if (before.Length == 0)
-            return Truncate("→ " + after, radius * 2);
-
-        if (after.Length == 0)
-            return Truncate("← " + before, radius * 2);
-
         var prefix = 0;
-        var maxPrefix = Math.Min(before.Length, after.Length);
-        while (prefix < maxPrefix && before[prefix] == after[prefix])
+        var maxPrefix = Math.Min(beforeLines.Count, afterLines.Count);
+        while (prefix < maxPrefix
+               && string.Equals(beforeLines[prefix], afterLines[prefix], StringComparison.Ordinal))
             prefix++;
 
         var suffix = 0;
-        while (suffix < before.Length - prefix
-               && suffix < after.Length - prefix
-               && before[before.Length - 1 - suffix] == after[after.Length - 1 - suffix])
+        while (suffix < beforeLines.Count - prefix
+               && suffix < afterLines.Count - prefix
+               && string.Equals(
+                   beforeLines[beforeLines.Count - 1 - suffix],
+                   afterLines[afterLines.Count - 1 - suffix],
+                   StringComparison.Ordinal))
         {
             suffix++;
         }
 
-        var beforeMid = before[prefix..(before.Length - suffix)];
-        var afterMid = after[prefix..(after.Length - suffix)];
+        var removed = beforeLines.Skip(prefix).Take(beforeLines.Count - prefix - suffix).ToList();
+        var added = afterLines.Skip(prefix).Take(afterLines.Count - prefix - suffix).ToList();
+        if (removed.Count == 0 && added.Count == 0)
+            return string.Empty;
+
         var sb = new StringBuilder();
         if (prefix > 0)
-            sb.Append('…');
-        sb.AppendLine(Loc("Character.SelfImprove.Diff.Before"));
-        sb.AppendLine(Truncate(beforeMid, radius));
-        sb.AppendLine(Loc("Character.SelfImprove.Diff.After"));
-        sb.Append(Truncate(afterMid, radius));
+            sb.AppendLine("…");
+
+        if (removed.Count == 0)
+        {
+            sb.AppendLine(Loc("Character.SelfImprove.Diff.New"));
+            sb.Append(JoinLines(added, maxLinesEach));
+        }
+        else if (added.Count == 0)
+        {
+            sb.AppendLine(Loc("Character.SelfImprove.Diff.Deleted"));
+            sb.Append(JoinLines(removed, maxLinesEach));
+        }
+        else
+        {
+            sb.AppendLine(Loc("Character.SelfImprove.Diff.Before"));
+            sb.AppendLine(JoinLines(removed, maxLinesEach));
+            sb.AppendLine(Loc("Character.SelfImprove.Diff.After"));
+            sb.Append(JoinLines(added, maxLinesEach));
+        }
+
         if (suffix > 0)
+        {
+            if (!sb.ToString().EndsWith('\n'))
+                sb.AppendLine();
             sb.Append('…');
+        }
+
         return sb.ToString().Trim();
+    }
+
+    private static List<string> SplitLines(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return new List<string>();
+
+        return text
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split('\n')
+            .Select(static l => l.TrimEnd())
+            .ToList();
+    }
+
+    private static string JoinLines(IReadOnlyList<string> lines, int maxLines)
+    {
+        if (lines.Count == 0)
+            return string.Empty;
+
+        if (lines.Count <= maxLines)
+            return string.Join(Environment.NewLine, lines);
+
+        var head = lines.Take(maxLines).ToList();
+        return string.Join(Environment.NewLine, head) + Environment.NewLine + "…";
     }
 
     private static string Loc(string key)
@@ -88,13 +136,6 @@ public static partial class CharacterSelfImproveGuard
         {
             return key;
         }
-    }
-
-    private static string Truncate(string text, int max)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= max)
-            return text;
-        return text[..max] + "…";
     }
 
     private static bool ContainsAbsolutePath(string text) =>

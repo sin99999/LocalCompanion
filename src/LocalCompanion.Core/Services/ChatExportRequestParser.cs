@@ -81,11 +81,26 @@ internal static class ChatExportRequestParser
         if (!LooksLikeExportIntent(trimmed))
             return false;
 
+        // キャラ JSON／persona 更新の依頼は SelfImprove 側。デスクトップ等の明示先が無い限り export しない
+        if (CharacterSelfImproveIntent.LooksLikePersonaUpdateRequest(trimmed)
+            && !HasExplicitDiskDestination(trimmed))
+            return false;
+
         request = BuildRequest(trimmed);
         StartupLog.Write(
             $"Chat export intent: target={request.Target.Kind}, ext={request.Extension}, query={TruncateLog(request.Query)}");
         return true;
     }
+
+    /// <summary>保存先フォルダが文言で明示されているか（話題語だけの「ファイル」は含まない）。</summary>
+    internal static bool HasExplicitDiskDestination(string message) =>
+        TryExtractExplicitDirectory(message) is not null
+        || ContainsDesktopCue(message)
+        || ContainsUsbCue(message)
+        || ContainsDocumentsCue(message)
+        || ContainsDownloadsCue(message)
+        || ContainsUserDataCue(message)
+        || ContainsAppRootCue(message);
 
     /// <summary>上書き／別名保存の短い返答だけを検出する（リピート誤爆防止用）。</summary>
     public static bool TryParseConflictResolution(string message, out ChatExportConflictPolicy policy)
@@ -158,6 +173,10 @@ internal static class ChatExportRequestParser
         if (explicitDir is not null)
             return new ChatExportTarget(ChatExportTargetKind.Directory, explicitDir);
 
+        // 明示のデスクトップは話題語（ダウンロード／USB／外付け）より先
+        if (ContainsDesktopCue(message))
+            return new ChatExportTarget(ChatExportTargetKind.Desktop);
+
         if (ContainsUsbCue(message))
             return new ChatExportTarget(ChatExportTargetKind.RemovableStorage);
 
@@ -175,6 +194,18 @@ internal static class ChatExportRequestParser
 
         return new ChatExportTarget(ChatExportTargetKind.Desktop);
     }
+
+    /// <summary>保存先としてのデスクトップ（話題の「デスクトップアプリ」等は除外）。</summary>
+    private static readonly Regex DesktopDestinationCue = new(
+        @"(?:デスクトップ|desktop)(?:上|に|へ|へ保存|に保存|に置|へ置|に書|へ書|フォルダ)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static bool ContainsDesktopCue(string message) =>
+        DesktopDestinationCue.IsMatch(message)
+        || Regex.IsMatch(
+            message,
+            @"(?:to|on)\s+(?:the\s+)?desktop\b",
+            RegexOptions.IgnoreCase);
 
     internal static string? TryExtractExplicitDirectory(string message)
     {
@@ -222,6 +253,13 @@ internal static class ChatExportRequestParser
         return string.IsNullOrWhiteSpace(best) ? null : best;
     }
 
+    private static readonly string[] PathDestinationSuffixes =
+    [
+        "に保存", "へ保存", "に置いて", "へ置いて", "に置い", "へ置い",
+        "に書き", "へ書き", "に出力", "へ出力", "に残して", "へ残して",
+        "に書いて", "へ書いて", "の中に", "の中へ",
+    ];
+
     private static string NormalizeExtractedPath(string raw)
     {
         var trimmed = raw.Trim().TrimEnd('」', '』', '"', '\'');
@@ -237,6 +275,17 @@ internal static class ChatExportRequestParser
         // C:/work → C:\work（以降の Path API と一致させる）
         if (trimmed.Length >= 2 && trimmed[1] == ':')
             trimmed = trimmed.Replace('/', '\\');
+
+        // 「C:\workに保存して」→ 空白無しでも助詞＋保存動詞以降を落とす
+        foreach (var suffix in PathDestinationSuffixes)
+        {
+            var idx = trimmed.IndexOf(suffix, StringComparison.Ordinal);
+            if (idx > 2)
+            {
+                trimmed = trimmed[..idx];
+                break;
+            }
+        }
 
         // 「C:\work\exports に txt で保存」→ 空白＋助詞以降を落とす
         var spaceIdx = trimmed.IndexOf(' ');
@@ -371,6 +420,9 @@ internal static class ChatExportRequestParser
 
     private static bool LooksLikeExportIntent(string message)
     {
+        if (IsRhetoricalSaveQuestion(message))
+            return false;
+
         if (TryExtractExplicitDirectory(message) is not null && ContainsSaveCue(message))
             return true;
 
@@ -389,15 +441,16 @@ internal static class ChatExportRequestParser
         if (ContainsAppRootCue(message) && ContainsSaveCue(message))
             return true;
 
-        if (message.Contains("デスクトップ", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("desktop", StringComparison.OrdinalIgnoreCase))
-        {
-            if (ContainsSaveCue(message))
-                return true;
-        }
+        if (ContainsDesktopCue(message) && ContainsSaveCue(message))
+            return true;
 
-        if (message.Contains("ファイル", StringComparison.OrdinalIgnoreCase)
-            && ContainsSaveCue(message))
+        // 「ファイルに／へ／として／で＋保存・書き出し」だけ。話題の「ファイルは保存して」は落とす
+        if (FileAsDestinationCue.IsMatch(message))
+            return true;
+
+        // 上書き／別名の短い依頼（「このファイルを上書きして保存して」）
+        if (message.Contains("ファイル", StringComparison.Ordinal)
+            && (ContainsStrictOverwriteCue(message) || ContainsStrictSaveAsCue(message)))
             return true;
 
         if ((message.Contains("テキストファイル", StringComparison.OrdinalIgnoreCase)
@@ -413,6 +466,29 @@ internal static class ChatExportRequestParser
             return true;
 
         return false;
+    }
+
+    /// <summary>ファイルが保存先になっている依頼（「大事なファイルは保存して」は非該当）。</summary>
+    private static readonly Regex FileAsDestinationCue = new(
+        @"(?:テキスト\s*)?ファイル(?:に|へ|として|で)\s*(?:保存|書き出|書きだ|出力)|(?:save|export|write)\s+(?:it\s+)?(?:to\s+)?(?:a\s+)?(?:text\s+)?file\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>「保存してる？」など現状確認の疑問。依頼の「書き出してくれる？」は残す。</summary>
+    private static bool IsRhetoricalSaveQuestion(string message)
+    {
+        var t = message.Trim();
+        if (!(t.EndsWith('？') || t.EndsWith('?')))
+            return false;
+        if (t.Contains("くれる", StringComparison.Ordinal)
+            || t.Contains("ください", StringComparison.Ordinal)
+            || t.Contains("お願い", StringComparison.Ordinal)
+            || t.Contains("置い", StringComparison.Ordinal)
+            || t.Contains("書き出", StringComparison.Ordinal)
+            || t.Contains("書きだ", StringComparison.Ordinal))
+            return false;
+        return t.Contains("してる", StringComparison.Ordinal)
+            || t.Contains("ですか", StringComparison.Ordinal)
+            || t.Contains("なの", StringComparison.Ordinal);
     }
 
     private static bool ContainsLooseExportCue(string message) =>

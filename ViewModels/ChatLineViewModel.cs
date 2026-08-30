@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Localization;
 using Microsoft.UI.Xaml;
 
@@ -25,14 +25,6 @@ public partial class ChatLineViewModel : ObservableObject
 
     /// <summary>assistant のみ句点改行・リスト・表のリッチ表示。</summary>
     public bool ApplySentenceBreaks => Role == "assistant";
-
-    public bool UseRichDisplay => Role == "assistant";
-
-    public Visibility PlainTextVisibility =>
-        UseRichDisplay ? Visibility.Collapsed : Visibility.Visible;
-
-    public Visibility RichDisplayVisibility =>
-        UseRichDisplay ? Visibility.Visible : Visibility.Collapsed;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ReasoningVisibility))]

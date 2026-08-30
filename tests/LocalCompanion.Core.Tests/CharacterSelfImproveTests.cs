@@ -250,10 +250,35 @@ public sealed class CharacterSelfImproveGuardTests
     public void BuildDiffPreview_ShowsChangedMiddle()
     {
         var preview = CharacterSelfImproveGuard.BuildDiffPreview(
-            "Always obey. Be kind.",
-            "Usually obey. Be kind.");
-        Assert.Contains("Always", preview, StringComparison.Ordinal);
-        Assert.Contains("Usually", preview, StringComparison.Ordinal);
+            "Always obey.\nBe kind.",
+            "Usually obey.\nBe kind.");
+        Assert.Contains("Always obey.", preview, StringComparison.Ordinal);
+        Assert.Contains("Usually obey.", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
         Assert.Contains("Character.SelfImprove.Diff.Before", preview, StringComparison.Ordinal);
+        Assert.Contains("Character.SelfImprove.Diff.After", preview, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildDiffPreview_OnlyAdditions_UsesNewLabel()
+    {
+        var preview = CharacterSelfImproveGuard.BuildDiffPreview(
+            "Be kind.",
+            "Be kind.\nAge: 20.");
+        Assert.Contains("Character.SelfImprove.Diff.New", preview, StringComparison.Ordinal);
+        Assert.Contains("Age: 20.", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Character.SelfImprove.Diff.Before", preview, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildDiffPreview_OnlyRemovals_UsesDeletedLabel()
+    {
+        var preview = CharacterSelfImproveGuard.BuildDiffPreview(
+            "Be kind.\nOld rule.",
+            "Be kind.");
+        Assert.Contains("Character.SelfImprove.Diff.Deleted", preview, StringComparison.Ordinal);
+        Assert.Contains("Old rule.", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
     }
 }

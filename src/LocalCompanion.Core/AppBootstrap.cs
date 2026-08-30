@@ -92,10 +92,10 @@ public static class AppBootstrap
 
     public static void StopManagedLlama(AppPaths paths, bool waitForLlamaExit = true)
     {
-        var toolsDir = paths.ToolsDirectory;
-        var managed = LlamaManagedMarker.IsActiveInToolsDir(toolsDir);
-
-        if (managed)
-            LlamaServerNativeHost.StopLlamaProcesses(toolsDir, waitForLlamaExit);
+        // 終了時はマーカーが消えていても PID があれば止める（起動中のマーカー書き込み前／消込後の穴）。
+        LlamaServerNativeHost.StopLlamaProcesses(
+            paths.ToolsDirectory,
+            waitForLlamaExit,
+            requireMarker: false);
     }
 }

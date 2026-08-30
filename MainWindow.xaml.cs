@@ -9,6 +9,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -53,6 +54,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        FillLanguagePickerButtons();
         ScrollViewer.SetHorizontalScrollBarVisibility(ThreadList, ScrollBarVisibility.Disabled);
 
         try
@@ -257,11 +259,61 @@ public sealed partial class MainWindow : Window
         return _languageChoiceTcs.Task;
     }
 
-    private void OnPickJapaneseClick(object sender, RoutedEventArgs e) =>
-        CompleteLanguageChoice(AppLanguage.Japanese);
+    private void FillLanguagePickerButtons()
+    {
+        LanguagePickerTitles.Children.Clear();
+        foreach (var language in AppLanguages.All)
+        {
+            var table = LocalizationResources.For(language);
+            LanguagePickerTitles.Children.Add(new TextBlock
+            {
+                Text = table["Splash.Language.Title"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 15,
+            });
+        }
 
-    private void OnPickEnglishClick(object sender, RoutedEventArgs e) =>
-        CompleteLanguageChoice(AppLanguage.English);
+        LanguagePickerButtons.Children.Clear();
+        StackPanel? row = null;
+        var index = 0;
+        foreach (var language in AppLanguages.All)
+        {
+            if (index % 3 == 0)
+            {
+                row = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 12,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                };
+                LanguagePickerButtons.Children.Add(row);
+            }
+
+            var button = new Button
+            {
+                Content = AppLanguages.NativeName(language),
+                Tag = language,
+                MinWidth = 140,
+            };
+            if (language == AppLanguage.Japanese
+                && Application.Current.Resources.TryGetValue("AccentButtonStyle", out var accent)
+                && accent is Style accentStyle)
+            {
+                button.Style = accentStyle;
+            }
+
+            button.Click += OnPickLanguageClick;
+            row!.Children.Add(button);
+            index++;
+        }
+    }
+
+    private void OnPickLanguageClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: AppLanguage language })
+            CompleteLanguageChoice(language);
+    }
 
     private void CompleteLanguageChoice(AppLanguage language)
     {
@@ -522,12 +574,9 @@ public sealed partial class MainWindow : Window
     {
         var loc = LocalizationService.Instance;
         var flyout = new MenuFlyout();
-        foreach (var choice in new[]
+        foreach (var language in AppLanguages.All)
         {
-            new LanguageChoiceViewModel(AppLanguage.Japanese, loc.Get("Settings.Language.Option.Ja")),
-            new LanguageChoiceViewModel(AppLanguage.English, loc.Get("Settings.Language.Option.En")),
-        })
-        {
+            var choice = new LanguageChoiceViewModel(language, AppLanguages.NativeName(language));
             var item = new MenuFlyoutItem
             {
                 Text = choice.DisplayName,
@@ -653,6 +702,81 @@ public sealed partial class MainWindow : Window
             await chatPage.ViewModel.SwitchToConversationSessionAsync(sessionId);
             ReloadCharacterChoices();
         }
+    }
+
+    private void OnThreadListRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        var preview = FindThreadPreview(e.OriginalSource);
+        if (preview is null)
+            return;
+
+        e.Handled = true;
+        var loc = LocalizationService.Instance;
+        var flyout = new MenuFlyout();
+        var deleteItem = new MenuFlyoutItem
+        {
+            Text = loc.Get("Chat.ClearHistory"),
+            Icon = new FontIcon { Glyph = "\uE74D" },
+        };
+        deleteItem.Click += async (_, _) => await ConfirmAndDeleteThreadAsync(preview.SessionId);
+        flyout.Items.Add(deleteItem);
+        flyout.ShowAt(ThreadList, e.GetPosition(ThreadList));
+    }
+
+    private static ConversationThreadPreview? FindThreadPreview(object? source)
+    {
+        for (var current = source as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is FrameworkElement { DataContext: ConversationThreadPreview preview })
+                return preview;
+        }
+
+        return null;
+    }
+
+    private async Task ConfirmAndDeleteThreadAsync(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return;
+
+        var vm = AppServices.Get<ChatPageViewModel>();
+        var appearance = AppServices.Get<AppAppearanceService>();
+        if (appearance.ShouldConfirmHistoryDelete())
+        {
+            var loc = LocalizationService.Instance;
+            var checkBox = new CheckBox { Content = loc.Get("Chat.ClearHistory.Confirm.DontAskAgain") };
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = loc.Get("Chat.ClearHistory.Confirm.Title"),
+                Content = new StackPanel
+                {
+                    Spacing = 12,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = loc.Get("Chat.DeleteThread.Confirm.Message"),
+                            TextWrapping = TextWrapping.WrapWholeWords,
+                        },
+                        checkBox,
+                    },
+                },
+                PrimaryButtonText = loc.Get("Common.Delete"),
+                SecondaryButtonText = loc.Get("Common.Cancel"),
+                DefaultButton = ContentDialogButton.Secondary,
+            };
+
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+                return;
+
+            if (checkBox.IsChecked == true)
+                appearance.SetConfirmHistoryDelete(false);
+        }
+
+        await vm.DeleteConversationSessionAsync(sessionId);
+        ReloadConversationThreads();
+        ReloadCharacterChoices();
     }
 
     private static async Task FinalizeChatSessionOnCloseAsync()

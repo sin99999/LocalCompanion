@@ -1,4 +1,4 @@
-using LocalCompanion.Models;
+﻿using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
 
@@ -14,11 +14,13 @@ internal static class RagVerbatimResponder
         reply = "";
         if (plan.ResponseMode != RagResponseMode.Verbatim || hits.Count == 0)
             return false;
+        if (RagArticleHitFilter.IsAmbiguousSources(plan, hits))
+            return false;
 
         return plan.Intent switch
         {
             RagQueryIntent.Penalty => TryFormatPenalty(hits, japanese, out reply),
-            RagQueryIntent.Article => TryFormatArticle(hits, japanese, out reply),
+            RagQueryIntent.Article => TryFormatArticle(plan, hits, japanese, out reply),
             RagQueryIntent.Boundary => TryFormatBoundary(hits, japanese, out reply),
             RagQueryIntent.Definition => TryFormatDefinition(hits, japanese, out reply),
             RagQueryIntent.Faq => TryFormatFaq(hits, japanese, out reply),
@@ -42,18 +44,73 @@ internal static class RagVerbatimResponder
         return true;
     }
 
-    private static bool TryFormatArticle(IReadOnlyList<RagSearchHit> hits, bool japanese, out string reply)
+    private static bool TryFormatArticle(
+        RagQueryPlan plan,
+        IReadOnlyList<RagSearchHit> hits,
+        bool japanese,
+        out string reply)
     {
         reply = "";
-        var hit = hits[0];
-        var body = StripLeadingArticleHeaderLine(hit.PromptText, hit.HeaderText);
-        if (string.IsNullOrWhiteSpace(body))
+        var keys = RagArticleHitFilter.RequestedKeys(plan);
+        var ordered = new List<RagSearchHit>();
+        if (plan.ArticleBindings is { Count: > 0 })
+        {
+            foreach (var binding in plan.ArticleBindings)
+            {
+                var hit = hits.FirstOrDefault(h =>
+                    h.ArticleSortKey == binding.SortKey
+                    && RagSourceHintResolver.MatchesHint(h.Source, binding.Hint));
+                if (hit is not null)
+                    ordered.Add(hit);
+            }
+        }
+        else if (keys.Count == 0)
+        {
+            ordered.AddRange(hits);
+        }
+        else
+        {
+            foreach (var key in keys)
+            {
+                var forKey = hits.Where(h => h.ArticleSortKey == key).ToList();
+                if (RagArticleHitFilter.WantsAllNamedSources(plan))
+                {
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var hit in forKey)
+                    {
+                        if (seen.Add(hit.SourceFileName))
+                            ordered.Add(hit);
+                    }
+                }
+                else if (forKey.Count > 0)
+                {
+                    ordered.Add(forKey[0]);
+                }
+            }
+        }
+
+        var parts = new List<string>();
+        var index = 0;
+        foreach (var hit in ordered)
+        {
+            if (!RagArticleHitFilter.MatchesRequested(plan, hit))
+                continue;
+
+            var body = StripLeadingArticleHeaderLine(hit.PromptText, hit.HeaderText);
+            if (string.IsNullOrWhiteSpace(body))
+                continue;
+
+            var header = string.IsNullOrWhiteSpace(hit.HeaderText) ? "" : hit.HeaderText + "\n\n";
+            parts.Add(japanese
+                ? $"{header}{body}\n\n出典: {hit.FormatSourceLabel(index)}"
+                : $"{header}{body}\n\nSource: {hit.FormatSourceLabel(index)}");
+            index++;
+        }
+
+        if (parts.Count == 0)
             return false;
 
-        var header = string.IsNullOrWhiteSpace(hit.HeaderText) ? "" : hit.HeaderText + "\n\n";
-        reply = japanese
-            ? $"{header}{body}\n\n出典: {hit.FormatSourceLabel(0)}"
-            : $"{header}{body}\n\nSource: {hit.FormatSourceLabel(0)}";
+        reply = string.Join("\n\n", parts);
         return true;
     }
 

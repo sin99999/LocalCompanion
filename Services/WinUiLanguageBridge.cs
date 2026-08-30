@@ -10,11 +10,7 @@ public static class WinUiLanguageBridge
     {
         try
         {
-            var tag = LocalizationService.Instance.Current switch
-            {
-                AppLanguage.Japanese => "ja-JP",
-                _ => "en-US",
-            };
+            var tag = AppLanguages.ToBcp47(LocalizationService.Instance.Current);
             tag = ResolveAvailableLanguageTag(tag);
             ApplicationLanguages.PrimaryLanguageOverride = tag;
         }

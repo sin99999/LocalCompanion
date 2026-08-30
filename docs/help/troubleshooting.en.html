@@ -28,7 +28,10 @@
     </div>
 
     <h3>A message says the app is already running</h3>
-    <p>Only one LocalCompanion window can run at a time. Use the window that is already open.</p>
+    <p>Only one LocalCompanion window can run at a time. Check the taskbar, another virtual desktop, or a minimized window. Bring the existing window to the front. If you still cannot find it, end LocalCompanion in Task Manager, then start LocalCompanion.exe again.</p>
+
+    <h3>A process remains after you close the window</h3>
+    <p>After you close the window, Task Manager may still show llama-server. If it remains after a short wait, confirm that LocalCompanion has exited, then end llama-server.</p>
 
     <h3>The app starts but the chat area is blank / empty</h3>
     <div class="card">
@@ -79,7 +82,7 @@
 
     <h3>Status never shows OK</h3>
     <ul>
-      <li>Check the runtime status on <strong>Settings → Model</strong> (the same status also appears at the bottom-right of the chat screen).</li>
+      <li>Check the runtime status on <strong>Settings → Model selection</strong> (the same status also appears at the bottom-right of the chat screen).</li>
       <li>Starting llama-server can take several minutes (especially on first launch or with large models).</li>
       <li>If another AI app or server app is running, close it. If the problem continues, restart the PC.</li>
       <li>A leftover <code>llama-server</code> that you started by hand can occupy the port. End it in Task Manager and try again.</li>
@@ -143,7 +146,7 @@
       <li>Conversations with the <strong>default AI</strong> (no character selected) are <strong>not</strong> listed in the left history pane.</li>
       <li>Under chat <strong>Options</strong>, turning off <strong>Reasoning</strong> may stabilize replies.</li>
       <li>With <strong>History</strong> off, prior turns are not sent to the model.</li>
-      <li>URL attachments are limited to <strong>2 MB</strong> (separate from RAG import limits).</li>
+      <li>URL attachments are limited to <strong>2 MB</strong>. Pages opened by Web search are limited to about <strong>512 KB</strong> each (both are separate from RAG import limits).</li>
     </ul>
 
     <h2>Vision / image input fails</h2>
@@ -165,7 +168,7 @@
       <li>Conversation, RAG, and attachment text are processed on this PC.</li>
       <li>Optional update checks may contact GitHub; when VOICEVOX is installed, VOICEVOX update checks may also contact GitHub.</li>
       <li>First-time setup and mmproj download may access Hugging Face and similar hosts.</li>
-      <li>Loading a URL, URLs written in a message, or research-style web search may access those remote sites. The default web search uses DuckDuckGo (HTML) and sends the query to that service. Set <code>WebSearchEnabled</code> to <code>false</code> in <code>appsettings.json</code> to turn it off.</li>
+      <li>Loading a URL, URLs written in a message, or research-style web search may access those remote sites. The default web search uses DuckDuckGo (HTML) and sends the query to that service. Set <code>WebSearchEnabled</code> to <code>false</code> in <code>appsettings.json</code> to turn it off. For statute questions or “search materials” / registered documents, local RAG is preferred over the web.</li>
       <li>Speech input uses Windows speech recognition, which may be online depending on your environment.</li>
     </ul>
 

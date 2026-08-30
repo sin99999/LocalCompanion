@@ -32,21 +32,9 @@ public sealed class LanguageSettingsStore
                 return false;
 
             var text = lang.GetString();
-            if (string.Equals(text, "en", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(text, "english", StringComparison.OrdinalIgnoreCase))
-            {
-                language = AppLanguage.English;
-                return true;
-            }
-
-            if (string.Equals(text, "ja", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(text, "japanese", StringComparison.OrdinalIgnoreCase))
-            {
-                language = AppLanguage.Japanese;
-                return true;
-            }
-
-            return false;
+            if (!AppLanguages.TryParse(text, out language))
+                return false;
+            return true;
         }
         catch
         {
@@ -58,7 +46,7 @@ public sealed class LanguageSettingsStore
     {
         var payload = new
         {
-            language = language == AppLanguage.English ? "en" : "ja",
+            language = AppLanguages.ToStorage(language),
             updatedAt = DateTimeOffset.Now.ToString("o"),
         };
         AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(payload));

@@ -15,7 +15,7 @@ public static class LlamaServerNativeHost
 
         var exe = LlamaCppInstaller.EnsureInstalled(root);
         if (exe is null)
-            return 1;
+            return 4;
 
         var bootstrap = DefaultModelDownloader.TryBootstrap(root);
 
@@ -161,7 +161,7 @@ public static class LlamaServerNativeHost
             if (AppBootstrap.IsExitRequested)
             {
                 NativeLog.WriteKeyLogOnly("Startup.LlamaAbortedOnExit");
-                return 1;
+                return 4;
             }
 
             var gpuLayers = gpuLayerAttempts[attemptIndex];
@@ -185,7 +185,7 @@ public static class LlamaServerNativeHost
                 {
                     NativeLog.WriteKeyLogOnly("Startup.LlamaAbortedOnExit");
                     StopLlamaProcesses(toolsDir, waitAfterKill: false);
-                    return 1;
+                    return 4;
                 }
 
                 if (LlamaServerHealth.IsModelReady(port))
@@ -198,7 +198,7 @@ public static class LlamaServerNativeHost
                             break;
 
                         TailLog(logFile);
-                        return 1;
+                        return 4;
                     }
 
                     WriteMarker(ctxMarker, context.ToString());
@@ -215,7 +215,7 @@ public static class LlamaServerNativeHost
                         break;
 
                     TailLog(logFile);
-                    return 1;
+                    return 4;
                 }
 
                 var elapsed = (DateTime.UtcNow - started).TotalSeconds;
@@ -230,7 +230,7 @@ public static class LlamaServerNativeHost
                 if (AppBootstrap.IsExitRequested)
                 {
                     NativeLog.WriteKeyLogOnly("Startup.LlamaAbortedOnExit");
-                    return 1;
+                    return 4;
                 }
 
                 StopLlamaProcesses(toolsDir);
@@ -239,10 +239,10 @@ public static class LlamaServerNativeHost
 
             NativeLog.WriteKey("Startup.LlamaTimeout", null, waitSec);
             TailLog(logFile);
-            return 1;
+            return 4;
         }
 
-        return 1;
+        return 4;
     }
 
     private static void SetGpuLayers(List<string> args, int gpuLayers)
@@ -327,29 +327,18 @@ public static class LlamaServerNativeHost
         arg.Contains(' ') || arg.Contains('"') ? "\"" + arg.Replace("\"", "\\\"") + "\"" : arg;
 
     /// <param name="waitAfterKill">再起動前は true（ポート解放待ち）。アプリ終了時は false で UI をブロックしない。</param>
-    internal static void StopLlamaProcesses(string toolsDir, bool waitAfterKill = true)
-        => ManagedLlamaProcess.StopManaged(toolsDir, waitAfterKill, requireMarker: true);
+    /// <param name="requireMarker">false なら記録 PID のみでも停止する（アプリ終了時）。</param>
+    internal static void StopLlamaProcesses(string toolsDir, bool waitAfterKill = true, bool requireMarker = true)
+        => ManagedLlamaProcess.StopManaged(toolsDir, waitAfterKill, requireMarker);
 
-    /// <summary>PID 未記録の既存起動を引き継ぐ（単一 llama-server のみ）。成功したら true。</summary>
+    /// <summary>記録済み PID が生きているか。外来の llama-server は乗っ取らない。</summary>
     private static bool TryCaptureManagedPid(string toolsDir)
     {
         if (ManagedLlamaProcess.TryReadPid(toolsDir) is not null)
             return ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir);
 
-        var procs = Process.GetProcessesByName("llama-server");
-        try
-        {
-            if (procs.Length != 1)
-                return false;
-
-            ManagedLlamaProcess.WritePid(toolsDir, procs[0].Id);
-            return ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir);
-        }
-        finally
-        {
-            foreach (var proc in procs)
-                proc.Dispose();
-        }
+        // 名前が llama-server の単一プロセスを自前扱いにすると、他アプリの推論を止める事故になる
+        return false;
     }
 
     private static void SetManagedFlag(string path)

@@ -70,4 +70,73 @@ public sealed class ChatConversationHtmlBuilderTests
         Assert.Contains("thinking now", html, StringComparison.Ordinal);
         Assert.DoesNotContain("<ul>", html, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void BuildArticleHtml_Completed_RendersListAndTable()
+    {
+        const string body = """
+            - りんご
+            - みかん
+
+            | 名前 | 数 |
+            | --- | --- |
+            | a | 1 |
+            """;
+
+        var live = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, body, true, LiveStream: true));
+        // リストは後ろに表があるので閉じ済み。表は行があるので閉じ済み
+        Assert.Contains("<ul>", live, StringComparison.Ordinal);
+        Assert.Contains("chat-table", live, StringComparison.Ordinal);
+
+        var done = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, body, true, LiveStream: false));
+        Assert.Contains("<ul>", done, StringComparison.Ordinal);
+        Assert.Contains("chat-table", done, StringComparison.Ordinal);
+        Assert.DoesNotContain("stream-caret", done, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArticleHtml_LiveStream_OnlyList_StaysPlain()
+    {
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, "- りんご\n- みかん", true, LiveStream: true));
+        Assert.DoesNotContain("<ul>", html, StringComparison.Ordinal);
+        Assert.Contains("りんご", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArticleHtml_LiveStream_ClosedListThenOpenTable_RendersListOnly()
+    {
+        const string body = """
+            - りんご
+            - みかん
+
+            | 名前 | 数 |
+            | --- | --- |
+            """;
+
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, body, true, LiveStream: true));
+        Assert.Contains("<ul>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("chat-table", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArticleHtml_LiveStream_UnclosedFence_IsNotCodeBlock()
+    {
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, "```\nhello", true, LiveStream: true));
+        Assert.DoesNotContain("chat-code", html, StringComparison.Ordinal);
+        Assert.Contains("hello", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArticleHtml_Completed_RendersInlineMarkup()
+    {
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, "これは **大事** と `x` です", true));
+        Assert.Contains("<strong>大事</strong>", html, StringComparison.Ordinal);
+        Assert.Contains("<code>x</code>", html, StringComparison.Ordinal);
+    }
 }
