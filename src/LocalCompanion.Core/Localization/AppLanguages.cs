@@ -2,7 +2,7 @@
 
 namespace LocalCompanion.Localization;
 
-/// <summary>IconMaker と同じ 7 言語。足りない文言は日本語。</summary>
+/// <summary>IconMaker と同じ 8 言語。足りない文言は日本語。</summary>
 public static class AppLanguages
 {
     public static readonly AppLanguage[] All =
@@ -11,6 +11,7 @@ public static class AppLanguages
         AppLanguage.English,
         AppLanguage.Spanish,
         AppLanguage.Portuguese,
+        AppLanguage.German,
         AppLanguage.Russian,
         AppLanguage.ChineseSimplified,
         AppLanguage.Korean,
@@ -21,6 +22,7 @@ public static class AppLanguages
         AppLanguage.English => "en",
         AppLanguage.Spanish => "es",
         AppLanguage.Portuguese => "pt",
+        AppLanguage.German => "de",
         AppLanguage.Russian => "ru",
         AppLanguage.ChineseSimplified => "zh-Hans",
         AppLanguage.Korean => "ko",
@@ -32,6 +34,7 @@ public static class AppLanguages
         AppLanguage.English => "English",
         AppLanguage.Spanish => "Español",
         AppLanguage.Portuguese => "Português",
+        AppLanguage.German => "Deutsch",
         AppLanguage.Russian => "Русский",
         AppLanguage.ChineseSimplified => "简体中文",
         AppLanguage.Korean => "한국어",
@@ -43,6 +46,7 @@ public static class AppLanguages
         AppLanguage.English => "en-US",
         AppLanguage.Spanish => "es-ES",
         AppLanguage.Portuguese => "pt-BR",
+        AppLanguage.German => "de-DE",
         AppLanguage.Russian => "ru-RU",
         AppLanguage.ChineseSimplified => "zh-CN",
         AppLanguage.Korean => "ko-KR",
@@ -75,6 +79,7 @@ public static class AppLanguages
             "en" or "english" or "en-us" or "en-gb" => AppLanguage.English,
             "es" or "spanish" or "español" or "es-es" or "es-mx" => AppLanguage.Spanish,
             "pt" or "pt-br" or "pt-pt" or "portuguese" or "português" => AppLanguage.Portuguese,
+            "de" or "de-de" or "de-at" or "de-ch" or "german" or "deutsch" => AppLanguage.German,
             "ru" or "russian" or "ru-ru" => AppLanguage.Russian,
             "zh" or "zh-hans" or "zh-cn" or "zh-sg" or "chinese" => AppLanguage.ChineseSimplified,
             "ko" or "korean" or "ko-kr" => AppLanguage.Korean,

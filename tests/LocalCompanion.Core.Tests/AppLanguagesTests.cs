@@ -9,6 +9,8 @@ public sealed class AppLanguagesTests
     [InlineData("es", AppLanguage.Spanish)]
     [InlineData("pt", AppLanguage.Portuguese)]
     [InlineData("pt-BR", AppLanguage.Portuguese)]
+    [InlineData("de", AppLanguage.German)]
+    [InlineData("de-DE", AppLanguage.German)]
     [InlineData("ru", AppLanguage.Russian)]
     [InlineData("zh-Hans", AppLanguage.ChineseSimplified)]
     [InlineData("zh-CN", AppLanguage.ChineseSimplified)]
@@ -46,6 +48,7 @@ public sealed class LocalizationResourcesTests
     [InlineData(AppLanguage.English)]
     [InlineData(AppLanguage.Spanish)]
     [InlineData(AppLanguage.Portuguese)]
+    [InlineData(AppLanguage.German)]
     [InlineData(AppLanguage.Russian)]
     [InlineData(AppLanguage.ChineseSimplified)]
     [InlineData(AppLanguage.Korean)]
@@ -55,6 +58,15 @@ public sealed class LocalizationResourcesTests
         var table = LocalizationResources.For(language);
         foreach (var key in japanese.Keys)
             Assert.True(table.ContainsKey(key), key);
+    }
+
+    [Fact]
+    public void For_German_TranslatesNavChat()
+    {
+        var ja = LocalizationResources.For(AppLanguage.Japanese)["Nav.Chat"];
+        var de = LocalizationResources.For(AppLanguage.German)["Nav.Settings"];
+        Assert.Equal("Einstellungen", de);
+        Assert.NotEqual(ja, LocalizationResources.For(AppLanguage.German)["Nav.Settings"]);
     }
 
     [Fact]

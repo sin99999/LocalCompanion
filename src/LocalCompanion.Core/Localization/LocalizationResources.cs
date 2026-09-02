@@ -1,4 +1,4 @@
-namespace LocalCompanion.Localization;
+﻿namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -17,6 +17,7 @@ internal static partial class LocalizationResources
         AppLanguage.English => English,
         AppLanguage.Spanish => Spanish,
         AppLanguage.Portuguese => Portuguese,
+        AppLanguage.German => German,
         AppLanguage.Russian => Russian,
         AppLanguage.ChineseSimplified => ChineseSimplified,
         AppLanguage.Korean => Korean,
@@ -239,6 +240,7 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.Zh"] = "简体中文",
         ["Settings.Language.Option.Ko"] = "한국어",
         ["Settings.Language.Option.Pt"] = "Português",
+        ["Settings.Language.Option.De"] = "Deutsch",
         ["Settings.Language.Saved"] = "言語設定を保存しました。",
         ["Settings.Model.ChatGguf"] = "チャット用 GGUF",
         ["Settings.Model.MmprojHint"] = "vision 用 mmproj は、選択した GGUF 名から models フォルダ内を自動検索します。既知モデルでローカルに無い場合は自動ダウンロードを試みます。",
@@ -706,6 +708,7 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.Zh"] = "简体中文",
         ["Settings.Language.Option.Ko"] = "한국어",
         ["Settings.Language.Option.Pt"] = "Português",
+        ["Settings.Language.Option.De"] = "Deutsch",
         ["Settings.Language.Saved"] = "Language settings saved.",
         ["Settings.Model.ChatGguf"] = "Chat GGUF",
         ["Settings.Model.MmprojHint"] = "Vision mmproj files are searched automatically in the models folder from the selected GGUF name. Known models may trigger an automatic download if missing locally.",

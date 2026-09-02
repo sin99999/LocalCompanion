@@ -6,6 +6,7 @@ public enum AppLanguage
     English,
     Spanish,
     Portuguese,
+    German,
     Russian,
     ChineseSimplified,
     Korean,

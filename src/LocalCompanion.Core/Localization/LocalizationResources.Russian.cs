@@ -1,4 +1,4 @@
-namespace LocalCompanion.Localization;
+﻿namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -208,6 +208,7 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.Zh"] = "简体中文",
         ["Settings.Language.Option.Ko"] = "한국어",
         ["Settings.Language.Option.Pt"] = "Português",
+        ["Settings.Language.Option.De"] = "Deutsch",
         ["Settings.Language.Saved"] = "Языковые настройки сохранены.",
         ["Settings.Model.ChatGguf"] = "Чат GGUF",
         ["Settings.Model.MmprojHint"] = "Файлы mmproj для изображений ищутся автоматически в папке моделей по имени выбранного GGUF. Для известных моделей при отсутствии локального файла может начаться автоматическая загрузка.",
