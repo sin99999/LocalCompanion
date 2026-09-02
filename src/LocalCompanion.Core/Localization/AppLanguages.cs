@@ -2,7 +2,7 @@
 
 namespace LocalCompanion.Localization;
 
-/// <summary>IconMaker と同じ 8 言語。足りない文言は日本語。</summary>
+/// <summary>IconMaker と同じ 10 言語。足りない文言は日本語。</summary>
 public static class AppLanguages
 {
     public static readonly AppLanguage[] All =
@@ -12,8 +12,10 @@ public static class AppLanguages
         AppLanguage.Spanish,
         AppLanguage.Portuguese,
         AppLanguage.German,
+        AppLanguage.French,
         AppLanguage.Russian,
         AppLanguage.ChineseSimplified,
+        AppLanguage.ChineseTraditional,
         AppLanguage.Korean,
     ];
 
@@ -23,8 +25,10 @@ public static class AppLanguages
         AppLanguage.Spanish => "es",
         AppLanguage.Portuguese => "pt",
         AppLanguage.German => "de",
+        AppLanguage.French => "fr",
         AppLanguage.Russian => "ru",
         AppLanguage.ChineseSimplified => "zh-Hans",
+        AppLanguage.ChineseTraditional => "zh-Hant",
         AppLanguage.Korean => "ko",
         _ => "ja",
     };
@@ -35,8 +39,10 @@ public static class AppLanguages
         AppLanguage.Spanish => "Español",
         AppLanguage.Portuguese => "Português",
         AppLanguage.German => "Deutsch",
+        AppLanguage.French => "Français",
         AppLanguage.Russian => "Русский",
         AppLanguage.ChineseSimplified => "简体中文",
+        AppLanguage.ChineseTraditional => "繁體中文",
         AppLanguage.Korean => "한국어",
         _ => "日本語",
     };
@@ -47,8 +53,10 @@ public static class AppLanguages
         AppLanguage.Spanish => "es-ES",
         AppLanguage.Portuguese => "pt-BR",
         AppLanguage.German => "de-DE",
+        AppLanguage.French => "fr-FR",
         AppLanguage.Russian => "ru-RU",
         AppLanguage.ChineseSimplified => "zh-CN",
+        AppLanguage.ChineseTraditional => "zh-TW",
         AppLanguage.Korean => "ko-KR",
         _ => "ja-JP",
     };
@@ -74,12 +82,18 @@ public static class AppLanguages
         if (string.IsNullOrWhiteSpace(text))
             return AppLanguage.Japanese;
 
-        return text.Trim().ToLowerInvariant() switch
+        var key = text.Trim().ToLowerInvariant();
+        if (key.StartsWith("zh-hant", StringComparison.Ordinal)
+            || key is "zh-tw" or "zh-hk" or "zh-mo")
+            return AppLanguage.ChineseTraditional;
+
+        return key switch
         {
             "en" or "english" or "en-us" or "en-gb" => AppLanguage.English,
             "es" or "spanish" or "español" or "es-es" or "es-mx" => AppLanguage.Spanish,
             "pt" or "pt-br" or "pt-pt" or "portuguese" or "português" => AppLanguage.Portuguese,
             "de" or "de-de" or "de-at" or "de-ch" or "german" or "deutsch" => AppLanguage.German,
+            "fr" or "fr-fr" or "fr-ca" or "fr-be" or "fr-ch" or "french" or "français" => AppLanguage.French,
             "ru" or "russian" or "ru-ru" => AppLanguage.Russian,
             "zh" or "zh-hans" or "zh-cn" or "zh-sg" or "chinese" => AppLanguage.ChineseSimplified,
             "ko" or "korean" or "ko-kr" => AppLanguage.Korean,

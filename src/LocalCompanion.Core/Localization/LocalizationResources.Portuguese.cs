@@ -203,6 +203,8 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.Ko"] = "한국어",
         ["Settings.Language.Option.Pt"] = "Português",
         ["Settings.Language.Option.De"] = "Deutsch",
+        ["Settings.Language.Option.Fr"] = "Français",
+        ["Settings.Language.Option.ZhHant"] = "繁體中文",
         ["Settings.Language.Saved"] = "A configuração de idioma foi salva.",
         ["Settings.Model.ChatGguf"] = "GGUF de chat",
         ["Settings.Model.MmprojHint"] = "Os arquivos mmproj de visão são procurados automaticamente na pasta models a partir do nome do GGUF selecionado. Em modelos conhecidos, se estiverem ausentes neste computador, um download automático pode ser iniciado.",

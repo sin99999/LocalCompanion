@@ -1,4 +1,4 @@
-namespace LocalCompanion.Localization;
+﻿namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -203,6 +203,8 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.Ko"] = "한국어",
         ["Settings.Language.Option.Pt"] = "Português",
         ["Settings.Language.Option.De"] = "Deutsch",
+        ["Settings.Language.Option.Fr"] = "Français",
+        ["Settings.Language.Option.ZhHant"] = "繁體中文",
         ["Settings.Language.Saved"] = "Die Spracheinstellung wurde gespeichert.",
         ["Settings.Model.ChatGguf"] = "Chat-GGUF",
         ["Settings.Model.MmprojHint"] = "Vision-mmproj-Dateien werden anhand des ausgewählten GGUF-Namens automatisch im Ordner models gesucht. Bei bekannten Modellen kann ein automatischer Download starten, wenn sie auf diesem Computer fehlen.",

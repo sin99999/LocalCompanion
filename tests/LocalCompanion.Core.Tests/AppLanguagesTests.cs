@@ -11,9 +11,13 @@ public sealed class AppLanguagesTests
     [InlineData("pt-BR", AppLanguage.Portuguese)]
     [InlineData("de", AppLanguage.German)]
     [InlineData("de-DE", AppLanguage.German)]
+    [InlineData("fr", AppLanguage.French)]
+    [InlineData("fr-FR", AppLanguage.French)]
     [InlineData("ru", AppLanguage.Russian)]
     [InlineData("zh-Hans", AppLanguage.ChineseSimplified)]
     [InlineData("zh-CN", AppLanguage.ChineseSimplified)]
+    [InlineData("zh-Hant", AppLanguage.ChineseTraditional)]
+    [InlineData("zh-TW", AppLanguage.ChineseTraditional)]
     [InlineData("ko", AppLanguage.Korean)]
     [InlineData("ja", AppLanguage.Japanese)]
     public void Parse_KnownStorage_RoundTrips(string text, AppLanguage expected)
@@ -49,8 +53,10 @@ public sealed class LocalizationResourcesTests
     [InlineData(AppLanguage.Spanish)]
     [InlineData(AppLanguage.Portuguese)]
     [InlineData(AppLanguage.German)]
+    [InlineData(AppLanguage.French)]
     [InlineData(AppLanguage.Russian)]
     [InlineData(AppLanguage.ChineseSimplified)]
+    [InlineData(AppLanguage.ChineseTraditional)]
     [InlineData(AppLanguage.Korean)]
     public void For_OverlaysEveryJapaneseKey(AppLanguage language)
     {
@@ -58,6 +64,16 @@ public sealed class LocalizationResourcesTests
         var table = LocalizationResources.For(language);
         foreach (var key in japanese.Keys)
             Assert.True(table.ContainsKey(key), key);
+    }
+
+    [Fact]
+    public void For_French_And_TraditionalChinese_TranslateSettings()
+    {
+        Assert.Equal("Paramètres", LocalizationResources.For(AppLanguage.French)["Nav.Settings"]);
+        Assert.Equal("設定", LocalizationResources.For(AppLanguage.ChineseTraditional)["Nav.Settings"]);
+        Assert.NotEqual(
+            LocalizationResources.For(AppLanguage.ChineseSimplified)["Splash.Language.Title"],
+            LocalizationResources.For(AppLanguage.ChineseTraditional)["Splash.Language.Title"]);
     }
 
     [Fact]
