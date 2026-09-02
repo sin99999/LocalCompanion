@@ -5,7 +5,7 @@
   LocalCompanion
 </h1>
 
-<p align="center"><strong>Windows 向けローカル LLM チャット — RAG・キャラクター設定・VOICEVOX 対応（クラウド API キー不要）</strong></p>
+<p align="center"><strong>Windows 向けのローカル LLM チャットアプリケーションです。RAG、キャラクター設定、VOICEVOX に対応します。クラウド API キーは不要です。</strong></p>
 
 <p align="center">
   <a href="https://github.com/sin99999/LocalCompanion/actions/workflows/ci.yml"><img src="https://github.com/sin99999/LocalCompanion/actions/workflows/ci.yml/badge.svg" alt="Build and test"></a>
@@ -16,23 +16,23 @@
 <p align="center">
   <a href="https://github.com/sin99999/LocalCompanion/releases">ダウンロード（Releases）</a> ·
   <a href="docs/Troubleshooting.md">トラブルシューティング</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="CONTRIBUTING.md">開発への参加</a>
 </p>
 
 ## 使用技術一覧
 
 <p style="display: inline">
-  <img src="https://img.shields.io/badge/-C%23-239120.svg?logo=csharp&style=for-the-badge&logoColor=white">
-  <img src="https://img.shields.io/badge/-.NET_10-512BD4.svg?logo=dotnet&style=for-the-badge">
-  <img src="https://img.shields.io/badge/-WinUI_3-0078D4.svg?logo=windows&style=for-the-badge">
-  <img src="https://img.shields.io/badge/-SQLite-003B57.svg?logo=sqlite&style=for-the-badge&logoColor=white">
-  <img src="https://img.shields.io/badge/-llama.cpp-000000.svg?style=for-the-badge">
+  <img src="https://img.shields.io/badge/-C%23-239120.svg?logo=csharp&style=for-the-badge&logoColor=white" alt="C#">
+  <img src="https://img.shields.io/badge/-.NET_10-512BD4.svg?logo=dotnet&style=for-the-badge" alt=".NET 10">
+  <img src="https://img.shields.io/badge/-WinUI_3-0078D4.svg?logo=windows&style=for-the-badge" alt="WinUI 3">
+  <img src="https://img.shields.io/badge/-SQLite-003B57.svg?logo=sqlite&style=for-the-badge&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/-llama.cpp-000000.svg?style=for-the-badge" alt="llama.cpp">
 </p>
 
 ## 目次
 
 1. [LocalCompanion とは](#localcompanion-とは)
-2. [動作環境](#動作環境)
+2. [動作条件](#動作条件)
 3. [フォルダ構成（配布 ZIP）](#フォルダ構成配布-zip)
 4. [起動と終了](#起動と終了)
 5. [初回起動について](#初回起動について)
@@ -47,19 +47,19 @@
 
 Windows 向けのローカル AI チャットアプリケーションです。会話・資料検索（RAG）・音声読み上げを、原則として **お使いの PC 内だけ** で処理します。クラウド API キーは不要です。
 
-ソースの改変・fork は [LICENSE](LICENSE)（MIT）の範囲で自由です。著作権は LocalCompanion Project に帰属します。
+ソースコードの改変およびフォークは、[LICENSE](LICENSE)（MIT License）の範囲で自由に行えます。著作権は LocalCompanion Project に帰属します。
 
 <p align="right">(<a href="#top">トップへ</a>)</p>
 
-## 動作環境
+## 動作条件
 
 | 項目 | 要件 |
 |------|------|
-| OS | Windows 10 ビルド 17763 以降 |
-| ランタイム | [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0)（未導入の場合は 1 回インストール） |
+| オペレーティングシステム | Windows 10 ビルド 17763 以降です |
+| ランタイム | [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0)（未導入の場合は、初回のみインストールが必要です） |
 | WebView2 | [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)（**必須**。会話画面の表示に使用。Windows 11 では通常 OS に含まれます。Windows 10 でも多くの環境で導入済みですが、無い場合は Evergreen ランタイムをインストールしてください。ZIP には同梱しません） |
-| ネットワーク | 初回起動時（AI エンジンと既定モデルのダウンロード。自前 GGUF 指定時はモデル取得をスキップ）。任意の更新確認で GitHub にアクセスすることがあります |
-| 読み上げ | 任意。[VOICEVOX](https://voicevox.hiroshiba.jp/) を別途インストール |
+| ネットワーク | 初回起動時に、AI エンジンと既定モデルをダウンロードします（自前 GGUF 指定時はモデル取得をスキップします）。任意の更新確認で GitHub にアクセスすることがあります |
+| 読み上げ | 任意です。[VOICEVOX](https://voicevox.hiroshiba.jp/) を別途インストールしてください |
 
 WinUI の実行に必要なファイルはアプリに同梱されています。別途「開発者モード」をオンにする必要はありません。**WebView2 Runtime は同梱されない**ため、上記のとおり別途必要です（Edge 本体とは別コンポーネントです）。GitHub Actions のバッジはビルドとテストの結果です。配布 ZIP は [Releases](https://github.com/sin99999/LocalCompanion/releases) にあります。
 
@@ -67,23 +67,23 @@ WinUI の実行に必要なファイルはアプリに同梱されています�
 
 ## フォルダ構成（配布 ZIP）
 
-GitHub Releases の Assets から **`LocalCompanion-{バージョン}.zip`**（例: `LocalCompanion-1.2.4.zip`）をダウンロードして展開します。
+GitHub Releases の Assets から **`LocalCompanion-{バージョン}.zip`**（例: `LocalCompanion-1.2.4.zip`）をダウンロードし、展開してください。
 
 ZIP を展開すると、おおむね次の構成になります（`data\` と `tools\` は初回起動後に作成されます）。
 
 | パス | 内容 |
 |------|------|
-| `LocalCompanion.exe` | アプリ本体 |
-| `appsettings.json` | 既定の接続先・RAG 設定など |
-| `Assets\` | アイコンなど |
-| `scripts\` | llama-server 補助スクリプト |
-| `models\` | 付属の GGUF 置き場（初回ダウンロード先・mmproj の取得先） |
-| `characters\` | キャラクター JSON |
-| `docs\` | トラブルシューティング・ヘルプ HTML |
-| `data\` | 会話・RAG・各種設定（実行時に自動作成） |
-| `tools\llama-cpp\` | llama-server（初回起動時に自動取得） |
+| `LocalCompanion.exe` | アプリケーション本体です |
+| `appsettings.json` | 既定の接続先・RAG 設定などです |
+| `Assets\` | アイコンなどです |
+| `scripts\` | llama-server 補助スクリプトです |
+| `models\` | 付属の GGUF 置き場です（初回ダウンロード先・mmproj の取得先） |
+| `characters\` | キャラクター JSON です |
+| `docs\` | トラブルシューティング・ヘルプ HTML です |
+| `data\` | 会話・RAG・各種設定です（実行時に自動作成されます） |
+| `tools\llama-cpp\` | llama-server です（初回起動時に自動取得します） |
 
-くわしいモデル配置は [models/README.md](models/README.md)、キャラクター設定は [characters/README.md](characters/README.md) をご覧ください。
+詳しいモデル配置は [models/README.md](models/README.md)、キャラクター設定は [characters/README.md](characters/README.md) をご覧ください。
 
 <p align="right">(<a href="#top">トップへ</a>)</p>
 
@@ -228,7 +228,7 @@ A. VOICEVOX のインストールと、設定画面での有効化が必要で�
 
 ## 困ったとき
 
-くわしい手順は [docs/Troubleshooting.md](docs/Troubleshooting.md) をご覧ください。
+詳しい手順は [docs/Troubleshooting.md](docs/Troubleshooting.md) をご覧ください。
 
 | 症状 | まず確認すること |
 |------|------------------|
