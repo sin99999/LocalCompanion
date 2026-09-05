@@ -40,7 +40,7 @@ public sealed class ChatConversationHtmlBuilderTests
     {
         var html = ChatConversationHtmlBuilder.BuildLogHtml(
         [
-            new ChatConversationHtmlBuilder.Line("Assistant", "step one", "final answer", true, "推論"),
+            new ChatConversationHtmlBuilder.Line("Assistant", "step one", "final answer", true, "推論", ShowReasoningPanel: true),
         ]);
         Assert.Contains("class=\"reasoning\"", html, StringComparison.Ordinal);
         Assert.Contains("class=\"reasoning-label\"", html, StringComparison.Ordinal);
@@ -50,6 +50,18 @@ public sealed class ChatConversationHtmlBuilderTests
         Assert.True(
             html.IndexOf("step one", StringComparison.Ordinal)
             < html.IndexOf("final answer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BuildLogHtml_CompletedHidesReasoningWhenPanelOff()
+    {
+        var html = ChatConversationHtmlBuilder.BuildLogHtml(
+        [
+            new ChatConversationHtmlBuilder.Line("Assistant", "step one", "final answer", true, "推論"),
+        ]);
+        Assert.DoesNotContain("class=\"reasoning\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("step one", html, StringComparison.Ordinal);
+        Assert.Contains("final answer", html, StringComparison.Ordinal);
     }
 
     [Fact]

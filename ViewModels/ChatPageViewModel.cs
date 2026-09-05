@@ -650,14 +650,15 @@ public partial class ChatPageViewModel : ObservableObject
                         {
                             EnsureAssistantLine();
                             replyAcc.Append(chunk.Text);
+                            SetStatusByKey("Chat.Status.Generating");
                             break;
                         }
                         case "reasoning" when UseReasoning:
                         {
                             EnsureAssistantLine();
                             reasoningAcc.Append(chunk.Text);
-                            // 本文到着後も推論チャンクを捨てない（サーバが交互に流す場合がある）
-                            SetStatusByKey("Chat.Status.Reasoning");
+                            if (replyAcc.Length == 0)
+                                SetStatusByKey("Chat.Status.Reasoning");
                             break;
                         }
                         case "done":
@@ -668,7 +669,6 @@ public partial class ChatPageViewModel : ObservableObject
                                 replyAcc.Append(chunk.Text);
                             }
 
-                            // 完了時にまとめて渡される推論を優先（ストリーム中に消していた不具合の本命）
                             if (UseReasoning && !string.IsNullOrWhiteSpace(chunk.ReasoningText))
                             {
                                 reasoningAcc.Clear();
@@ -681,7 +681,7 @@ public partial class ChatPageViewModel : ObservableObject
                     if (assistantLine is null)
                         return;
 
-                    if (UseReasoning && reasoningAcc.Length > 0)
+                    if (UseReasoning && reasoningAcc.Length > 0 && replyAcc.Length == 0)
                         assistantLine.SetReasoning(reasoningAcc.ToString());
                     else
                         assistantLine.ClearReasoning();

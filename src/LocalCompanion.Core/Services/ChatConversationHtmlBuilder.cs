@@ -243,8 +243,7 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
         if (!string.IsNullOrWhiteSpace(line.Header))
             sb.Append("<div class=\"header\">").Append(Esc(line.Header)).Append("</div>");
 
-        var showReasoning = line.ShowReasoningPanel
-            || !string.IsNullOrWhiteSpace(line.ReasoningText);
+        var showReasoning = line.ShowReasoningPanel;
         if (showReasoning)
         {
             sb.Append("<div class=\"")

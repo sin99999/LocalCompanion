@@ -479,14 +479,11 @@ public sealed partial class ChatConversationView : UserControl
 
             var isLast = i == _messages.Count - 1;
             var live = isLast && (_streamMode || _isBusy) && line.Role == "assistant";
-            var showReasoningPanel = live
-                || !string.IsNullOrWhiteSpace(line.ReasoningText);
-            if (live && string.IsNullOrWhiteSpace(line.ReasoningText) && string.IsNullOrWhiteSpace(line.Text))
-                showReasoningPanel = true;
+            var showReasoningPanel = ChatReasoningDisplay.ShowPanel(live, line.Text);
 
             lines.Add(new ChatConversationHtmlBuilder.Line(
                 line.Header,
-                line.ReasoningText,
+                showReasoningPanel ? line.ReasoningText : null,
                 line.Text,
                 line.ApplySentenceBreaks,
                 showReasoningPanel ? reasoningLabel : null,
