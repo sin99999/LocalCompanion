@@ -133,7 +133,7 @@ public sealed class LlamaLaunchPolicyTests
 
         Assert.Equal("plenty-draft", decision.ProfileName);
         Assert.Equal(
-            ["-md", draft.FullPath, "--draft-max", "8"],
+            ["-md", draft.FullPath, "--spec-draft-n-max", "8"],
             decision.ExtraArgs);
     }
 

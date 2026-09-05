@@ -54,7 +54,7 @@ internal static class LlamaLaunchPolicy
         if (kv is not null)
             args.AddRange(["--cache-type-k", kv, "--cache-type-v", kv]);
         if (draft is not null)
-            args.AddRange(["-md", draft.Value.FullPath, "--draft-max", DraftMaxTokens.ToString()]);
+            args.AddRange(["-md", draft.Value.FullPath, "--spec-draft-n-max", DraftMaxTokens.ToString()]);
 
         return new LlamaLaunchDecision(BuildProfileName(band, moe, kv, draft is not null), args);
     }
