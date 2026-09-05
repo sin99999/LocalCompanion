@@ -75,6 +75,8 @@ public static class LlamaServerNativeHost
         var managedMarker = LlamaManagedMarker.ResolvePath(toolsDir);
         var configuredGpuLayers = hasUsableGpu ? Math.Max(0, settings.GpuLayers) : 0;
         var modelFolders = extraFolders.Prepend(modelsDir).ToList();
+        var draftCandidates = LlamaLaunchPolicy.ListDraftCandidates(modelPath, modelFolders);
+        var draftCli = LlamaDraftCli.Probe(exe);
         var launchDecision = LlamaLaunchPolicy.Build(
             settings.AutoLaunchTune,
             LlamaHardwareProfile.Current,
@@ -82,9 +84,24 @@ public static class LlamaServerNativeHost
             modelSizeGb,
             modelSizeBytes,
             hasUsableGpu,
-            LlamaLaunchPolicy.ListDraftCandidates(modelPath, modelFolders));
+            draftCandidates,
+            draftCli);
         if (settings.AutoLaunchTune)
             NativeLog.WriteKeyLogOnly("Startup.LaunchTune", launchDecision.ProfileName);
+        if (settings.AutoLaunchTune && !launchDecision.ExtraArgs.Contains("-md"))
+        {
+            var wantedDraft = LlamaLaunchPolicy.Build(
+                true,
+                LlamaHardwareProfile.Current,
+                Path.GetFileName(modelPath),
+                modelSizeGb,
+                modelSizeBytes,
+                hasUsableGpu,
+                draftCandidates,
+                LlamaDraftCliSupport.AssumeCurrent);
+            if (wantedDraft.ExtraArgs.Contains("-md"))
+                NativeLog.WriteKeyLogOnly("Startup.DraftSkippedCli");
+        }
 
         var modelKey = modelPath.ToLowerInvariant()
             + "|" + (mmprojPath ?? "").ToLowerInvariant()
@@ -172,8 +189,10 @@ public static class LlamaServerNativeHost
             args.AddRange(["--mmproj", mmprojPath]);
 
         var logFile = Path.Combine(toolsDir, "llama-server.log");
+        var errLog = logFile + ".err";
         var waitSec = Math.Clamp(context / 64, 180, 600);
         var gpuLayerAttempts = LlamaGpuLayerPolicy.BuildLayerAttempts(configuredGpuLayers, hasUsableGpu);
+        var droppedDraftArgs = false;
         for (var attemptIndex = 0; attemptIndex < gpuLayerAttempts.Count; attemptIndex++)
         {
             // 終了要求後の GPU 再試行で llama-server を再スポーンしない
@@ -230,6 +249,15 @@ public static class LlamaServerNativeHost
                 if (!ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir))
                 {
                     NativeLog.WriteKey("Startup.LlamaProcessExited");
+                    if (!droppedDraftArgs && TryDropDraftAfterCliReject(args, errLog))
+                    {
+                        droppedDraftArgs = true;
+                        NativeLog.WriteKeyLogOnly("Startup.DraftDroppedBadArg");
+                        StopLlamaProcesses(toolsDir);
+                        attemptIndex--;
+                        break;
+                    }
+
                     if (attemptIndex + 1 < gpuLayerAttempts.Count)
                         break;
 
@@ -262,6 +290,27 @@ public static class LlamaServerNativeHost
         }
 
         return 4;
+    }
+
+    private static bool TryDropDraftAfterCliReject(List<string> args, string errLog)
+    {
+        Thread.Sleep(300);
+        var text = ReadQuiet(errLog);
+        if (!LlamaDraftCli.LooksLikeCliArgRejected(text))
+            return false;
+        return LlamaDraftCli.RemoveDraftArgs(args);
+    }
+
+    private static string ReadQuiet(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? File.ReadAllText(path) : "";
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private static void SetGpuLayers(List<string> args, int gpuLayers)

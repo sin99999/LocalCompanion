@@ -138,6 +138,51 @@ public sealed class LlamaLaunchPolicyTests
     }
 
     [Fact]
+    public void Build_PlentyWithDraft_SkipsWhenCliCannotAttach()
+    {
+        var draft = new LlamaDraftCandidate(
+            @"D:\models\gemma-4-E2B-it-draft.gguf",
+            "gemma-4-E2B-it-draft.gguf",
+            Gb(3));
+
+        var decision = LlamaLaunchPolicy.Build(
+            enabled: true,
+            Gpu(vramGb: 24),
+            Moe26B,
+            modelSizeGb: 15,
+            modelSizeBytes: Gb(15),
+            hasUsableGpu: true,
+            [draft],
+            LlamaDraftCliSupport.None);
+
+        Assert.Equal("plenty", decision.ProfileName);
+        Assert.DoesNotContain("-md", decision.ExtraArgs);
+    }
+
+    [Fact]
+    public void Build_PlentyWithDraft_LegacyMaxFlag()
+    {
+        var draft = new LlamaDraftCandidate(
+            @"D:\models\gemma-4-E2B-it-draft.gguf",
+            "gemma-4-E2B-it-draft.gguf",
+            Gb(3));
+
+        var decision = LlamaLaunchPolicy.Build(
+            enabled: true,
+            Gpu(vramGb: 24),
+            Moe26B,
+            modelSizeGb: 15,
+            modelSizeBytes: Gb(15),
+            hasUsableGpu: true,
+            [draft],
+            new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.LegacyDraftMax));
+
+        Assert.Equal(
+            ["-md", draft.FullPath, "--draft-max", "8"],
+            decision.ExtraArgs);
+    }
+
+    [Fact]
     public void Build_TightIgnoresDraftEvenIfPresent()
     {
         var draft = new LlamaDraftCandidate(

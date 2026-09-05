@@ -32,21 +32,25 @@ internal static class LlamaLaunchPolicy
         double modelSizeGb,
         long modelSizeBytes,
         bool hasUsableGpu,
-        IReadOnlyList<LlamaDraftCandidate> draftCandidates)
+        IReadOnlyList<LlamaDraftCandidate> draftCandidates,
+        LlamaDraftCliSupport? draftCli = null)
     {
         if (!enabled)
             return new LlamaLaunchDecision("off", []);
 
+        var cli = draftCli ?? LlamaDraftCliSupport.AssumeCurrent;
         var band = ClassifyBand(hardware, modelSizeGb, hasUsableGpu);
         var moe = LooksLikeMoe(modelFileName) && band == VramBand.Mid && hasUsableGpu;
         var kv = ChooseKv(band, modelSizeGb);
-        var draft = TryPickDraft(
-            hardware,
-            band,
-            hasUsableGpu,
-            modelFileName,
-            modelSizeBytes,
-            draftCandidates);
+        var draft = cli.CanAttachModel
+            ? TryPickDraft(
+                hardware,
+                band,
+                hasUsableGpu,
+                modelFileName,
+                modelSizeBytes,
+                draftCandidates)
+            : null;
 
         var args = new List<string>();
         if (moe)
@@ -54,7 +58,11 @@ internal static class LlamaLaunchPolicy
         if (kv is not null)
             args.AddRange(["--cache-type-k", kv, "--cache-type-v", kv]);
         if (draft is not null)
-            args.AddRange(["-md", draft.Value.FullPath, "--spec-draft-n-max", DraftMaxTokens.ToString()]);
+        {
+            args.AddRange(["-md", draft.Value.FullPath]);
+            if (cli.MaxTokensArg is string maxFlag)
+                args.AddRange([maxFlag, DraftMaxTokens.ToString()]);
+        }
 
         return new LlamaLaunchDecision(BuildProfileName(band, moe, kv, draft is not null), args);
     }
