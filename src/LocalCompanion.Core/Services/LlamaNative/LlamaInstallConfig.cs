@@ -11,36 +11,38 @@ internal static class LlamaInstallConfig
         int Port,
         string? ModelGgufPath,
         string? MmprojGgufPath,
-        string? DataDirectory);
+        string? DataDirectory,
+        bool AutoLaunchTune);
 
     internal static Settings Load(string root)
     {
         var ctx = 8192;
         var gpu = 99;
         var port = 8080;
+        var autoLaunchTune = true;
         string? llamaBase = null;
         string? model = null;
         string? mmproj = null;
         string? dataDir = null;
 
         // Root（リポ／配布）→ ContentRoot（bin 出力）→ local の順で上書き（DI と同じ優先）
-        ApplyFile(Path.Combine(root, "appsettings.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir);
+        ApplyFile(Path.Combine(root, "appsettings.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir, ref autoLaunchTune);
         try
         {
             var contentRoot = AppPaths.Current.ContentRoot;
             if (!string.Equals(Path.GetFullPath(contentRoot), Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
             {
-                ApplyFile(Path.Combine(contentRoot, "appsettings.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir);
-                ApplyFile(Path.Combine(contentRoot, "appsettings.local.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir);
+                ApplyFile(Path.Combine(contentRoot, "appsettings.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir, ref autoLaunchTune);
+                ApplyFile(Path.Combine(contentRoot, "appsettings.local.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir, ref autoLaunchTune);
             }
             else
             {
-                ApplyFile(Path.Combine(root, "appsettings.local.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir);
+                ApplyFile(Path.Combine(root, "appsettings.local.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir, ref autoLaunchTune);
             }
         }
         catch
         {
-            ApplyFile(Path.Combine(root, "appsettings.local.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir);
+            ApplyFile(Path.Combine(root, "appsettings.local.json"), ref ctx, ref gpu, ref llamaBase, ref model, ref mmproj, ref dataDir, ref autoLaunchTune);
         }
 
         if (!string.IsNullOrWhiteSpace(llamaBase) && Uri.TryCreate(llamaBase, UriKind.Absolute, out var uri))
@@ -52,7 +54,7 @@ internal static class LlamaInstallConfig
         else
             ctx = CharacterSamplingLimits.SnapContextLength(ctx);
 
-        return new Settings(ctx, gpu, port, model, mmproj, dataDir);
+        return new Settings(ctx, gpu, port, model, mmproj, dataDir, autoLaunchTune);
     }
 
     private static void ApplyFile(
@@ -62,7 +64,8 @@ internal static class LlamaInstallConfig
         ref string? llamaBase,
         ref string? model,
         ref string? mmproj,
-        ref string? dataDir)
+        ref string? dataDir,
+        ref bool autoLaunchTune)
     {
         if (!File.Exists(path))
             return;
@@ -85,6 +88,13 @@ internal static class LlamaInstallConfig
                 mmproj = p.GetString();
             if (lc.TryGetProperty("DataDirectory", out var d) && d.ValueKind == JsonValueKind.String)
                 dataDir = d.GetString();
+            if (lc.TryGetProperty("AutoLaunchTune", out var tune))
+            {
+                if (tune.ValueKind == JsonValueKind.True)
+                    autoLaunchTune = true;
+                else if (tune.ValueKind == JsonValueKind.False)
+                    autoLaunchTune = false;
+            }
         }
         catch
         {

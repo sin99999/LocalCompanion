@@ -1,4 +1,4 @@
-namespace LocalCompanion.Localization;
+﻿namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -365,6 +365,7 @@ internal static partial class LocalizationResources
         ["Startup.LlamaWaiting"] = "En attente de llama-server (jusqu’à {0} s)",
         ["Startup.LlamaLoadingModel"] = "Chargement du modèle en mémoire… ({0}%)",
         ["Startup.LlamaReady"] = "llama-server est prêt",
+        ["Startup.LaunchTune"] = "Réglage automatique au démarrage : {0}",
         ["Startup.FirstSetup"] = "llama-server introuvable — première configuration (téléchargement volumineux)",
         ["Startup.Extracting"] = "Extraction de llama-cpp…",
         ["Startup.Download.Label.DefaultModel"] = "Téléchargement du modèle par défaut",

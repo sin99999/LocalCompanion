@@ -49,7 +49,9 @@ public static class LlamaServerNativeHost
         modelPath = resolved.ModelPath;
         var mmprojPath = resolved.MmprojPath;
 
-        var modelSizeGb = new FileInfo(modelPath).Length / (1024.0 * 1024 * 1024);
+        var modelInfo = new FileInfo(modelPath);
+        var modelSizeBytes = modelInfo.Length;
+        var modelSizeGb = modelSizeBytes / (1024.0 * 1024 * 1024);
         var hasMmproj = !string.IsNullOrEmpty(mmprojPath) && File.Exists(mmprojPath);
 
         // 最終的な -c は起動済み判定（.last-ctx 比較）より前に確定させる
@@ -72,9 +74,24 @@ public static class LlamaServerNativeHost
         var modelMarker = Path.Combine(toolsDir, ".last-model");
         var managedMarker = LlamaManagedMarker.ResolvePath(toolsDir);
         var configuredGpuLayers = hasUsableGpu ? Math.Max(0, settings.GpuLayers) : 0;
+        var modelFolders = extraFolders.Prepend(modelsDir).ToList();
+        var launchDecision = LlamaLaunchPolicy.Build(
+            settings.AutoLaunchTune,
+            LlamaHardwareProfile.Current,
+            Path.GetFileName(modelPath),
+            modelSizeGb,
+            modelSizeBytes,
+            hasUsableGpu,
+            LlamaLaunchPolicy.ListDraftCandidates(modelPath, modelFolders));
+        if (settings.AutoLaunchTune)
+            NativeLog.WriteKeyLogOnly("Startup.LaunchTune", launchDecision.ProfileName);
+
         var modelKey = modelPath.ToLowerInvariant()
             + "|" + (mmprojPath ?? "").ToLowerInvariant()
-            + "|ngl=" + configuredGpuLayers;
+            + "|ngl=" + configuredGpuLayers
+            + "|tune=" + (settings.AutoLaunchTune
+                ? launchDecision.ProfileName + ":" + string.Join(" ", launchDecision.ExtraArgs)
+                : "off");
 
         if (LlamaServerHealth.IsModelReady(port))
         {
@@ -127,6 +144,8 @@ public static class LlamaServerNativeHost
         {
             extraArgs.AddRange(["-np", "1"]);
         }
+
+        extraArgs.AddRange(launchDecision.ExtraArgs);
 
         var modelBase = Path.GetFileName(modelPath);
         var args = new List<string>

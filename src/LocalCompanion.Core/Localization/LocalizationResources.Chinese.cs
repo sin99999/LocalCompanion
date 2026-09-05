@@ -373,6 +373,7 @@ internal static partial class LocalizationResources
         ["Startup.LlamaWaiting"] = "正在等待 llama-server（最多 {0} 秒）",
         ["Startup.LlamaLoadingModel"] = "正在将模型加载到内存…（{0}%）",
         ["Startup.LlamaReady"] = "llama-server 已就绪",
+        ["Startup.LaunchTune"] = "启动自动调整：{0}",
         ["Startup.FirstSetup"] = "未找到 llama-server — 首次设置（较大下载）",
         ["Startup.Extracting"] = "正在解压 llama-cpp…",
         ["Startup.Download.Label.DefaultModel"] = "默认模型下载",

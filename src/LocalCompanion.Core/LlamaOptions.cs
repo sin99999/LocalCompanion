@@ -15,6 +15,8 @@ public sealed class LlamaOptions
     public string MmprojGgufPath { get; set; } = "";
     public string EmbedModel { get; set; } = "";
     public int GpuLayers { get; set; } = 99;
+    /// <summary>機械に合わせて llama-server の追加引数を付ける。オフなら従来どおり。</summary>
+    public bool AutoLaunchTune { get; set; } = true;
     public int ContextLength { get; set; } = 16384;
     public int MaxOutputTokens { get; set; } = 4096;
     /// <summary>Gemma 4 公式推奨は 1.0。</summary>

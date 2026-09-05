@@ -373,6 +373,7 @@ internal static partial class LocalizationResources
         ["Startup.LlamaWaiting"] = "llama-server를 기다리는 중입니다(최대 {0}초)",
         ["Startup.LlamaLoadingModel"] = "모델을 메모리에 불러오는 중입니다… ({0}%)",
         ["Startup.LlamaReady"] = "llama-server가 준비되었습니다",
+        ["Startup.LaunchTune"] = "시작 자동 조정: {0}",
         ["Startup.FirstSetup"] = "llama-server를 찾지 못함 — 초기 설정(대용량 다운로드)",
         ["Startup.Extracting"] = "llama-cpp를 압축 해제하는 중입니다…",
         ["Startup.Download.Label.DefaultModel"] = "기본 모델 다운로드",

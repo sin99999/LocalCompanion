@@ -365,6 +365,7 @@ internal static partial class LocalizationResources
         ["Startup.LlamaWaiting"] = "Esperando a llama-server (hasta {0} s)",
         ["Startup.LlamaLoadingModel"] = "Cargando el modelo en memoria… ({0}%)",
         ["Startup.LlamaReady"] = "llama-server está listo",
+        ["Startup.LaunchTune"] = "Ajuste automático al iniciar: {0}",
         ["Startup.FirstSetup"] = "No se encontró llama-server — configuración inicial (descarga grande)",
         ["Startup.Extracting"] = "Extrayendo llama-cpp…",
         ["Startup.Download.Label.DefaultModel"] = "Descarga del modelo predeterminado",
