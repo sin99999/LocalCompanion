@@ -139,7 +139,7 @@ public static partial class ChatMarkdownLayoutNormalizer
     [GeneratedRegex(@"\n{3,}")]
     private static partial Regex ExcessiveNewlinesRegex();
 
-    [GeneratedRegex(@"^\s*[-*•]\s+|\s*\d+\.\s+")]
+    [GeneratedRegex(@"^\s*(?:[-*•]\s+|\d+\.\s+)")]
     private static partial Regex ListLinePrefixRegex();
 
     [GeneratedRegex(@"^[-:|]+$|^:?-{1,2}:?$")]

@@ -49,6 +49,8 @@ public static partial class ChatDisplayFormatter
                 var next = match.Index + match.Length;
                 if (IsEmojiOrSymbolDecoration(source, next))
                     return match.Groups[1].Value;
+                if (IsClosingBracket(source, next))
+                    return match.Groups[1].Value;
                 return match.Groups[1].Value + "\n";
             });
             t = WesternSentenceEndRegex().Replace(t, "$1\n");
@@ -58,6 +60,8 @@ public static partial class ChatDisplayFormatter
 
             for (var i = 0; i < protectedSegments.Count; i++)
                 t = t.Replace($"{QuotePlaceholderPrefix}{i}\uE001", protectedSegments[i]);
+
+            t = CloserThenListRegex().Replace(t, "$1\n$2");
         }
 
         t = TrailingWhitespaceBeforeNewlineRegex().Replace(t, "\n");
@@ -76,6 +80,14 @@ public static partial class ChatDisplayFormatter
 
         var category = Rune.GetUnicodeCategory(rune);
         return category is UnicodeCategory.OtherSymbol or UnicodeCategory.ModifierSymbol;
+    }
+
+    private static bool IsClosingBracket(string text, int index)
+    {
+        if ((uint)index >= (uint)text.Length)
+            return false;
+
+        return text[index] is '」' or '』' or '）' or ')' or '】' or ']' or '＞' or '>';
     }
 
     /// <summary>絵文字・装飾記号の直後の A. B. などの前に改行を入れる。</summary>
@@ -122,9 +134,12 @@ public static partial class ChatDisplayFormatter
         return index;
     }
 
-    /// <summary>句点改行の対象外: 「…」、（…）内、半角 (…) 内。</summary>
-    [GeneratedRegex(@"(「[^」]*」|（[^）]*）|\([^)\n]*\))")]
+    /// <summary>句点改行の対象外: 「…」、（…）内、半角 (…) 内、【…】内。</summary>
+    [GeneratedRegex(@"(「[^」]*」|（[^）]*）|\([^)\n]*\)|【[^】]*】)")]
     private static partial Regex ProtectedSegmentRegex();
+
+    [GeneratedRegex(@"([」』）)】\]＞>])(\d+\.\s+|[-*•]\s+)")]
+    private static partial Regex CloserThenListRegex();
 
     [GeneratedRegex(@"`[^`\n]+`")]
     private static partial Regex InlineCodeRegex();

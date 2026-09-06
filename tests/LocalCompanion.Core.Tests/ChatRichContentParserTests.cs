@@ -22,6 +22,32 @@ public sealed class ChatRichContentParserTests
     }
 
     [Fact]
+    public void ParseBlocks_NumberAfterOrphanCloser_IsNotAList()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks("】1. [夢中で", sentenceBreaks: false);
+
+        var paragraph = Assert.Single(blocks);
+        Assert.Equal(ChatDisplayBlockKind.Paragraph, paragraph.Kind);
+        Assert.Contains("】1. [夢中で", paragraph.ParagraphLines);
+    }
+
+    [Fact]
+    public void ParseBlocks_ChoiceAfterCornerTitle_KeepsCloserWithTitle()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks(
+            "彼によって暴かれていく感覚が、たまらなく幸せだった……！)*******【次の展開はどうする？】1. [夢中で");
+
+        Assert.DoesNotContain(
+            blocks,
+            b => b.Kind == ChatDisplayBlockKind.List
+                 && b.ListItems.Any(item => item.StartsWith('】')));
+
+        var list = Assert.Single(blocks, b => b.Kind == ChatDisplayBlockKind.List);
+        Assert.True(list.ListOrdered);
+        Assert.Contains("[夢中で", list.ListItems[0]);
+    }
+
+    [Fact]
     public void ParseBlocks_Table_TakesHeaderAndBody()
     {
         var blocks = ChatRichContentParser.ParseBlocks(

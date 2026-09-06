@@ -59,4 +59,13 @@ public sealed class ChatDisplayFormatterTests
         var actual = ChatDisplayFormatter.FormatForDisplay(raw);
         Assert.Equal(raw, actual);
     }
+
+    [Fact]
+    public void FormatForDisplay_QuestionBeforeCornerBracket_DoesNotOrphanCloser()
+    {
+        var raw = "【次の展開はどうする？】1. [夢中で";
+        var actual = ChatDisplayFormatter.FormatForDisplay(raw);
+        Assert.DoesNotContain("？\n】", actual);
+        Assert.Contains("？】\n1. ", actual);
+    }
 }
