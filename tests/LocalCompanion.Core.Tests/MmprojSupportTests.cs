@@ -35,6 +35,53 @@ public sealed class MmprojSupportTests
     }
 
     [Fact]
+    public void LooksVisionCapable_HuihuiQwen38_IsKnownFamily()
+    {
+        var root = CreateTempDir();
+        try
+        {
+            SeedRepoConfig(root);
+            const string name = "Huihui-Qwen3.8-27B-abliterated-UD-IQ4_XS.gguf";
+            Assert.True(MmprojFamilyRegistry.LooksVisionCapable(name, root));
+            Assert.NotNull(MmprojFamilyRegistry.TryMatchFamily(name, root));
+            Assert.True(MmprojSupport.NeedsKnownMmprojDownload(root, name));
+        }
+        finally
+        {
+            TryDeleteDir(root);
+        }
+    }
+
+    [Fact]
+    public void TryFindMmprojForModel_FindsGenericMmprojNameBesideHuihuiQwen()
+    {
+        var root = CreateTempDir();
+        try
+        {
+            SeedRepoConfig(root);
+            var userModels = Path.Combine(root, "user-models");
+            Directory.CreateDirectory(userModels);
+
+            var chatPath = Path.Combine(userModels, "Huihui-Qwen3.8-27B-abliterated-UD-IQ4_XS.gguf");
+            var mmprojPath = Path.Combine(userModels, "mmproj-model-bf16.gguf");
+            File.WriteAllText(chatPath, "chat");
+            File.WriteAllText(mmprojPath, "mmproj");
+
+            var found = MmprojSupport.TryFindMmprojForModel(
+                root,
+                "Huihui-Qwen3.8-27B-abliterated-UD-IQ4_XS.gguf",
+                chatPath);
+
+            Assert.NotNull(found);
+            Assert.Equal(mmprojPath, found!.FullName);
+        }
+        finally
+        {
+            TryDeleteDir(root);
+        }
+    }
+
+    [Fact]
     public void TryFindMmprojForModel_FindsMmprojBesideExternalChatModel()
     {
         var root = CreateTempDir();

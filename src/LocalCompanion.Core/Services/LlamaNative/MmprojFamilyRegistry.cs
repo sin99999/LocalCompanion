@@ -171,6 +171,17 @@ internal static class MmprojFamilyRegistry
             if (byToken is not null)
                 return byToken;
 
+            foreach (var prefer in matched.Entry.Mmproj?.RemotePrefer ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(prefer))
+                    continue;
+                var preferred = candidates.FirstOrDefault(c =>
+                    string.Equals(c.Name, prefer, StringComparison.OrdinalIgnoreCase)
+                    || c.Name.Contains(prefer, StringComparison.OrdinalIgnoreCase));
+                if (preferred is not null)
+                    return preferred;
+            }
+
             if (string.Equals(matched.SizeToken, "E2B", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var preferred in new[] { LlamaDefaultModel.MmprojFileName, "mmproj-F16.gguf", "mmproj-BF16.gguf" })

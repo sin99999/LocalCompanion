@@ -1,5 +1,5 @@
 ﻿{
-  "version": 1,
+  "version": 2,
   "repoPriorityPrefixes": [
     "google/",
     "ggml-org/",
@@ -70,11 +70,25 @@
         "remotePrefer": ["mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf", "mmproj-Qwythos-9B"]
       },
       "hfSearch": ["Qwythos-9B-Claude-Mythos-5-1M-GGUF", "Qwythos-9B"]
+    },
+    {
+      "id": "huihui-qwen3.8-27b",
+      "sizeToken": "27B",
+      "matchAny": ["Qwen3.8-27B", "qwen3.8-27b", "Huihui-Qwen3.8"],
+      "excludeAny": ["12B", "E2B", "E4B", "VL-"],
+      "mmproj": {
+        "localName": "mmproj-Huihui-Qwen3.8-27B-abliterated-BF16.gguf",
+        "url": "https://huggingface.co/huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF/resolve/main/mmproj-model-bf16.gguf",
+        "repoId": "huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF",
+        "remotePrefer": ["mmproj-model-bf16.gguf", "mmproj-Huihui-Qwen3.8-27B"]
+      },
+      "hfSearch": ["Huihui-Qwen3.8-27B-abliterated-GGUF", "Qwen3.8-27B"]
     }
   ],
   "genericVisionPatterns": [
     "llava",
     "qwen.*vl",
+    "qwen3\\.8",
     "minicpm",
     "pixtral",
     "moondream",
