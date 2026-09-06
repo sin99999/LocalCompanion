@@ -112,6 +112,17 @@ for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
 
 $sizeMb = [math]::Round((Get-Item $ZipPath).Length / 1MB, 1)
 Write-Host "[OK] $ZipPath (${sizeMb} MB)" -ForegroundColor Green
+
+try {
+    & (Join-Path $Root "scripts\apply-desktop-install.ps1") -SourceDir $DistDir
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[!!] デスクトップへの適用で失敗した。ZIP 自体はできている。" -ForegroundColor Yellow
+    }
+}
+catch {
+    Write-Host "[!!] デスクトップへの適用で失敗した。ZIP 自体はできている。$($_.Exception.Message)" -ForegroundColor Yellow
+}
+
 Write-Host ""
 Write-Host "利用者手順:" -ForegroundColor Cyan
 Write-Host "  1. ZIP を任意のフォルダに解凍" -ForegroundColor DarkGray
