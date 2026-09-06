@@ -207,7 +207,7 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.ZhHant"] = "繁體中文",
         ["Settings.Language.Saved"] = "Die Spracheinstellung wurde gespeichert.",
         ["Settings.Model.ChatGguf"] = "Chat-GGUF",
-        ["Settings.Model.MmprojHint"] = "Vision-mmproj-Dateien werden anhand des ausgewählten GGUF-Namens automatisch im Ordner models gesucht. Bei bekannten Modellen kann ein automatischer Download starten, wenn sie auf diesem Computer fehlen.",
+        ["Settings.Model.MmprojHint"] = "Vision-mmproj-Dateien werden anhand des ausgewählten GGUF-Namens im Ordner models gesucht. Fehlen sie, wird derselbe Modellname auf Hugging Face gesucht und ein mmproj heruntergeladen, wenn es in der Dateiliste dieses Repositories steht.",
         ["Settings.Model.Apply"] = "Modell anwenden (llama neu starten)",
         ["Settings.Model.AdditionalFolder"] = "Zusätzlicher Modellordner",
         ["Settings.Model.AdditionalFolder.None"] = "Nicht festgelegt (es wird nur der mitgelieferte Modellordner verwendet)",

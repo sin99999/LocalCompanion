@@ -10,6 +10,11 @@ internal static class MmprojHuggingFaceDiscovery
     private static readonly Regex MmprojRemote = new(
         @"(?i)(^|/)mmproj.*\.gguf$",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex GenericRemoteMmproj = new(
+        @"^(mmproj-(F16|BF16|f16|bf16)|mmproj-model-[A-Za-z0-9_]+)\.gguf$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    internal readonly record struct ListingHit(string RemoteRelativePath, string LocalName);
 
     internal static async Task<MmprojFamilyRegistry.MmprojDownloadSpec?> TryDiscoverAsync(
         string root,
@@ -53,7 +58,7 @@ internal static class MmprojHuggingFaceDiscovery
             {
                 RepoId = hit.TryGetProperty("id", out var idEl) ? idEl.GetString()
                     : hit.TryGetProperty("modelId", out var mid) ? mid.GetString() : null,
-                Score = ScoreRepo(hit, root),
+                Score = ScoreRepo(hit, root, modelFileName),
             })
             .Where(x => !string.IsNullOrWhiteSpace(x.RepoId))
             .OrderByDescending(x => x.Score)
@@ -64,7 +69,7 @@ internal static class MmprojHuggingFaceDiscovery
             if (item.RepoId is null || !seenRepos.Add(item.RepoId))
                 continue;
 
-            var spec = await TryRepoAsync(item.RepoId, modelFileName, matched, root, ct);
+            var spec = await TryRepoAsync(item.RepoId, modelFileName, matched, ct);
             if (spec is not null)
                 return spec;
         }
@@ -72,11 +77,19 @@ internal static class MmprojHuggingFaceDiscovery
         return null;
     }
 
-    private static int ScoreRepo(JsonElement hit, string root)
+    private static int ScoreRepo(JsonElement hit, string root, string modelFileName)
     {
         var repoId = hit.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
+        return ScoreRepoId(repoId, modelFileName, MmprojFamilyRegistry.GetRepoPriorityPrefixes(root));
+    }
+
+    internal static int ScoreRepoId(
+        string repoId,
+        string modelFileName,
+        IReadOnlyList<string> priorityPrefixes)
+    {
         var score = 0;
-        foreach (var prefix in MmprojFamilyRegistry.GetRepoPriorityPrefixes(root))
+        foreach (var prefix in priorityPrefixes)
         {
             if (repoId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
@@ -88,6 +101,24 @@ internal static class MmprojHuggingFaceDiscovery
         if (repoId.Contains("GGUF", StringComparison.OrdinalIgnoreCase))
             score += 10;
 
+        var stem = MmprojFamilyRegistry.NormalizeModelStem(modelFileName);
+        if (string.IsNullOrWhiteSpace(stem))
+            return score;
+
+        var slash = repoId.LastIndexOf('/');
+        var leaf = slash >= 0 ? repoId[(slash + 1)..] : repoId;
+        if (leaf.Equals(stem, StringComparison.OrdinalIgnoreCase)
+            || leaf.Equals(stem + "-GGUF", StringComparison.OrdinalIgnoreCase))
+            score += 80;
+        else if (leaf.Contains(stem, StringComparison.OrdinalIgnoreCase)
+            || repoId.Contains(stem, StringComparison.OrdinalIgnoreCase))
+            score += 40;
+
+        var baseName = Path.GetFileNameWithoutExtension(modelFileName);
+        if (!string.IsNullOrWhiteSpace(baseName)
+            && repoId.Contains(baseName, StringComparison.OrdinalIgnoreCase))
+            score += 20;
+
         return score;
     }
 
@@ -95,7 +126,6 @@ internal static class MmprojHuggingFaceDiscovery
         string repoId,
         string modelFileName,
         MmprojFamilyRegistry.MatchedFamily? matched,
-        string root,
         CancellationToken ct)
     {
         JsonElement detail;
@@ -118,21 +148,35 @@ internal static class MmprojHuggingFaceDiscovery
             .Select(f => f!)
             .ToList();
 
-        if (files.Count == 0)
+        var hit = TryPickFromListing(modelFileName, repoId, files, matched);
+        if (hit is null)
             return null;
 
-        var mmprojs = files.Where(f => MmprojRemote.IsMatch(f)).ToList();
+        return new MmprojFamilyRegistry.MmprojDownloadSpec(
+            $"https://huggingface.co/{repoId}/resolve/main/{hit.Value.RemoteRelativePath}",
+            hit.Value.LocalName,
+            repoId,
+            $"HF: {repoId}");
+    }
+
+    internal static ListingHit? TryPickFromListing(
+        string modelFileName,
+        string repoId,
+        IReadOnlyList<string> siblingFiles,
+        MmprojFamilyRegistry.MatchedFamily? matched)
+    {
+        if (siblingFiles.Count == 0)
+            return null;
+
+        var mmprojs = siblingFiles.Where(f => MmprojRemote.IsMatch(f)).ToList();
         if (mmprojs.Count == 0)
             return null;
 
         if (matched is null)
         {
-            var hasExactModel = files.Any(f =>
+            var hasExactModel = siblingFiles.Any(f =>
                 string.Equals(Path.GetFileName(f), modelFileName, StringComparison.OrdinalIgnoreCase));
-            var stem = MmprojFamilyRegistry.NormalizeModelStem(modelFileName);
-            var hasStemMatch = !string.IsNullOrWhiteSpace(stem)
-                && files.Any(f => Path.GetFileName(f).Contains(stem, StringComparison.OrdinalIgnoreCase));
-            if (!hasExactModel && !hasStemMatch)
+            if (!hasExactModel)
                 return null;
         }
 
@@ -141,12 +185,11 @@ internal static class MmprojHuggingFaceDiscovery
             return null;
 
         var remoteBase = Path.GetFileName(picked);
+        if (string.IsNullOrWhiteSpace(remoteBase))
+            return null;
+
         var localName = ResolveLocalName(modelFileName, remoteBase, repoId, matched);
-        return new MmprojFamilyRegistry.MmprojDownloadSpec(
-            $"https://huggingface.co/{repoId}/resolve/main/{picked}",
-            localName,
-            repoId,
-            $"HF: {repoId}");
+        return new ListingHit(picked, localName);
     }
 
     private static string? PickRemoteMmproj(
@@ -170,12 +213,20 @@ internal static class MmprojHuggingFaceDiscovery
                 return remoteFiles.First(f => string.Equals(Path.GetFileName(f), byToken, StringComparison.OrdinalIgnoreCase));
         }
 
-        foreach (var generic in new[] { "mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-f16.gguf", "mmproj-bf16.gguf" })
+        foreach (var generic in new[]
+                 {
+                     "mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-f16.gguf", "mmproj-bf16.gguf",
+                     "mmproj-model-bf16.gguf", "mmproj-model-f16.gguf",
+                 })
         {
             var hit = names.FirstOrDefault(n => string.Equals(n, generic, StringComparison.OrdinalIgnoreCase));
             if (hit is not null)
                 return remoteFiles.First(f => string.Equals(Path.GetFileName(f), hit, StringComparison.OrdinalIgnoreCase));
         }
+
+        var modelNamed = names.FirstOrDefault(n => GenericRemoteMmproj.IsMatch(n));
+        if (modelNamed is not null)
+            return remoteFiles.First(f => string.Equals(Path.GetFileName(f), modelNamed, StringComparison.OrdinalIgnoreCase));
 
         return remoteFiles.FirstOrDefault();
     }
@@ -190,15 +241,21 @@ internal static class MmprojHuggingFaceDiscovery
         if (!string.IsNullOrWhiteSpace(canonical))
             return canonical;
 
-        var generic = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "mmproj-F16.gguf", "mmproj-BF16.gguf", "mmproj-f16.gguf", "mmproj-bf16.gguf",
-        };
-        if (!generic.Contains(remoteBase))
+        if (!IsGenericRemoteMmprojName(remoteBase))
             return remoteBase;
 
-        var slug = repoId.Split('/')[^1].Replace('.', '-');
-        slug = Regex.Replace(slug, @"[^\w\-]", "-");
-        return $"mmproj-{slug}-{remoteBase}";
+        var stem = MmprojFamilyRegistry.NormalizeModelStem(modelFileName);
+        if (string.IsNullOrWhiteSpace(stem))
+        {
+            var slug = repoId.Split('/')[^1].Replace('.', '-');
+            slug = Regex.Replace(slug, @"[^\w\-]", "-");
+            return $"mmproj-{slug}.gguf";
+        }
+
+        var safe = Regex.Replace(stem, @"[^\w.\-]", "-");
+        return $"mmproj-{safe}.gguf";
     }
+
+    private static bool IsGenericRemoteMmprojName(string remoteBase) =>
+        GenericRemoteMmproj.IsMatch(remoteBase);
 }

@@ -52,7 +52,8 @@ internal static class MmprojSupport
             || modelFileName.StartsWith("mmproj", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        if (!MmprojFamilyRegistry.LooksVisionCapable(modelFileName, root))
+        var stem = MmprojFamilyRegistry.NormalizeModelStem(modelFileName);
+        if (stem.Length < 8 && !MmprojFamilyRegistry.LooksVisionCapable(modelFileName, root))
             return false;
 
         if (TryFindMmprojForModel(root, modelFileName, modelFullPath) is not null)

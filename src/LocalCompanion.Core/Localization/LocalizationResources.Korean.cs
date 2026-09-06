@@ -213,7 +213,7 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.ZhHant"] = "繁體中文",
         ["Settings.Language.Saved"] = "언어 설정을 저장했습니다.",
         ["Settings.Model.ChatGguf"] = "채팅 GGUF",
-        ["Settings.Model.MmprojHint"] = "비전 mmproj 파일은 선택한 GGUF 이름을 기준으로 models 폴더에서 자동 검색합니다. 알려진 모델이 로컬에 없으면 자동 다운로드를 시도할 수 있습니다.",
+        ["Settings.Model.MmprojHint"] = "비전 mmproj 파일은 선택한 GGUF 이름을 기준으로 models 폴더에서 검색합니다. 없으면 Hugging Face에서 같은 모델 이름을 찾고, 그 저장소 파일 목록에 mmproj가 있으면 받습니다.",
         ["Settings.Model.Apply"] = "모델 적용(llama 다시 시작)",
         ["Settings.Model.AdditionalFolder"] = "추가 모델 폴더",
         ["Settings.Model.AdditionalFolder.None"] = "설정되지 않음(포함된 models 폴더만 사용합니다)",

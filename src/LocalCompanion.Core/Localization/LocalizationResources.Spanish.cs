@@ -207,7 +207,7 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.ZhHant"] = "繁體中文",
         ["Settings.Language.Saved"] = "Se guardó la configuración de idioma.",
         ["Settings.Model.ChatGguf"] = "GGUF de chat",
-        ["Settings.Model.MmprojHint"] = "Los archivos mmproj de visión se buscan automáticamente en la carpeta models a partir del nombre del GGUF seleccionado. En modelos conocidos, si faltan en este equipo, puede iniciarse una descarga automática.",
+        ["Settings.Model.MmprojHint"] = "Los archivos mmproj de visión se buscan en la carpeta models a partir del nombre del GGUF seleccionado. Si faltan, se busca el mismo nombre en Hugging Face y se descarga el mmproj cuando aparece en la lista de archivos de ese repositorio.",
         ["Settings.Model.Apply"] = "Aplicar modelo (reiniciar llama)",
         ["Settings.Model.AdditionalFolder"] = "Carpeta adicional de modelos",
         ["Settings.Model.AdditionalFolder.None"] = "Sin configurar (solo se usa la carpeta de modelos incluida)",

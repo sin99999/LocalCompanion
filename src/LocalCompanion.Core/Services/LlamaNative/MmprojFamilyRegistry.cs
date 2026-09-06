@@ -7,7 +7,7 @@ namespace LocalCompanion.Services.LlamaNative;
 internal static class MmprojFamilyRegistry
 {
     private static readonly Regex QuantSuffix = new(
-        @"-(?:UD-|IQ)?(?:Q[0-9][\w_.-]*|F16|F32|BF16|fp16|QAT|qat)$",
+        @"-(?:UD-)?(?:DW-)?(?:IQ[0-9][A-Z0-9_]*|Q[0-9](?:_[A-Z0-9]+)*|F16|F32|BF16|fp16|QAT|qat)(?:-MTP)?$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     internal sealed record MmprojDownloadSpec(string Url, string LocalName, string? RepoId, string Label);
@@ -118,16 +118,15 @@ internal static class MmprojFamilyRegistry
         if (matched is not null)
             terms.AddRange(matched.Entry.HfSearch);
 
+        var stem = NormalizeModelStem(modelFileName);
+        if (!string.IsNullOrWhiteSpace(stem) && !stem.EndsWith("-GGUF", StringComparison.OrdinalIgnoreCase))
+            terms.Add($"{stem}-GGUF");
+        if (!string.IsNullOrWhiteSpace(stem))
+            terms.Add(stem);
+
         var baseName = Path.GetFileNameWithoutExtension(modelFileName);
         if (!string.IsNullOrWhiteSpace(baseName))
             terms.Add(baseName);
-
-        var stem = NormalizeModelStem(modelFileName);
-        if (!string.IsNullOrWhiteSpace(stem) && !terms.Contains(stem, StringComparer.OrdinalIgnoreCase))
-            terms.Add(stem);
-
-        if (!string.IsNullOrWhiteSpace(stem) && !stem.EndsWith("-GGUF", StringComparison.OrdinalIgnoreCase))
-            terms.Add($"{stem}-GGUF");
 
         return terms
             .Where(t => !string.IsNullOrWhiteSpace(t))

@@ -213,7 +213,7 @@ internal static partial class LocalizationResources
         ["Settings.Language.Option.ZhHant"] = "繁體中文",
         ["Settings.Language.Saved"] = "已保存语言设置。",
         ["Settings.Model.ChatGguf"] = "聊天用 GGUF",
-        ["Settings.Model.MmprojHint"] = "会根据所选 GGUF 名称，在 models 文件夹中自动搜索视觉用 mmproj。已知模型若本地缺失，可能会自动下载。",
+        ["Settings.Model.MmprojHint"] = "会根据所选 GGUF 名称，在 models 文件夹中搜索视觉用 mmproj。若本地没有，会在 Hugging Face 用同一模型名查找，该仓库文件列表里有 mmproj 就会下载。",
         ["Settings.Model.Apply"] = "应用模型（重启 llama）",
         ["Settings.Model.AdditionalFolder"] = "附加模型文件夹",
         ["Settings.Model.AdditionalFolder.None"] = "未设置（仅使用附带的 models 文件夹）",
