@@ -98,8 +98,23 @@ html, body {
   cursor: pointer;
 }
 p { margin: 0.45em 0; }
-ul, ol { margin: 0.45em 0; padding-left: 1.35em; }
-li { margin: 0.2em 0; }
+.msg {
+  background: rgba(255, 255, 255, 0.02);
+}
+ul.chat-list, ol.chat-list {
+  list-style: none;
+  margin: 0.45em 0;
+  padding-left: 0;
+}
+.chat-list li {
+  margin: 0.2em 0;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.list-mark {
+  -webkit-user-select: text;
+  user-select: text;
+}
 table.chat-table {
   width: 100%;
   max-width: 100%;
@@ -374,9 +389,17 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
                 }
                 break;
             case ChatDisplayBlockKind.List:
-                sb.Append(block.ListOrdered ? "<ol>" : "<ul>");
-                foreach (var item in block.ListItems)
-                    sb.Append("<li>").Append(ChatInlineMarkupHtml.Format(item)).Append("</li>");
+                sb.Append(block.ListOrdered ? "<ol class=\"chat-list\">" : "<ul class=\"chat-list\">");
+                for (var i = 0; i < block.ListItems.Count; i++)
+                {
+                    var mark = block.ListOrdered ? $"{i + 1}. " : "・ ";
+                    sb.Append("<li><span class=\"list-mark\">")
+                        .Append(Esc(mark))
+                        .Append("</span>")
+                        .Append(ChatInlineMarkupHtml.Format(block.ListItems[i]))
+                        .Append("</li>");
+                }
+
                 sb.Append(block.ListOrdered ? "</ol>" : "</ul>");
                 break;
             case ChatDisplayBlockKind.Table:

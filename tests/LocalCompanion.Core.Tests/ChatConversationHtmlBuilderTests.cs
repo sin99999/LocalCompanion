@@ -98,12 +98,12 @@ public sealed class ChatConversationHtmlBuilderTests
         var live = ChatConversationHtmlBuilder.BuildArticleHtml(
             new ChatConversationHtmlBuilder.Line("Assistant", null, body, true, LiveStream: true));
         // リストは後ろに表があるので閉じ済み。表は行があるので閉じ済み
-        Assert.Contains("<ul>", live, StringComparison.Ordinal);
+        Assert.Contains("<ul class=\"chat-list\">", live, StringComparison.Ordinal);
         Assert.Contains("chat-table", live, StringComparison.Ordinal);
 
         var done = ChatConversationHtmlBuilder.BuildArticleHtml(
             new ChatConversationHtmlBuilder.Line("Assistant", null, body, true, LiveStream: false));
-        Assert.Contains("<ul>", done, StringComparison.Ordinal);
+        Assert.Contains("<ul class=\"chat-list\">", done, StringComparison.Ordinal);
         Assert.Contains("chat-table", done, StringComparison.Ordinal);
         Assert.DoesNotContain("stream-caret", done, StringComparison.Ordinal);
     }
@@ -130,7 +130,7 @@ public sealed class ChatConversationHtmlBuilderTests
 
         var html = ChatConversationHtmlBuilder.BuildArticleHtml(
             new ChatConversationHtmlBuilder.Line("Assistant", null, body, true, LiveStream: true));
-        Assert.Contains("<ul>", html, StringComparison.Ordinal);
+        Assert.Contains("<ul class=\"chat-list\">", html, StringComparison.Ordinal);
         Assert.DoesNotContain("chat-table", html, StringComparison.Ordinal);
     }
 
@@ -141,6 +141,22 @@ public sealed class ChatConversationHtmlBuilderTests
             new ChatConversationHtmlBuilder.Line("Assistant", null, "```\nhello", true, LiveStream: true));
         Assert.DoesNotContain("chat-code", html, StringComparison.Ordinal);
         Assert.Contains("hello", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArticleHtml_Completed_NumberedList_PutsMarkerInText()
+    {
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line(
+                "Assistant",
+                null,
+                "1. りんご\n2. みかん",
+                true));
+
+        Assert.Contains("<ol class=\"chat-list\">", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"list-mark\">1. ", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"list-mark\">2. ", html, StringComparison.Ordinal);
+        Assert.Contains("りんご", html, StringComparison.Ordinal);
     }
 
     [Fact]

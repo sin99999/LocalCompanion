@@ -584,6 +584,7 @@ public partial class ChatPageViewModel : ObservableObject
             ResetInputHistoryNavigation();
         }
 
+        message = ExpandChoiceReply(message);
         var displayMessage = BuildUserDisplayMessage(message);
         var userLine = new ChatLineViewModel("user", displayMessage);
         ApplyUserDisplayName(userLine);
@@ -993,6 +994,15 @@ public partial class ChatPageViewModel : ObservableObject
     {
         var name = _appearance.Current.UserDisplayName?.Trim();
         line.SetUserLabel(string.IsNullOrEmpty(name) ? null : name);
+    }
+
+    private string ExpandChoiceReply(string message)
+    {
+        var lastAssistant = Messages.LastOrDefault(m =>
+            m.Role == "assistant"
+            && !m.IsWelcomePlaceholder
+            && !string.IsNullOrWhiteSpace(m.Text));
+        return ChatChoiceReplyExpander.Expand(message, lastAssistant?.Text);
     }
 
     private void SetError(Exception ex)

@@ -488,6 +488,7 @@ public sealed class ChatService
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
         var historyMode = ResolveHistory(req);
+        req = ExpandChoiceReply(req, historyMode);
         if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
         {
             var conflictProfile = _character.Get();
@@ -668,6 +669,7 @@ public sealed class ChatService
             throw new InvalidOperationException(LlamaServerClient.ConnectionFailedMessage);
 
         var historyMode = ResolveHistory(req);
+        req = ExpandChoiceReply(req, historyMode);
         if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
         {
             var conflictProfile = _character.Get();
@@ -1483,6 +1485,29 @@ public sealed class ChatService
             return null;
 
         return RagHistoryTopicPicker.PickPreviousUserTopic(LoadRecentSessionRows(sessionId, 24));
+    }
+
+    private ChatRequestDto ExpandChoiceReply(ChatRequestDto req, HistoryMode historyMode)
+    {
+        var lastAssistant = historyMode.Load ? GetLastAssistantMessage(historyMode.SessionId) : null;
+        var expanded = ChatChoiceReplyExpander.Expand(req.Message, lastAssistant);
+        return string.Equals(expanded, req.Message, StringComparison.Ordinal)
+            ? req
+            : req with { Message = expanded };
+    }
+
+    private string? GetLastAssistantMessage(string? sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return null;
+
+        foreach (var (role, content) in LoadRecentSessionRows(sessionId, 24))
+        {
+            if (role == "assistant" && !string.IsNullOrWhiteSpace(content))
+                return content;
+        }
+
+        return null;
     }
 
     private static bool TryResolveVerbatimReply(
