@@ -227,36 +227,63 @@ internal static class LlamaCppInstaller
     {
         var toolsDir = Path.Combine(root, "tools", "llama-cpp");
         Directory.CreateDirectory(toolsDir);
+        var parked = TryParkWorkingTools(toolsDir);
+        var accepted = false;
 
-        var chain = LlamaHardwareProfile.BuildInstallFallbackChain(preferredVariant, hw);
-        Exception? lastError = null;
-
-        foreach (var variant in chain)
+        try
         {
-            try
+            var chain = LlamaHardwareProfile.BuildInstallFallbackChain(preferredVariant, hw);
+            Exception? lastError = null;
+
+            foreach (var variant in chain)
             {
-                NativeLog.WriteKey("Startup.EnvCheck", null, LlamaHardwareProfile.DescribeVariant(variant));
-                if (TryInstallVariant(root, toolsDir, variant, hw, out var exe))
+                try
                 {
-                    if (!GpuVariants.Contains(variant) || GpuDevicesAvailable(Path.GetDirectoryName(exe)!))
+                    NativeLog.WriteKey("Startup.EnvCheck", null, LlamaHardwareProfile.DescribeVariant(variant));
+                    if (!TryInstallVariant(root, toolsDir, variant, hw, out var exe))
+                        continue;
+
+                    var exeDir = Path.GetDirectoryName(exe)!;
+                    if (!LlamaCppCliProbe.CanStart(exeDir))
                     {
-                        NativeLog.WriteKey("Startup.LlamaServerPath", null, exe);
-                        return;
+                        NativeLog.WriteKeyLogOnly(
+                            "Startup.VariantSetupFailed",
+                            LlamaHardwareProfile.DescribeVariant(variant),
+                            "llama-cli");
+                        continue;
                     }
 
-                    NativeLog.WriteKey("Startup.GpuNotDetectedTryOther", null, LlamaHardwareProfile.DescribeVariant(variant));
+                    if (GpuVariants.Contains(variant) && !GpuDevicesAvailable(exeDir))
+                    {
+                        NativeLog.WriteKey("Startup.GpuNotDetectedTryOther", null, LlamaHardwareProfile.DescribeVariant(variant));
+                        continue;
+                    }
+
+                    // 動いていた GPU を、起動できない latest の CPU に置き換えない
+                    if (!GpuVariants.Contains(variant) && parked is not null)
+                        continue;
+
+                    NativeLog.WriteKey("Startup.LlamaServerPath", null, exe);
+                    accepted = true;
+                    ForgetParkedTools(parked);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    NativeLog.WriteKey("Startup.VariantSetupFailed", null, LlamaHardwareProfile.DescribeVariant(variant), UserFacingErrorLocalizer.Localize(ex));
                 }
             }
-            catch (Exception ex)
-            {
-                lastError = ex;
-                NativeLog.WriteKey("Startup.VariantSetupFailed", null, LlamaHardwareProfile.DescribeVariant(variant), UserFacingErrorLocalizer.Localize(ex));
-            }
-        }
 
-        throw new InvalidOperationException(
-            LocalizationService.Instance.Get("Error.LlamaSetupFailed"),
-            lastError);
+            throw new InvalidOperationException(
+                LocalizationService.Instance.Get("Error.LlamaSetupFailed"),
+                lastError);
+        }
+        finally
+        {
+            if (!accepted)
+                RestoreParkedTools(toolsDir, parked);
+        }
     }
 
     private static bool TryInstallVariant(
@@ -322,8 +349,10 @@ internal static class LlamaCppInstaller
             try { Directory.Delete(tmp, true); } catch { /* ignore */ }
         }
 
-        var exe = FindLlamaServerExe(root)
-            ?? throw new InvalidOperationException("llama-server.exe not found after extract");
+        var exe = FindLlamaServerExe(root);
+        if (exe is null || !LlamaCppLaunchFiles.HasRequiredServerFiles(Path.GetDirectoryName(exe)))
+            return false;
+
         exePath = exe;
 
         var marker = Path.Combine(toolsDir, ".installed.json");
@@ -606,41 +635,54 @@ internal static class LlamaCppInstaller
 
     private static bool GpuDevicesAvailable(string workDir)
     {
-        var cli = Path.Combine(workDir, "llama-cli.exe");
-        if (!File.Exists(cli))
+        if (!LlamaCppCliProbe.TryRun(workDir, "--list-devices", TimeSpan.FromSeconds(10), out var exit, out var output))
             return false;
+        if (LlamaCppLaunchFiles.IsWindowsLoaderFailure(exit))
+            return false;
+
+        var lines = output
+            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0 && !l.Equals("Available devices:", StringComparison.OrdinalIgnoreCase));
+        return lines.Any();
+    }
+
+    private static string? TryParkWorkingTools(string toolsDir)
+    {
+        if (!LlamaCppLaunchFiles.HasRequiredServerFiles(toolsDir))
+            return null;
+        if (!LlamaCppCliProbe.CanStart(toolsDir))
+            return null;
+
+        var bak = toolsDir + ".bak-upgrade";
+        if (Directory.Exists(bak))
+            Directory.Delete(bak, true);
+        Directory.Move(toolsDir, bak);
+        Directory.CreateDirectory(toolsDir);
+        return bak;
+    }
+
+    private static void ForgetParkedTools(string? parked)
+    {
+        if (string.IsNullOrWhiteSpace(parked) || !Directory.Exists(parked))
+            return;
+        try { Directory.Delete(parked, true); } catch { /* ignore */ }
+    }
+
+    private static void RestoreParkedTools(string toolsDir, string? parked)
+    {
+        if (string.IsNullOrWhiteSpace(parked) || !Directory.Exists(parked))
+            return;
 
         try
         {
-            var psi = new ProcessStartInfo(cli, "--list-devices")
-            {
-                WorkingDirectory = workDir,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var proc = Process.Start(psi);
-            if (proc is null)
-                return false;
-
-            var output = proc.StandardOutput.ReadToEnd();
-            output += proc.StandardError.ReadToEnd();
-            if (!proc.WaitForExit(10000))
-            {
-                try { proc.Kill(entireProcessTree: true); } catch { /* ignore */ }
-                return false;
-            }
-
-            var lines = output
-                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Trim())
-                .Where(l => l.Length > 0 && !l.Equals("Available devices:", StringComparison.OrdinalIgnoreCase));
-            return lines.Any();
+            if (Directory.Exists(toolsDir))
+                Directory.Delete(toolsDir, true);
+            Directory.Move(parked, toolsDir);
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            StartupLog.Write(ex, "Restore llama-cpp after failed upgrade");
         }
     }
 
