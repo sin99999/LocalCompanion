@@ -64,6 +64,7 @@ public partial class ChatPageViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(IsSpeechInputVisible));
             OnPropertyChanged(nameof(SpeechInputVisibility));
+            RefreshTokenSpeedUi();
         };
         _speechInput.ListeningChanged += (_, _) =>
             RunOnUi(RefreshSpeechListeningUi);
@@ -96,6 +97,17 @@ public partial class ChatPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string HealthText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string TokenSpeedText { get; set; } = "";
+
+    public Microsoft.UI.Xaml.Visibility TokenSpeedVisibility =>
+        _appearance.Current.ShowChatTokenSpeed && !string.IsNullOrWhiteSpace(TokenSpeedText)
+            ? Microsoft.UI.Xaml.Visibility.Visible
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    partial void OnTokenSpeedTextChanged(string value) =>
+        OnPropertyChanged(nameof(TokenSpeedVisibility));
 
     [ObservableProperty]
     public partial bool UseRag { get; set; } = true;
@@ -662,6 +674,9 @@ public partial class ChatPageViewModel : ObservableObject
                                 SetStatusByKey("Chat.Status.Reasoning");
                             break;
                         }
+                        case "timings":
+                            ApplyTokenSpeed(chunk.Text);
+                            break;
                         case "done":
                             if (!string.IsNullOrWhiteSpace(chunk.Text))
                             {

@@ -1,4 +1,4 @@
-using LocalCompanion.Data;
+﻿using LocalCompanion.Data;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
 using Microsoft.Extensions.Options;
@@ -76,6 +76,37 @@ public sealed class AppSettingsStoreTests
             var saved = store.Save(new AppSettingsDto { CharacterSelfImproveEnabled = true });
             Assert.True(saved.CharacterSelfImproveEnabled);
             Assert.True(store.Load().CharacterSelfImproveEnabled);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
+    public void Save_TokenSpeedAndMtpFlags_RoundTrip()
+    {
+        var relative = Path.Combine("obj", "lc-test-" + Guid.NewGuid().ToString("N"));
+        var db = new RagDatabase(Options.Create(new LlamaOptions
+        {
+            DataDirectory = relative,
+        }));
+        var dir = db.DataDirectory;
+        try
+        {
+            var store = new AppSettingsStore(db);
+            Assert.False(store.Load().ShowChatTokenSpeed);
+            Assert.False(store.Load().SpecDraftMtp);
+
+            var saved = store.Save(new AppSettingsDto
+            {
+                ShowChatTokenSpeed = true,
+                SpecDraftMtp = true,
+            });
+            Assert.True(saved.ShowChatTokenSpeed);
+            Assert.True(saved.SpecDraftMtp);
+            Assert.True(store.Load().ShowChatTokenSpeed);
+            Assert.True(store.Load().SpecDraftMtp);
         }
         finally
         {

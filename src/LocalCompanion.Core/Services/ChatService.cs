@@ -836,7 +836,11 @@ public sealed class ChatService
                 }
 
                 var piece = streamEnumerator.Current;
-                if (piece.Kind == "reasoning")
+                if (piece.Kind == "timings")
+                {
+                    yield return new ChatStreamChunkDto("timings", piece.Text);
+                }
+                else if (piece.Kind == "reasoning")
                 {
                     reasoningBuilder.Append(piece.Text);
                     if (req.UseReasoning)

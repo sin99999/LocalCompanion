@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Models;
 
@@ -93,6 +93,30 @@ public sealed class AppSettingsStore
             CharacterSelfImproveEnabled = dto.CharacterSelfImproveEnabled,
             ChatSearchEnabled = false,
             SpeechInputEnabled = dto.SpeechInputEnabled,
+            ShowChatTokenSpeed = dto.ShowChatTokenSpeed,
+            SpecDraftMtp = dto.SpecDraftMtp,
         };
+    }
+
+    /// <summary>llama 起動など DI 外から読む。壊れていても黙って既定。</summary>
+    public static AppSettingsDto LoadOrDefault(string dataDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(dataDirectory))
+            return new AppSettingsDto();
+
+        var path = Path.Combine(dataDirectory, "app-settings.json");
+        if (!File.Exists(path))
+            return new AppSettingsDto();
+
+        try
+        {
+            var dto = JsonSerializer.Deserialize<AppSettingsDto>(File.ReadAllText(path), JsonOpts)
+                ?? new AppSettingsDto();
+            return Normalize(dto);
+        }
+        catch
+        {
+            return new AppSettingsDto();
+        }
     }
 }

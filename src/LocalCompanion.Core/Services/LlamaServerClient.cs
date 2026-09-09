@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LocalCompanion.Localization;
+using LocalCompanion.Services.LlamaNative;
 using Microsoft.Extensions.Options;
 
 namespace LocalCompanion.Services;
@@ -316,6 +317,9 @@ public sealed class LlamaServerClient
             {
                 json = JsonDocument.Parse(payload);
                 var root = json.RootElement;
+                var tok = LlamaChatTimings.TryReadPredictedPerSecond(root);
+                if (tok is not null)
+                    yield return new LlamaStreamPiece("timings", LlamaChatTimings.FormatTokPerSec(tok.Value));
                 if (!root.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0) continue;
                 var delta = choices[0].TryGetProperty("delta", out var d) ? d : default;
                 if (delta.ValueKind == JsonValueKind.Undefined) continue;

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="LocalCompanion.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -226,6 +226,16 @@
                                     SelectedItem="{x:Bind ViewModel.SelectedChatModel, Mode=TwoWay}"
                                     Style="{StaticResource SettingsInBorderComboBoxStyle}" />
                             </Border>
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiModelShowTokenSpeed, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiModelShowTokenSpeedHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.ShowChatTokenSpeed, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiModelSpecDraftMtp, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiModelSpecDraftMtpHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.SpecDraftMtp, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         </StackPanel>
                         <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Header="{x:Bind ViewModel.UiModelAdvanced, Mode=OneWay}">
                             <StackPanel Spacing="12" Padding="0,8,0,0">

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -264,6 +264,7 @@ public partial class SettingsPageViewModel : ObservableObject
     public void Refresh()
     {
         LoadGeneralSettings();
+        LoadModelOptions();
         LoadMemorySearchOptions();
         LoadCharacterSelfImproveOption();
         LoadRagIngestOptions();

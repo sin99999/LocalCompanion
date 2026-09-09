@@ -1,4 +1,4 @@
-namespace LocalCompanion.Models;
+﻿namespace LocalCompanion.Models;
 
 public sealed class AppSettingsDto
 {
@@ -47,6 +47,12 @@ public sealed class AppSettingsDto
     /// <summary>音声入力（Windows 音声認識）を有効にする。</summary>
     public bool SpeechInputEnabled { get; set; }
 
+    /// <summary>チャット状態欄に直前の生成 tok/s を出す。</summary>
+    public bool ShowChatTokenSpeed { get; set; }
+
+    /// <summary>llama-server に --spec-type draft-mtp を付ける。</summary>
+    public bool SpecDraftMtp { get; set; }
+
     public static AppSettingsDto CreateDefault() => new();
 
     public AppSettingsDto Clone() => new()
@@ -65,6 +71,8 @@ public sealed class AppSettingsDto
         CharacterSelfImproveEnabled = CharacterSelfImproveEnabled,
         ChatSearchEnabled = ChatSearchEnabled,
         SpeechInputEnabled = SpeechInputEnabled,
+        ShowChatTokenSpeed = ShowChatTokenSpeed,
+        SpecDraftMtp = SpecDraftMtp,
     };
 }
 

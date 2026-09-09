@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Localization;
 
 namespace LocalCompanion.ViewModels;
@@ -24,6 +24,7 @@ public partial class ChatPageViewModel
     private string? _statusKey;
     private object[]? _statusArgs;
     private bool _settingStatusByKey;
+    private string? _lastTokenSpeedValue;
 
     /// <summary>ステータスをキーで設定する（言語切替時に再翻訳できる）。</summary>
     internal void SetStatusByKey(string key, params object[] args)
@@ -64,6 +65,7 @@ public partial class ChatPageViewModel
 
         if (_statusKey is not null)
             SetStatusByKey(_statusKey, _statusArgs ?? Array.Empty<object>());
+        RefreshTokenSpeedUi();
         _ = RefreshHealthAsync();
     }
 
@@ -85,5 +87,19 @@ public partial class ChatPageViewModel
             : _loc.Get("Chat.SpeechInput.Tooltip");
         UiRemoveAttachment = _loc.Get("Chat.RemoveAttachment");
         NotifySendStopButtonLabelChanged();
+    }
+
+    private void ApplyTokenSpeed(string formattedRate)
+    {
+        _lastTokenSpeedValue = formattedRate;
+        RefreshTokenSpeedUi();
+    }
+
+    private void RefreshTokenSpeedUi()
+    {
+        TokenSpeedText = string.IsNullOrWhiteSpace(_lastTokenSpeedValue)
+            ? ""
+            : _loc.Format("Chat.Status.TokenSpeed", _lastTokenSpeedValue);
+        OnPropertyChanged(nameof(TokenSpeedVisibility));
     }
 }

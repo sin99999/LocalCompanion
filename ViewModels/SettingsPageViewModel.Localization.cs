@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 
@@ -231,6 +231,7 @@ public partial class SettingsPageViewModel
         UiModelChatGguf = _loc.Get("Settings.Model.ChatGguf");
         UiModelMmprojHint = _loc.Get("Settings.Model.MmprojHint");
         UiModelApply = _loc.Get("Settings.Model.Apply");
+        ApplyModelOptionsLocalizedUi();
         UiModelAdditionalFolder = _loc.Get("Settings.Model.AdditionalFolder");
         UiModelAdditionalFolderBrowse = _loc.Get("Settings.Model.AdditionalFolder.Browse");
         UiModelAdditionalFolderClear = _loc.Get("Settings.Model.AdditionalFolder.Clear");
