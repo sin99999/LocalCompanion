@@ -105,13 +105,16 @@ public static class LlamaServerNativeHost
 
         var appFlags = AppSettingsStore.LoadOrDefault(
             AppPaths.ResolveUserDataDirectory(settings.DataDirectory));
+        var useDraftMtp = LlamaMtpSupport.ShouldEnable(
+            appFlags.SpecDraftMtp,
+            Path.GetFileName(modelPath));
         var modelKey = modelPath.ToLowerInvariant()
             + "|" + (mmprojPath ?? "").ToLowerInvariant()
             + "|ngl=" + configuredGpuLayers
             + "|tune=" + (settings.AutoLaunchTune
                 ? launchDecision.ProfileName + ":" + string.Join(" ", launchDecision.ExtraArgs)
                 : "off")
-            + "|mtp=" + (appFlags.SpecDraftMtp ? "1" : "0");
+            + "|mtp=" + (useDraftMtp ? "1" : "0");
 
         if (LlamaServerHealth.IsModelReady(port))
         {
@@ -166,7 +169,7 @@ public static class LlamaServerNativeHost
         }
 
         extraArgs.AddRange(launchDecision.ExtraArgs);
-        LlamaSpecTypeArgs.AppendDraftMtp(extraArgs, appFlags.SpecDraftMtp);
+        LlamaSpecTypeArgs.AppendDraftMtp(extraArgs, useDraftMtp);
 
         var modelBase = Path.GetFileName(modelPath);
         var args = new List<string>
