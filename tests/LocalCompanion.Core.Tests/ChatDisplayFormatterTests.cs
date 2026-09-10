@@ -68,4 +68,22 @@ public sealed class ChatDisplayFormatterTests
         Assert.DoesNotContain("？\n】", actual);
         Assert.Contains("？】\n1. ", actual);
     }
+
+    [Fact]
+    public void FormatForDisplay_JammedNumberedChoices_PutsEachOnItsLine()
+    {
+        const string raw = "）2.甘えん坊タイム♡（二人きり）3.日常の雑談♪";
+        var actual = ChatDisplayFormatter.FormatForDisplay(raw);
+        Assert.Contains("\n2.", actual, StringComparison.Ordinal);
+        Assert.Contains("\n3.", actual, StringComparison.Ordinal);
+        Assert.DoesNotContain("）2.甘えん坊", actual, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatForDisplay_VersionLikeDecimal_DoesNotSplitAsChoices()
+    {
+        var actual = ChatDisplayFormatter.FormatForDisplay("いまの版は1.2.4です。");
+        Assert.DoesNotContain("\n2.", actual, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n4", actual, StringComparison.Ordinal);
+    }
 }

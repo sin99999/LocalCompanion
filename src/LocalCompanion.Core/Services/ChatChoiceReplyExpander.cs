@@ -65,12 +65,18 @@ public static partial class ChatChoiceReplyExpander
     {
         var blocks = ChatRichContentParser.ParseBlocks(assistant, sentenceBreaks: true);
         ChatDisplayBlock? lastList = null;
+        var orderedItems = new List<string>();
         foreach (var block in blocks)
         {
             if (block.Kind != ChatDisplayBlockKind.List || block.ListItems.Count == 0)
                 continue;
             lastList = block;
+            if (block.ListOrdered)
+                orderedItems.AddRange(FlattenInlineNumbered(block.ListItems));
         }
+
+        if (orderedItems.Count >= 2)
+            return orderedItems;
 
         if (lastList is not null)
         {
@@ -175,7 +181,7 @@ public static partial class ChatChoiceReplyExpander
     [GeneratedRegex(@"^(\d{1,2}|[A-Za-z])[.．。、)）]?$")]
     private static partial Regex BareChoiceRegex();
 
-    [GeneratedRegex(@"(?<!\d)(\d{1,2})[.．][\s　]+")]
+    [GeneratedRegex(@"(?<!\d)(\d{1,2})[.．](?:[\s　]+|\*{0,2}(?=[^\s\d.*]))")]
     private static partial Regex InlineNumberedRegex();
 
     [GeneratedRegex(@"(?<![A-Za-z])([A-Za-z])[.．][\s　]+")]

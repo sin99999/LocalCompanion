@@ -516,7 +516,7 @@ public static partial class ChatRichContentParser
     private static bool IsTableSeparatorRow(IReadOnlyList<string> cells) =>
         cells.Count > 0 && cells.All(c => TableSeparatorCellRegex().IsMatch(c));
 
-    [GeneratedRegex(@"^\s*(?:[-*•]\s+|\d+\.\s+)")]
+    [GeneratedRegex(@"^\s*(?:[-*•]\s+|\d+\.(?:\s+|(?!\d)))")]
     private static partial Regex ListLineRegex();
 
     [GeneratedRegex(@"^\s*(\d+)\.\s*")]

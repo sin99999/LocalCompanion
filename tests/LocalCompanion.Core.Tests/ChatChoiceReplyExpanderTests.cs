@@ -123,4 +123,16 @@ public sealed class ChatChoiceReplyExpanderTests
         var expanded = ChatChoiceReplyExpander.Expand("3", assistant);
         Assert.Equal("3. [名前を呼ぶ]", expanded);
     }
+
+    [Fact]
+    public void Expand_JammedNumberedChoices_UsesMatchingItem()
+    {
+        const string assistant =
+            "選んでみて！✨*【選択肢】1.**ギャルトーク全開！\n"
+            + "（最近の流行りとか、うちの話をたっぷり！）2.甘えん坊タイム♡（ちょっと二人きり）3.日常の雑談♪（ゆるく話そ！）";
+
+        var expanded = ChatChoiceReplyExpander.Expand("2", assistant);
+        Assert.StartsWith("2. ", expanded, StringComparison.Ordinal);
+        Assert.Contains("甘えん坊タイム", expanded, StringComparison.Ordinal);
+    }
 }

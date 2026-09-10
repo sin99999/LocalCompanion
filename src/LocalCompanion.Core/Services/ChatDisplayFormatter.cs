@@ -57,6 +57,7 @@ public static partial class ChatDisplayFormatter
 
             // ？💕A. のように絵文字の直後に選択肢ラベルが付くときはラベルを次行へ
             t = InsertNewlineBeforeLetteredOptions(t);
+            t = InsertNewlineBeforeNumberedOptions(t);
 
             for (var i = 0; i < protectedSegments.Count; i++)
                 t = t.Replace($"{QuotePlaceholderPrefix}{i}\uE001", protectedSegments[i]);
@@ -134,11 +135,42 @@ public static partial class ChatDisplayFormatter
         return index;
     }
 
+    /// <summary>本文に埋まった 1. 2. 3. を次行へ。点のあと空白無し（2.甘えん坊）も対象。</summary>
+    private static string InsertNewlineBeforeNumberedOptions(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        var matches = NumberedOptionMarkerRegex().Matches(text);
+        if (matches.Count == 0)
+            return text;
+
+        var sb = new StringBuilder(text.Length + matches.Count);
+        var last = 0;
+        foreach (Match match in matches)
+        {
+            var start = match.Index;
+            if (start > last)
+                sb.Append(text, last, start - last);
+
+            if (start > 0 && sb.Length > 0 && sb[^1] != '\n')
+                sb.Append('\n');
+
+            sb.Append(match.Value);
+            last = start + match.Length;
+        }
+
+        if (last < text.Length)
+            sb.Append(text, last, text.Length - last);
+
+        return sb.ToString();
+    }
+
     /// <summary>句点改行の対象外: 「…」、（…）内、半角 (…) 内、【…】内。</summary>
     [GeneratedRegex(@"(「[^」]*」|（[^）]*）|\([^)\n]*\)|【[^】]*】)")]
     private static partial Regex ProtectedSegmentRegex();
 
-    [GeneratedRegex(@"([」』）)】\]＞>])(\d+\.\s+|[-*•]\s+)")]
+    [GeneratedRegex(@"([」』）)】\]＞>])(\d+\.(?:\s+|(?!\d))|[-*•]\s+)")]
     private static partial Regex CloserThenListRegex();
 
     [GeneratedRegex(@"`[^`\n]+`")]
@@ -156,6 +188,9 @@ public static partial class ChatDisplayFormatter
 
     [GeneratedRegex(@"[A-Z]\.\s")]
     private static partial Regex LetteredOptionMarkerRegex();
+
+    [GeneratedRegex(@"(?<![0-9A-Za-z])(\d{1,2})[.．](?!\d)")]
+    private static partial Regex NumberedOptionMarkerRegex();
 
     [GeneratedRegex(@"[ \t]+\n")]
     private static partial Regex TrailingWhitespaceBeforeNewlineRegex();

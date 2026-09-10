@@ -355,6 +355,15 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
     private static int OrderedListStart(ChatDisplayBlock block) =>
         block.ListStartNumber > 0 ? block.ListStartNumber : 1;
 
+    private static string ListMark(bool ordered, int number, int itemCount)
+    {
+        if (!ordered)
+            return "・ ";
+        if (itemCount >= 2)
+            return $"・{number}. ";
+        return $"{number}. ";
+    }
+
     private static string FormatBlockPlain(ChatDisplayBlock block)
     {
         switch (block.Kind)
@@ -363,7 +372,8 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
                 if (!block.ListOrdered)
                     return string.Join('\n', block.ListItems.Select(item => "- " + item));
                 var plainStart = OrderedListStart(block);
-                return string.Join('\n', block.ListItems.Select((item, i) => $"{plainStart + i}. {item}"));
+                return string.Join('\n', block.ListItems.Select((item, i) =>
+                    ListMark(ordered: true, plainStart + i, block.ListItems.Count) + item));
             case ChatDisplayBlockKind.Table:
                 var lines = new List<string>();
                 if (block.TableHeader.Count > 0)
@@ -403,7 +413,7 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
                     sb.Append("<ol class=\"chat-list\" start=\"").Append(start).Append("\">");
                 for (var i = 0; i < block.ListItems.Count; i++)
                 {
-                    var mark = block.ListOrdered ? $"{start + i}. " : "・ ";
+                    var mark = ListMark(block.ListOrdered, start + i, block.ListItems.Count);
                     sb.Append("<li><span class=\"list-mark\">")
                         .Append(Esc(mark))
                         .Append("</span>")
