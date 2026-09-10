@@ -352,13 +352,18 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
         block.Kind == ChatDisplayBlockKind.Code
         || (block.Kind == ChatDisplayBlockKind.Table && block.TableRows.Count >= 1);
 
+    private static int OrderedListStart(ChatDisplayBlock block) =>
+        block.ListStartNumber > 0 ? block.ListStartNumber : 1;
+
     private static string FormatBlockPlain(ChatDisplayBlock block)
     {
         switch (block.Kind)
         {
             case ChatDisplayBlockKind.List:
-                var mark = block.ListOrdered ? "1. " : "- ";
-                return string.Join('\n', block.ListItems.Select(item => mark + item));
+                if (!block.ListOrdered)
+                    return string.Join('\n', block.ListItems.Select(item => "- " + item));
+                var plainStart = OrderedListStart(block);
+                return string.Join('\n', block.ListItems.Select((item, i) => $"{plainStart + i}. {item}"));
             case ChatDisplayBlockKind.Table:
                 var lines = new List<string>();
                 if (block.TableHeader.Count > 0)
@@ -389,10 +394,16 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
                 }
                 break;
             case ChatDisplayBlockKind.List:
-                sb.Append(block.ListOrdered ? "<ol class=\"chat-list\">" : "<ul class=\"chat-list\">");
+                var start = OrderedListStart(block);
+                if (!block.ListOrdered)
+                    sb.Append("<ul class=\"chat-list\">");
+                else if (start == 1)
+                    sb.Append("<ol class=\"chat-list\">");
+                else
+                    sb.Append("<ol class=\"chat-list\" start=\"").Append(start).Append("\">");
                 for (var i = 0; i < block.ListItems.Count; i++)
                 {
-                    var mark = block.ListOrdered ? $"{i + 1}. " : "・ ";
+                    var mark = block.ListOrdered ? $"{start + i}. " : "・ ";
                     sb.Append("<li><span class=\"list-mark\">")
                         .Append(Esc(mark))
                         .Append("</span>")

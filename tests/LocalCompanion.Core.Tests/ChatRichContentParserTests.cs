@@ -48,6 +48,20 @@ public sealed class ChatRichContentParserTests
     }
 
     [Fact]
+    public void ParseBlocks_SingleNumberedChoice_KeepsOriginalStart()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks(
+            "3. とにかく今の話を続けて盛り上がる！",
+            sentenceBreaks: false);
+
+        var list = Assert.Single(blocks);
+        Assert.Equal(ChatDisplayBlockKind.List, list.Kind);
+        Assert.True(list.ListOrdered);
+        Assert.Equal(3, list.ListStartNumber);
+        Assert.Equal(["とにかく今の話を続けて盛り上がる！"], list.ListItems);
+    }
+
+    [Fact]
     public void ParseBlocks_Table_TakesHeaderAndBody()
     {
         var blocks = ChatRichContentParser.ParseBlocks(

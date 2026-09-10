@@ -18,6 +18,9 @@ public sealed class ChatDisplayBlock
 
     public bool ListOrdered { get; init; }
 
+    /// <summary>番号リストの先頭番号。広げた「3. …」を 1. に描き直さない。</summary>
+    public int ListStartNumber { get; init; } = 1;
+
     public IReadOnlyList<string> TableHeader { get; init; } = Array.Empty<string>();
 
     public IReadOnlyList<IReadOnlyList<string>> TableRows { get; init; } =

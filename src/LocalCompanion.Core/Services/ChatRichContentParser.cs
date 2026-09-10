@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
 using LocalCompanion.Models;
 
 namespace LocalCompanion.Services;
@@ -355,8 +356,19 @@ public static partial class ChatRichContentParser
         {
             Kind = ChatDisplayBlockKind.List,
             ListOrdered = ordered,
+            ListStartNumber = ordered ? ReadOrderedStartNumber(lines[0]) : 1,
             ListItems = items,
         };
+    }
+
+    private static int ReadOrderedStartNumber(string line)
+    {
+        var match = OrderedListLineRegex().Match(line);
+        if (!match.Success)
+            return 1;
+        if (!int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var n))
+            return 1;
+        return n > 0 ? n : 1;
     }
 
     private static ChatDisplayBlock ParseTable(IReadOnlyList<string> lines)
@@ -507,7 +519,7 @@ public static partial class ChatRichContentParser
     [GeneratedRegex(@"^\s*(?:[-*•]\s+|\d+\.\s+)")]
     private static partial Regex ListLineRegex();
 
-    [GeneratedRegex(@"^\s*\d+\.\s*")]
+    [GeneratedRegex(@"^\s*(\d+)\.\s*")]
     private static partial Regex OrderedListLineRegex();
 
     [GeneratedRegex(@"^\s*(?:[-*•]|\d+\.)\s*")]

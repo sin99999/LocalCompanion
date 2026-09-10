@@ -160,6 +160,23 @@ public sealed class ChatConversationHtmlBuilderTests
     }
 
     [Fact]
+    public void BuildBody_ExpandedChoiceThree_KeepsNumberThree()
+    {
+        const string assistant = """
+            1. 他にも気になる罪があるか調べてみる？
+            2. この罰則の内容をもっと詳しく深掘りする？
+            3. とにかく今の話を続けて盛り上がる！
+            """;
+
+        var expanded = ChatChoiceReplyExpander.Expand("3", assistant);
+        Assert.Equal("3. とにかく今の話を続けて盛り上がる！", expanded);
+
+        var html = ChatConversationHtmlBuilder.BuildBodyWithLinks(expanded, sentenceBreaks: false);
+        Assert.Contains("class=\"list-mark\">3. ", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("class=\"list-mark\">1. ", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BuildArticleHtml_Completed_RendersInlineMarkup()
     {
         var html = ChatConversationHtmlBuilder.BuildArticleHtml(
