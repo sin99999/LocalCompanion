@@ -1,4 +1,4 @@
-namespace LocalCompanion.Localization;
+﻿namespace LocalCompanion.Localization;
 
 /// <summary>VOICEVOX スタイル ID ごとの表示名（API の日本語名より優先）。</summary>
 internal readonly record struct VoicevoxSpeakerStyleEntry(string Speaker, string Style);
@@ -148,7 +148,7 @@ internal static class VoicevoxSpeakerStyleCatalog
     internal static bool TryGet(AppLanguage language, int styleId, out VoicevoxSpeakerStyleEntry entry)
     {
         entry = default;
-        if (language == AppLanguage.Japanese)
+        if (language != AppLanguage.English)
             return false;
 
         return EnglishByStyleId.TryGetValue(styleId, out entry);

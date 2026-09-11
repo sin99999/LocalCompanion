@@ -1,9 +1,9 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace LocalCompanion.Localization;
 
 /// <summary>VOICEVOX API が返す日本語の話者名・スタイル名の翻訳表（言語ごとに拡張）。</summary>
-internal static class VoicevoxSpeakerNameTables
+internal static partial class VoicevoxSpeakerNameTables
 {
     private static readonly Regex FemaleVoiceRegex = new(@"^女声(\d+)$", RegexOptions.Compiled);
     private static readonly Regex MaleVoiceRegex = new(@"^男声(\d+)$", RegexOptions.Compiled);
@@ -180,7 +180,7 @@ internal static class VoicevoxSpeakerNameTables
 
     internal static string TranslateSpeaker(AppLanguage language, string speakerNameJa)
     {
-        if (language == AppLanguage.Japanese)
+        if (KeepsJapaneseSpeakerName(language))
             return speakerNameJa;
 
         var normalized = Normalize(speakerNameJa);
@@ -222,6 +222,9 @@ internal static class VoicevoxSpeakerNameTables
         if (table is not null && table.TryGetValue(normalized, out var translated))
             return translated;
 
+        if (KeepsJapaneseSpeakerName(language))
+            return styleNameJa;
+
         foreach (var (japanese, english) in StyleFragments)
         {
             if (normalized.Contains(japanese, StringComparison.Ordinal))
@@ -249,11 +252,19 @@ internal static class VoicevoxSpeakerNameTables
         return ascii >= text.Length * 0.7;
     }
 
+    private static bool KeepsJapaneseSpeakerName(AppLanguage language) =>
+        language is AppLanguage.Japanese
+            or AppLanguage.ChineseSimplified
+            or AppLanguage.ChineseTraditional
+            or AppLanguage.Korean;
+
     private static IReadOnlyDictionary<string, string>? GetSpeakerTable(AppLanguage language) =>
         language switch
         {
             AppLanguage.Japanese => null,
-            AppLanguage.English => EnglishSpeakers,
+            AppLanguage.ChineseSimplified => null,
+            AppLanguage.ChineseTraditional => null,
+            AppLanguage.Korean => null,
             _ => EnglishSpeakers,
         };
 
@@ -262,6 +273,14 @@ internal static class VoicevoxSpeakerNameTables
         {
             AppLanguage.Japanese => null,
             AppLanguage.English => EnglishStyles,
+            AppLanguage.Spanish => SpanishStyles,
+            AppLanguage.Portuguese => PortugueseStyles,
+            AppLanguage.German => GermanStyles,
+            AppLanguage.French => FrenchStyles,
+            AppLanguage.Russian => RussianStyles,
+            AppLanguage.ChineseSimplified => ChineseSimplifiedStyles,
+            AppLanguage.ChineseTraditional => ChineseTraditionalStyles,
+            AppLanguage.Korean => KoreanStyles,
             _ => EnglishStyles,
         };
 }
