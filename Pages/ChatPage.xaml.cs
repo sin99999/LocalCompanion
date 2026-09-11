@@ -117,6 +117,7 @@ public sealed partial class ChatPage : Page
         WireInputFlyouts();
         WireInputContextFlyout();
         SyncSendStopButton();
+        ConversationView.ApplyCopyLabels();
     }
 
     private void WireInputFlyouts()

@@ -83,6 +83,8 @@ public sealed partial class ChatConversationView : UserControl
         InitializeComponent();
         Unloaded += OnUnloaded;
         Loaded += OnLoaded;
+        if (LocalizationService.Instance is not null)
+            LocalizationService.Instance.Changed += OnLocalizationChanged;
     }
 
     public IList? Messages
@@ -90,6 +92,8 @@ public sealed partial class ChatConversationView : UserControl
         get => (IList?)GetValue(MessagesProperty);
         set => SetValue(MessagesProperty, value);
     }
+
+    public void ApplyCopyLabels() => _ = ApplyCopyLabelsToWebAsync();
 
     public void ApplyAppearance(string fontFamily, double fontSize)
     {
@@ -148,8 +152,16 @@ public sealed partial class ChatConversationView : UserControl
         });
     }
 
+    private void OnLocalizationChanged(object? sender, EventArgs e)
+    {
+        _ = ApplyCopyLabelsToWebAsync();
+    }
+
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        if (LocalizationService.Instance is not null)
+            LocalizationService.Instance.Changed -= OnLocalizationChanged;
+
         AttachMessages(_messages, null);
         StopRebuildTimer();
         if (_conversationWeb?.CoreWebView2 is not null)
@@ -546,6 +558,28 @@ public sealed partial class ChatConversationView : UserControl
         try
         {
             await _conversationWeb.ExecuteScriptAsync($"lcSetAppearance({family}, {size});");
+            await ApplyCopyLabelsToWebAsync();
+        }
+        catch
+        {
+            /* ignore */
+        }
+    }
+
+    private async Task ApplyCopyLabelsToWebAsync()
+    {
+        if (!_webReady || _conversationWeb?.CoreWebView2 is null)
+            return;
+
+        var loc = LocalizationService.Instance;
+        if (loc is null)
+            return;
+
+        var copy = JsonSerializer.Serialize(loc.Get("Common.Copy"));
+        var copied = JsonSerializer.Serialize(loc.Get("Common.Copied"));
+        try
+        {
+            await _conversationWeb.ExecuteScriptAsync($"lcSetCopyLabels({copy}, {copied});");
         }
         catch
         {

@@ -11,6 +11,7 @@ public sealed class ChatConversationHtmlBuilderTests
         Assert.Contains("data-copy-label=\"Copy\"", html, StringComparison.Ordinal);
         Assert.Contains("data-copied-label=\"Copied\"", html, StringComparison.Ordinal);
         Assert.Contains("lcCopyBlock", html, StringComparison.Ordinal);
+        Assert.Contains("lcSetCopyLabels", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -208,6 +209,9 @@ public sealed class ChatConversationHtmlBuilderTests
 
         Assert.Contains("chat-code-wrap", html, StringComparison.Ordinal);
         Assert.Contains("class=\"chat-copy\"", html, StringComparison.Ordinal);
+        Assert.Contains("chat-copy-icon", html, StringComparison.Ordinal);
+        Assert.Contains("<svg", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(">コピー</button>", html, StringComparison.Ordinal);
         Assert.Contains("class=\"chat-code\"", html, StringComparison.Ordinal);
         Assert.Contains("hello", html, StringComparison.Ordinal);
     }

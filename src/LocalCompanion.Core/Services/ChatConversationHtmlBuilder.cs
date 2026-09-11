@@ -19,6 +19,12 @@ public static class ChatConversationHtmlBuilder
         bool LiveStream = false,
         bool ShowReasoningPanel = false);
 
+    private const string CopyIconSvg =
+        "<svg class=\"chat-copy-icon\" viewBox=\"0 0 16 16\" aria-hidden=\"true\">"
+        + "<rect x=\"5.1\" y=\"5.1\" width=\"8.4\" height=\"8.4\" rx=\"1.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.35\"/>"
+        + "<rect x=\"2.5\" y=\"2.5\" width=\"8.4\" height=\"8.4\" rx=\"1.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.35\"/>"
+        + "</svg>";
+
     public static string BuildShell(
         string fontFamily,
         double fontSize,
@@ -159,21 +165,23 @@ pre.chat-code {
 }
 .chat-code-wrap > pre.chat-code {
   margin: 0;
-  padding-right: 5.4em;
+  padding-right: 2.8em;
 }
 button.chat-copy {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 1;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.45);
   color: var(--chat-fg);
   border-radius: 4px;
-  padding: 2px 8px;
-  font-family: var(--chat-font);
-  font-size: 0.78em;
-  line-height: 1.3;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
@@ -183,6 +191,12 @@ button.chat-copy:hover {
 }
 button.chat-copy.copied {
   border-color: rgba(96, 205, 255, 0.55);
+}
+.chat-copy-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  pointer-events: none;
 }
 code {
   font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
@@ -219,12 +233,20 @@ function lcCopyLabels() {
     copied: el.getAttribute('data-copied-label') || 'コピーした'
   };
 }
+function lcSetCopyLabels(copy, copied) {
+  var el = document.documentElement;
+  if (copy) el.setAttribute('data-copy-label', copy);
+  if (copied) el.setAttribute('data-copied-label', copied);
+  lcFillCopyButtons();
+}
 function lcFillCopyButtons() {
-  var label = lcCopyLabels().copy;
+  var labels = lcCopyLabels();
   var buttons = document.querySelectorAll('button.chat-copy');
   for (var i = 0; i < buttons.length; i++) {
-    if (!buttons[i].classList.contains('copied'))
-      buttons[i].textContent = label;
+    var btn = buttons[i];
+    var label = btn.classList.contains('copied') ? labels.copied : labels.copy;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
   }
 }
 function lcCopyBlock(btn) {
@@ -237,12 +259,11 @@ function lcCopyBlock(btn) {
       window.chrome.webview.postMessage({ type: 'copy', text: text });
     }
   } catch (e) { /* ignore */ }
-  var labels = lcCopyLabels();
-  btn.textContent = labels.copied;
   btn.classList.add('copied');
+  lcFillCopyButtons();
   setTimeout(function () {
-    btn.textContent = labels.copy;
     btn.classList.remove('copied');
+    lcFillCopyButtons();
   }, 1400);
 }
 function lcHasTextSelection() {
@@ -506,7 +527,9 @@ document.getElementById('log').addEventListener('click', function (ev) {
                 break;
             case ChatDisplayBlockKind.Code:
                 sb.Append("<div class=\"chat-code-wrap\">")
-                    .Append("<button type=\"button\" class=\"chat-copy\">コピー</button>")
+                    .Append("<button type=\"button\" class=\"chat-copy\">")
+                    .Append(CopyIconSvg)
+                    .Append("</button>")
                     .Append("<pre class=\"chat-code\">")
                     .Append(Esc(block.CodeText))
                     .Append("</pre></div>");
