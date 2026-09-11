@@ -4,7 +4,7 @@ internal static partial class VoicevoxSpeakerNameTables
 {
     private static readonly Dictionary<string, string> SpanishStyles = new(StringComparer.Ordinal)
     {
-        ["ノーマル"] = "Normal",
+        ["ノーマル"] = "Estándar",
         ["あまあま"] = "Dulce",
         ["ツンツン"] = "Tsundere",
         ["セクシー"] = "Sexy",
@@ -14,7 +14,7 @@ internal static partial class VoicevoxSpeakerNameTables
         ["喜び"] = "Alegría",
         ["ツンギレ"] = "Enfado",
         ["悲しみ"] = "Tristeza",
-        ["ふつう"] = "Normal",
+        ["ふつう"] = "Estándar",
         ["わーい"] = "Alegre",
         ["びくびく"] = "Nervioso",
         ["おこ"] = "Enfado",
@@ -72,7 +72,7 @@ internal static partial class VoicevoxSpeakerNameTables
 
     private static readonly Dictionary<string, string> PortugueseStyles = new(StringComparer.Ordinal)
     {
-        ["ノーマル"] = "Normal",
+        ["ノーマル"] = "Padrão",
         ["あまあま"] = "Doce",
         ["ツンツン"] = "Tsundere",
         ["セクシー"] = "Sexy",
@@ -82,7 +82,7 @@ internal static partial class VoicevoxSpeakerNameTables
         ["喜び"] = "Alegria",
         ["ツンギレ"] = "Raiva",
         ["悲しみ"] = "Tristeza",
-        ["ふつう"] = "Normal",
+        ["ふつう"] = "Padrão",
         ["わーい"] = "Animado",
         ["びくびく"] = "Nervoso",
         ["おこ"] = "Raiva",
@@ -140,7 +140,7 @@ internal static partial class VoicevoxSpeakerNameTables
 
     private static readonly Dictionary<string, string> GermanStyles = new(StringComparer.Ordinal)
     {
-        ["ノーマル"] = "Normal",
+        ["ノーマル"] = "Standard",
         ["あまあま"] = "Süß",
         ["ツンツン"] = "Tsundere",
         ["セクシー"] = "Sexy",
@@ -150,7 +150,7 @@ internal static partial class VoicevoxSpeakerNameTables
         ["喜び"] = "Freude",
         ["ツンギレ"] = "Wut",
         ["悲しみ"] = "Trauer",
-        ["ふつう"] = "Normal",
+        ["ふつう"] = "Standard",
         ["わーい"] = "Fröhlich",
         ["びくびく"] = "Nervös",
         ["おこ"] = "Wut",
@@ -208,7 +208,7 @@ internal static partial class VoicevoxSpeakerNameTables
 
     private static readonly Dictionary<string, string> FrenchStyles = new(StringComparer.Ordinal)
     {
-        ["ノーマル"] = "Normal",
+        ["ノーマル"] = "Standard",
         ["あまあま"] = "Doux",
         ["ツンツン"] = "Tsundere",
         ["セクシー"] = "Sexy",
@@ -218,7 +218,7 @@ internal static partial class VoicevoxSpeakerNameTables
         ["喜び"] = "Joie",
         ["ツンギレ"] = "Colère",
         ["悲しみ"] = "Tristesse",
-        ["ふつう"] = "Normal",
+        ["ふつう"] = "Standard",
         ["わーい"] = "Joyeux",
         ["びくびく"] = "Nerveux",
         ["おこ"] = "Colère",

@@ -52,4 +52,19 @@ public sealed class VoicevoxSpeakerLocalizerTests
         Assert.Contains("Kasukabe Tsumugi", name, StringComparison.Ordinal);
         Assert.Contains("Обычный", name, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData(AppLanguage.Spanish, "Estándar")]
+    [InlineData(AppLanguage.Portuguese, "Padrão")]
+    [InlineData(AppLanguage.German, "Standard")]
+    [InlineData(AppLanguage.French, "Standard")]
+    public void FormatDisplayName_European_RomanizedName_TranslatedStyle(AppLanguage language, string style)
+    {
+        var name = VoicevoxSpeakerLocalizer.FormatDisplayName(
+            8, "春日部つむぎ", "ノーマル", language);
+        Assert.Contains("Kasukabe Tsumugi", name, StringComparison.Ordinal);
+        Assert.Contains(style, name, StringComparison.Ordinal);
+        Assert.DoesNotContain("ノーマル", name, StringComparison.Ordinal);
+        Assert.DoesNotContain("春日部", name, StringComparison.Ordinal);
+    }
 }
