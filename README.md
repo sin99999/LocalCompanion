@@ -67,7 +67,7 @@ WinUI の実行に必要なファイルはアプリに同梱されています�
 
 ## フォルダ構成（配布 ZIP）
 
-GitHub Releases の Assets から **`LocalCompanion-{バージョン}.zip`**（例: `LocalCompanion-1.2.4.zip`）をダウンロードし、展開してください。
+GitHub Releases の Assets から **`LocalCompanion-{バージョン}.zip`**（例: `LocalCompanion-1.2.5.zip`）をダウンロードし、展開してください。
 
 ZIP を展開すると、おおむね次の構成になります（`data\` と `tools\` は初回起動後に作成されます）。
 
