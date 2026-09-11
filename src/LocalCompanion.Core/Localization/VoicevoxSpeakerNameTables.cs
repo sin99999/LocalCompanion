@@ -180,7 +180,7 @@ internal static partial class VoicevoxSpeakerNameTables
 
     internal static string TranslateSpeaker(AppLanguage language, string speakerNameJa)
     {
-        if (KeepsJapaneseSpeakerName(language))
+        if (language == AppLanguage.Japanese)
             return speakerNameJa;
 
         var normalized = Normalize(speakerNameJa);
@@ -222,9 +222,6 @@ internal static partial class VoicevoxSpeakerNameTables
         if (table is not null && table.TryGetValue(normalized, out var translated))
             return translated;
 
-        if (KeepsJapaneseSpeakerName(language))
-            return styleNameJa;
-
         foreach (var (japanese, english) in StyleFragments)
         {
             if (normalized.Contains(japanese, StringComparison.Ordinal))
@@ -252,21 +249,8 @@ internal static partial class VoicevoxSpeakerNameTables
         return ascii >= text.Length * 0.7;
     }
 
-    private static bool KeepsJapaneseSpeakerName(AppLanguage language) =>
-        language is AppLanguage.Japanese
-            or AppLanguage.ChineseSimplified
-            or AppLanguage.ChineseTraditional
-            or AppLanguage.Korean;
-
     private static IReadOnlyDictionary<string, string>? GetSpeakerTable(AppLanguage language) =>
-        language switch
-        {
-            AppLanguage.Japanese => null,
-            AppLanguage.ChineseSimplified => null,
-            AppLanguage.ChineseTraditional => null,
-            AppLanguage.Korean => null,
-            _ => EnglishSpeakers,
-        };
+        language == AppLanguage.Japanese ? null : EnglishSpeakers;
 
     private static IReadOnlyDictionary<string, string>? GetStyleTable(AppLanguage language) =>
         language switch

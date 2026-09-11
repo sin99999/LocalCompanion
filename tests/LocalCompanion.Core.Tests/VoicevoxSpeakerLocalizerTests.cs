@@ -24,24 +24,24 @@ public sealed class VoicevoxSpeakerLocalizerTests
     }
 
     [Fact]
-    public void FormatDisplayName_ChineseSimplified_KeepsJapaneseName_TranslatesStyle()
+    public void FormatDisplayName_ChineseSimplified_RomanizedName_TranslatedStyle()
     {
         var name = VoicevoxSpeakerLocalizer.FormatDisplayName(
             8, "春日部つむぎ", "ノーマル", AppLanguage.ChineseSimplified);
-        Assert.Contains("春日部つむぎ", name, StringComparison.Ordinal);
+        Assert.Contains("Kasukabe Tsumugi", name, StringComparison.Ordinal);
         Assert.Contains("普通", name, StringComparison.Ordinal);
-        Assert.DoesNotContain("Kasukabe", name, StringComparison.Ordinal);
+        Assert.DoesNotContain("春日部", name, StringComparison.Ordinal);
         Assert.DoesNotContain("Normal", name, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void FormatDisplayName_Korean_KeepsJapaneseName_TranslatesStyle()
+    public void FormatDisplayName_Korean_RomanizedName_TranslatedStyle()
     {
         var name = VoicevoxSpeakerLocalizer.FormatDisplayName(
             8, "春日部つむぎ", "ノーマル", AppLanguage.Korean);
-        Assert.Contains("春日部つむぎ", name, StringComparison.Ordinal);
+        Assert.Contains("Kasukabe Tsumugi", name, StringComparison.Ordinal);
         Assert.Contains("보통", name, StringComparison.Ordinal);
-        Assert.DoesNotContain("Kasukabe", name, StringComparison.Ordinal);
+        Assert.DoesNotContain("春日部", name, StringComparison.Ordinal);
     }
 
     [Fact]
