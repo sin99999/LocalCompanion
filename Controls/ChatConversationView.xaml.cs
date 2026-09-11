@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Text.Json;
 using LocalCompanion.Localization;
+using Windows.ApplicationModel.DataTransfer;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
 using Microsoft.UI.Dispatching;
@@ -205,7 +206,7 @@ public sealed partial class ChatConversationView : UserControl
         _conversationWeb.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
         _conversationWeb.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
-        var shell = ChatConversationHtmlBuilder.BuildShell(_fontFamily, _fontSize);
+        var shell = BuildConversationShell();
         _conversationWeb.NavigateToString(shell);
         _shellLoaded = true;
         _webReady = true;
@@ -247,11 +248,18 @@ public sealed partial class ChatConversationView : UserControl
         try
         {
             using var doc = JsonDocument.Parse(args.WebMessageAsJson);
-            if (!doc.RootElement.TryGetProperty("type", out var typeEl)
-                || typeEl.GetString() is not "scroll")
+            if (!doc.RootElement.TryGetProperty("type", out var typeEl))
+                return;
+
+            var type = typeEl.GetString();
+            if (type is "copy")
             {
+                CopyWebText(doc.RootElement);
                 return;
             }
+
+            if (type is not "scroll")
+                return;
 
             if (doc.RootElement.TryGetProperty("atEnd", out var atEndEl)
                 && atEndEl.ValueKind is JsonValueKind.True or JsonValueKind.False)
@@ -263,6 +271,40 @@ public sealed partial class ChatConversationView : UserControl
         {
             /* ignore malformed host messages */
         }
+    }
+
+    private static void CopyWebText(JsonElement root)
+    {
+        if (!root.TryGetProperty("text", out var textEl))
+            return;
+
+        var text = textEl.GetString();
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        try
+        {
+            var package = new DataPackage();
+            package.SetText(text);
+            Clipboard.SetContent(package);
+        }
+        catch
+        {
+            /* 他アプリがクリップボードを掴んでいるときなど */
+        }
+    }
+
+    private string BuildConversationShell()
+    {
+        var loc = LocalizationService.Instance;
+        if (loc is null)
+            return ChatConversationHtmlBuilder.BuildShell(_fontFamily, _fontSize);
+
+        return ChatConversationHtmlBuilder.BuildShell(
+            _fontFamily,
+            _fontSize,
+            loc.Get("Common.Copy"),
+            loc.Get("Common.Copied"));
     }
 
     private void AttachMessages(IList? oldMessages, IList? newMessages)
@@ -426,7 +468,7 @@ public sealed partial class ChatConversationView : UserControl
         {
             if (!_shellLoaded)
             {
-                _conversationWeb.NavigateToString(ChatConversationHtmlBuilder.BuildShell(_fontFamily, _fontSize));
+                _conversationWeb.NavigateToString(BuildConversationShell());
                 _shellLoaded = true;
                 await Task.Delay(30);
             }

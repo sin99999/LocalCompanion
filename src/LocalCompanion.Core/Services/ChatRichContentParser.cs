@@ -334,15 +334,47 @@ public static partial class ChatRichContentParser
 
                 if (group.Count > 0)
                 {
-                    yield return new ChatDisplayBlock
-                    {
-                        Kind = ChatDisplayBlockKind.Paragraph,
-                        ParagraphLines = group,
-                    };
+                    foreach (var block in SplitCopyableBlobs(group))
+                        yield return block;
                 }
             }
         }
     }
+
+    private static IEnumerable<ChatDisplayBlock> SplitCopyableBlobs(IReadOnlyList<string> lines)
+    {
+        var pending = new List<string>();
+        foreach (var line in lines)
+        {
+            if (!ChatCopyableBlobDetector.IsCopyableBlob(line))
+            {
+                pending.Add(line);
+                continue;
+            }
+
+            if (pending.Count > 0)
+            {
+                yield return Paragraph(pending);
+                pending = new List<string>();
+            }
+
+            yield return new ChatDisplayBlock
+            {
+                Kind = ChatDisplayBlockKind.Code,
+                CodeText = ChatCopyableBlobDetector.TextForDisplay(line),
+            };
+        }
+
+        if (pending.Count > 0)
+            yield return Paragraph(pending);
+    }
+
+    private static ChatDisplayBlock Paragraph(IReadOnlyList<string> lines) =>
+        new()
+        {
+            Kind = ChatDisplayBlockKind.Paragraph,
+            ParagraphLines = lines,
+        };
 
     private static ChatDisplayBlock ParseList(IReadOnlyList<string> lines)
     {

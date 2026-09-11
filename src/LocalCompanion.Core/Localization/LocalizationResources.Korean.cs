@@ -27,6 +27,7 @@ internal static partial class LocalizationResources
         ["Common.Paste"] = "붙여넣기",
         ["Common.Cut"] = "잘라내기",
         ["Common.Copy"] = "복사",
+        ["Common.Copied"] = "복사됨",
         ["Common.SelectAll"] = "모두 선택",
         ["Common.Unknown"] = "알 수 없음",
         ["Common.On"] = "켜기",

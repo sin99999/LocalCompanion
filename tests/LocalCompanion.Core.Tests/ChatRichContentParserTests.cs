@@ -82,6 +82,30 @@ public sealed class ChatRichContentParserTests
     }
 
     [Fact]
+    public void ParseBlocks_PromptBlob_BecomesCodeBetweenParagraphs()
+    {
+        const string body = """
+            生成されたプロンプト:
+            (Masterpiece, Bestquality,Highres:1.2),(Anime style:1.3),1girl, nagato yuki, defensive pose, looking at camera, determined expression, serious face, short navy blue hair, purple eyes, floating in void, cosmic background
+            (Negative Prompt: lowres, bad anatomy, extra digits, jpeg artifacts)
+            生成されたプロンプトは、アニメーションスタイルで構成した。
+            """;
+
+        var blocks = ChatRichContentParser.ParseBlocks(body, sentenceBreaks: true);
+        Assert.Equal(ChatDisplayBlockKind.Paragraph, blocks[0].Kind);
+        Assert.Contains("生成されたプロンプト", blocks[0].ParagraphLines[0]);
+
+        var codes = blocks.Where(b => b.Kind == ChatDisplayBlockKind.Code).ToList();
+        Assert.Equal(2, codes.Count);
+        Assert.Contains("Masterpiece", codes[0].CodeText, StringComparison.Ordinal);
+        Assert.Contains("Negative Prompt", codes[1].CodeText, StringComparison.Ordinal);
+
+        var last = blocks[^1];
+        Assert.Equal(ChatDisplayBlockKind.Paragraph, last.Kind);
+        Assert.Contains("アニメーションスタイル", string.Join('\n', last.ParagraphLines));
+    }
+
+    [Fact]
     public void ParseBlocks_FencedCode_IsCodeBlock()
     {
         var blocks = ChatRichContentParser.ParseBlocks(

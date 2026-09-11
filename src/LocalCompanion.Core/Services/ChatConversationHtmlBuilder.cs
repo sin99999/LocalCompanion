@@ -19,14 +19,20 @@ public static class ChatConversationHtmlBuilder
         bool LiveStream = false,
         bool ShowReasoningPanel = false);
 
-    public static string BuildShell(string fontFamily, double fontSize)
+    public static string BuildShell(
+        string fontFamily,
+        double fontSize,
+        string? copyLabel = null,
+        string? copiedLabel = null)
     {
         var family = string.IsNullOrWhiteSpace(fontFamily) ? "Segoe UI" : fontFamily.Trim();
         var size = fontSize > 0 ? fontSize : 14;
         var familyCss = WebUtility.HtmlEncode(family);
+        var copy = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(copyLabel) ? "コピー" : copyLabel.Trim());
+        var copied = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(copiedLabel) ? "コピーした" : copiedLabel.Trim());
         return $$"""
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-copy-label="{{copy}}" data-copied-label="{{copied}}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -135,6 +141,10 @@ table.chat-table th {
   font-weight: 600;
   font-size: 0.93em;
 }
+.chat-code-wrap {
+  position: relative;
+  margin: 0.6em 0;
+}
 pre.chat-code {
   margin: 0.6em 0;
   padding: 10px 12px;
@@ -146,6 +156,33 @@ pre.chat-code {
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.chat-code-wrap > pre.chat-code {
+  margin: 0;
+  padding-right: 5.4em;
+}
+button.chat-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--chat-fg);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: var(--chat-font);
+  font-size: 0.78em;
+  line-height: 1.3;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button.chat-copy:hover {
+  background: rgba(96, 205, 255, 0.22);
+}
+button.chat-copy.copied {
+  border-color: rgba(96, 205, 255, 0.55);
 }
 code {
   font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
@@ -175,12 +212,46 @@ function lcNotifyScroll() {
     }
   } catch (e) { /* ignore */ }
 }
+function lcCopyLabels() {
+  var el = document.documentElement;
+  return {
+    copy: el.getAttribute('data-copy-label') || 'コピー',
+    copied: el.getAttribute('data-copied-label') || 'コピーした'
+  };
+}
+function lcFillCopyButtons() {
+  var label = lcCopyLabels().copy;
+  var buttons = document.querySelectorAll('button.chat-copy');
+  for (var i = 0; i < buttons.length; i++) {
+    if (!buttons[i].classList.contains('copied'))
+      buttons[i].textContent = label;
+  }
+}
+function lcCopyBlock(btn) {
+  var wrap = btn.closest('.chat-code-wrap');
+  var pre = wrap && wrap.querySelector('pre.chat-code');
+  var text = pre ? (pre.innerText || '') : '';
+  if (!text) return;
+  try {
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage({ type: 'copy', text: text });
+    }
+  } catch (e) { /* ignore */ }
+  var labels = lcCopyLabels();
+  btn.textContent = labels.copied;
+  btn.classList.add('copied');
+  setTimeout(function () {
+    btn.textContent = labels.copy;
+    btn.classList.remove('copied');
+  }, 1400);
+}
 function lcHasTextSelection() {
   var sel = window.getSelection();
   return !!(sel && sel.rangeCount > 0 && !sel.isCollapsed);
 }
 function lcApplyLog(html, scroll) {
   document.getElementById('log').innerHTML = html || '';
+  lcFillCopyButtons();
   if (scroll) lcScrollEnd();
 }
 function lcSetLog(html, scroll) {
@@ -210,6 +281,7 @@ function lcPatchLastArticle(html, scroll) {
     articles[articles.length - 1].outerHTML = html || '';
   }
   if (scroll) lcScrollEnd();
+  lcFillCopyButtons();
   return 'ok';
 }
 function lcSetAppearance(family, size) {
@@ -234,6 +306,12 @@ document.addEventListener('selectionchange', function () {
   }
 });
 window.addEventListener('scroll', lcNotifyScroll, { passive: true });
+document.getElementById('log').addEventListener('click', function (ev) {
+  var btn = ev.target && ev.target.closest ? ev.target.closest('button.chat-copy') : null;
+  if (!btn) return;
+  ev.preventDefault();
+  lcCopyBlock(btn);
+});
 </script>
 </body>
 </html>
@@ -427,9 +505,11 @@ window.addEventListener('scroll', lcNotifyScroll, { passive: true });
                 sb.Append(BuildTableHtml(block.TableHeader, block.TableRows));
                 break;
             case ChatDisplayBlockKind.Code:
-                sb.Append("<pre class=\"chat-code\">")
+                sb.Append("<div class=\"chat-code-wrap\">")
+                    .Append("<button type=\"button\" class=\"chat-copy\">コピー</button>")
+                    .Append("<pre class=\"chat-code\">")
                     .Append(Esc(block.CodeText))
-                    .Append("</pre>");
+                    .Append("</pre></div>");
                 break;
         }
     }

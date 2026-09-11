@@ -27,6 +27,7 @@ internal static partial class LocalizationResources
         ["Common.Paste"] = "Вставить",
         ["Common.Cut"] = "Вырезать",
         ["Common.Copy"] = "Копировать",
+        ["Common.Copied"] = "Скопировано",
         ["Common.SelectAll"] = "Выделить всё",
         ["Common.Unknown"] = "Неизвестно",
         ["Common.On"] = "Вкл.",

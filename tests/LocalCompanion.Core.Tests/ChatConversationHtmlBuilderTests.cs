@@ -5,6 +5,15 @@ namespace LocalCompanion.Core.Tests;
 public sealed class ChatConversationHtmlBuilderTests
 {
     [Fact]
+    public void BuildShell_IncludesCopyLabels()
+    {
+        var html = ChatConversationHtmlBuilder.BuildShell("Segoe UI", 14, "Copy", "Copied");
+        Assert.Contains("data-copy-label=\"Copy\"", html, StringComparison.Ordinal);
+        Assert.Contains("data-copied-label=\"Copied\"", html, StringComparison.Ordinal);
+        Assert.Contains("lcCopyBlock", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LinkifyEscaped_WrapsHttpUrl()
     {
         var html = ChatConversationHtmlBuilder.LinkifyEscaped("see https://example.com/a ok");
@@ -189,6 +198,34 @@ public sealed class ChatConversationHtmlBuilderTests
         Assert.Contains("甘えん坊タイム", html, StringComparison.Ordinal);
         Assert.Contains("日常の雑談", html, StringComparison.Ordinal);
         Assert.DoesNotContain("）2.甘えん坊", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArticleHtml_Completed_FencedCode_HasCopyButton()
+    {
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, "```\nhello\n```", true));
+
+        Assert.Contains("chat-code-wrap", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"chat-copy\"", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"chat-code\"", html, StringComparison.Ordinal);
+        Assert.Contains("hello", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArticleHtml_Completed_PromptBlob_HasCopyButton()
+    {
+        const string body =
+            "(Masterpiece, Bestquality,Highres:1.2),(Anime style:1.3),1girl, nagato yuki, "
+            + "defensive pose, looking at camera, determined expression, serious face, "
+            + "short navy blue hair, purple eyes, floating in void, cosmic background";
+
+        var html = ChatConversationHtmlBuilder.BuildArticleHtml(
+            new ChatConversationHtmlBuilder.Line("Assistant", null, body, true));
+
+        Assert.Contains("chat-code-wrap", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"chat-copy\"", html, StringComparison.Ordinal);
+        Assert.Contains("Masterpiece", html, StringComparison.Ordinal);
     }
 
     [Fact]

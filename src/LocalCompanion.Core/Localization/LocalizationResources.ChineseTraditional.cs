@@ -25,6 +25,7 @@ internal static partial class LocalizationResources
         ["Common.Paste"] = "貼上",
         ["Common.Cut"] = "剪下",
         ["Common.Copy"] = "複製",
+        ["Common.Copied"] = "已複製",
         ["Common.SelectAll"] = "全選",
         ["Common.Unknown"] = "未知",
         ["Common.On"] = "開",
