@@ -16,4 +16,14 @@ public sealed class LlamaCppInstallerUpgradeTests
     {
         Assert.Equal(expected, LlamaCppInstaller.NeedsLatestReleaseUpgrade(installed, latest));
     }
+
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public void ShouldCheckLatestRelease_Scenarios(bool hasManagedExe, bool autoUpdate, bool expected)
+    {
+        Assert.Equal(expected, LlamaCppInstaller.ShouldCheckLatestRelease(hasManagedExe, autoUpdate));
+    }
 }

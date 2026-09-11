@@ -93,6 +93,8 @@ public sealed class AppSettingsStore
             CharacterSelfImproveEnabled = dto.CharacterSelfImproveEnabled,
             ChatSearchEnabled = false,
             SpeechInputEnabled = dto.SpeechInputEnabled,
+            LlamaCppAutoUpdate = dto.LlamaCppAutoUpdate,
+            GpuBackendPreference = LlamaGpuBackendPreferences.Normalize(dto.GpuBackendPreference),
             ShowChatTokenSpeed = dto.ShowChatTokenSpeed,
             SpecDraftMtp = dto.SpecDraftMtp,
         };

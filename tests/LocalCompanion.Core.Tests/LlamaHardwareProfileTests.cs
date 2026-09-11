@@ -34,6 +34,38 @@ public sealed class LlamaHardwareProfileTests
         Assert.Equal(expected, LlamaHardwareProfile.ResolvePreferredVariant(snap));
     }
 
+    [Theory]
+    [InlineData("auto", "hip-radeon")]
+    [InlineData("hip-radeon", "hip-radeon")]
+    [InlineData("vulkan", "vulkan")]
+    [InlineData("VULKAN", "vulkan")]
+    [InlineData("nope", "hip-radeon")]
+    public void ResolvePreferredVariant_AmdHonorsPreference(string preference, string expected)
+    {
+        var snap = new LlamaHardwareSnapshot(
+            false, false, true, false, true, false, GiB(16), GiB(8));
+
+        Assert.Equal(expected, LlamaHardwareProfile.ResolvePreferredVariant(snap, preference));
+    }
+
+    [Fact]
+    public void ResolvePreferredVariant_NvidiaIgnoresVulkanPreference()
+    {
+        var snap = new LlamaHardwareSnapshot(
+            false, true, false, false, true, false, GiB(16), GiB(8));
+
+        Assert.Equal("cuda", LlamaHardwareProfile.ResolvePreferredVariant(snap, "vulkan"));
+    }
+
+    [Fact]
+    public void ResolvePreferredVariant_Arm64IgnoresHipPreference()
+    {
+        var snap = new LlamaHardwareSnapshot(
+            true, false, false, true, false, true, GiB(16), GiB(4));
+
+        Assert.Equal("opencl-adreno", LlamaHardwareProfile.ResolvePreferredVariant(snap, "hip-radeon"));
+    }
+
     [Fact]
     public void BuildInstallFallbackChain_Cuda_IncludesVulkanThenCpu()
     {

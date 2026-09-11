@@ -224,6 +224,7 @@ public partial class SettingsPageViewModel
         UiGeneralConfirmHistoryDelete = _loc.Get("Settings.General.ConfirmHistoryDelete");
         UiGeneralConfirmHistoryDeleteHint = _loc.Get("Settings.General.ConfirmHistoryDelete.Hint");
         ApplySpeechInputLocalizedUi();
+        ApplyLlamaEngineLocalizedUi();
         UiGeneralPreview = _loc.Get("Settings.General.Preview");
         UiGeneralSave = _loc.Get("Common.Save");
         UiGeneralReset = _loc.Get("Settings.General.Reset");

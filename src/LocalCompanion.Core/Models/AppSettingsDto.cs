@@ -47,6 +47,12 @@ public sealed class AppSettingsDto
     /// <summary>音声入力（Windows 音声認識）を有効にする。</summary>
     public bool SpeechInputEnabled { get; set; }
 
+    /// <summary>起動のたびに llama.cpp の latest を見て古ければ取り直す。オフでも初回導入と GPU 切替は行う。</summary>
+    public bool LlamaCppAutoUpdate { get; set; } = true;
+
+    /// <summary>NVIDIA 以外: auto / hip-radeon / vulkan。NVIDIA は CUDA 固定。</summary>
+    public string GpuBackendPreference { get; set; } = LlamaGpuBackendPreferences.Auto;
+
     /// <summary>チャット状態欄に直前の生成 tok/s を出す。</summary>
     public bool ShowChatTokenSpeed { get; set; }
 
@@ -71,6 +77,8 @@ public sealed class AppSettingsDto
         CharacterSelfImproveEnabled = CharacterSelfImproveEnabled,
         ChatSearchEnabled = ChatSearchEnabled,
         SpeechInputEnabled = SpeechInputEnabled,
+        LlamaCppAutoUpdate = LlamaCppAutoUpdate,
+        GpuBackendPreference = GpuBackendPreference,
         ShowChatTokenSpeed = ShowChatTokenSpeed,
         SpecDraftMtp = SpecDraftMtp,
     };

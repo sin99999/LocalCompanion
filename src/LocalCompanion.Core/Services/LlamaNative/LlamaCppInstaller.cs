@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 using LocalCompanion.Localization;
+using LocalCompanion.Models;
+using LocalCompanion.Services;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
@@ -44,7 +46,8 @@ internal static class LlamaCppInstaller
     internal static string? EnsureInstalled(string root)
     {
         var hw = LlamaHardwareProfile.Current;
-        var preferred = LlamaHardwareProfile.ResolvePreferredVariant(hw);
+        var app = LoadEngineSettings(root);
+        var preferred = LlamaHardwareProfile.ResolvePreferredVariant(hw, app.GpuBackendPreference);
         var found = FindLlamaServerExe(root);
 
         if (found is not null)
@@ -66,8 +69,8 @@ internal static class LlamaCppInstaller
                 installed = ReadInstalledVariant(root);
             }
 
-            // 管理下の llama.cpp は起動のたびに GitHub latest を見て、古ければ取り直す
-            if (found is not null && IsManagedToolsExe(root, found))
+            // 管理下の llama.cpp は、設定がオンなら起動のたびに GitHub latest を見て古ければ取り直す
+            if (ShouldCheckLatestRelease(found is not null && IsManagedToolsExe(root, found), app.LlamaCppAutoUpdate))
             {
                 TryUpgradeToLatestRelease(root, preferred, hw);
                 found = FindLlamaServerExe(root);
@@ -151,6 +154,16 @@ internal static class LlamaCppInstaller
         }
 
         return null;
+    }
+
+    /// <summary>管理下の exe があり、起動ごとの latest 確認がオンのときだけ GitHub を見にいく。</summary>
+    internal static bool ShouldCheckLatestRelease(bool hasManagedExe, bool autoUpdateOnStartup) =>
+        hasManagedExe && autoUpdateOnStartup;
+
+    private static AppSettingsDto LoadEngineSettings(string root)
+    {
+        var dataDir = AppPaths.ResolveUserDataDirectory(LlamaInstallConfig.Load(root).DataDirectory);
+        return AppSettingsStore.LoadOrDefault(dataDir);
     }
 
     /// <summary>導入済みタグと latest が違う（または未記録）なら更新が必要。</summary>

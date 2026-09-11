@@ -113,4 +113,38 @@ public sealed class AppSettingsStoreTests
             try { Directory.Delete(dir, true); } catch { /* ignore */ }
         }
     }
+
+    [Fact]
+    public void Save_LlamaEngineFlags_RoundTripAndNormalize()
+    {
+        var relative = Path.Combine("obj", "lc-test-" + Guid.NewGuid().ToString("N"));
+        var db = new RagDatabase(Options.Create(new LlamaOptions
+        {
+            DataDirectory = relative,
+        }));
+        var dir = db.DataDirectory;
+        try
+        {
+            var store = new AppSettingsStore(db);
+            Assert.True(store.Load().LlamaCppAutoUpdate);
+            Assert.Equal(LlamaGpuBackendPreferences.Auto, store.Load().GpuBackendPreference);
+
+            var saved = store.Save(new AppSettingsDto
+            {
+                LlamaCppAutoUpdate = false,
+                GpuBackendPreference = "VULKAN",
+            });
+            Assert.False(saved.LlamaCppAutoUpdate);
+            Assert.Equal(LlamaGpuBackendPreferences.Vulkan, saved.GpuBackendPreference);
+            Assert.False(store.Load().LlamaCppAutoUpdate);
+            Assert.Equal(LlamaGpuBackendPreferences.Vulkan, store.Load().GpuBackendPreference);
+
+            var junk = store.Save(new AppSettingsDto { GpuBackendPreference = "cuda" });
+            Assert.Equal(LlamaGpuBackendPreferences.Auto, junk.GpuBackendPreference);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* ignore */ }
+        }
+    }
 }

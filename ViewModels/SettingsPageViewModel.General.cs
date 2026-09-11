@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
@@ -28,8 +28,20 @@ public partial class SettingsPageViewModel
     [ObservableProperty]
     public partial bool SpeechInputEnabled { get; set; }
 
+    [ObservableProperty]
+    public partial bool LlamaCppAutoUpdate { get; set; } = true;
+
+    public ObservableCollection<GpuBackendChoiceViewModel> GpuBackendChoices { get; } = new();
+
+    [ObservableProperty]
+    public partial GpuBackendChoiceViewModel? SelectedGpuBackend { get; set; }
+
     public string UiSpeechInputEnabled { get; private set; } = "";
     public string UiSpeechInputEnabledHint { get; private set; } = "";
+    public string UiLlamaCppAutoUpdate { get; private set; } = "";
+    public string UiLlamaCppAutoUpdateHint { get; private set; } = "";
+    public string UiGpuBackend { get; private set; } = "";
+    public string UiGpuBackendHint { get; private set; } = "";
 
     [ObservableProperty]
     public partial string GeneralStatusText { get; set; } = "";
@@ -60,6 +72,8 @@ public partial class SettingsPageViewModel
 
     partial void OnConfirmHistoryDeleteChanged(bool value) => PersistGeneralToggles();
     partial void OnSpeechInputEnabledChanged(bool value) => PersistGeneralToggles();
+    partial void OnLlamaCppAutoUpdateChanged(bool value) => PersistGeneralToggles();
+    partial void OnSelectedGpuBackendChanged(GpuBackendChoiceViewModel? value) => PersistGeneralToggles();
 
     private void LoadGeneralSettings()
     {
@@ -84,6 +98,8 @@ public partial class SettingsPageViewModel
         ConfirmHistoryDelete = settings.ConfirmHistoryDelete;
         UserDisplayName = settings.UserDisplayName;
         SpeechInputEnabled = settings.SpeechInputEnabled;
+        LlamaCppAutoUpdate = settings.LlamaCppAutoUpdate;
+        RefreshGpuBackendChoices(settings.GpuBackendPreference);
         GeneralChatFontSize = settings.ChatFontSize;
         SelectedChatFontFamily = ChatFontChoices.FirstOrDefault(f =>
             string.Equals(f, settings.ChatFontFamily, StringComparison.OrdinalIgnoreCase))
@@ -99,6 +115,37 @@ public partial class SettingsPageViewModel
         UiSpeechInputEnabledHint = _loc.Get("Settings.SpeechInput.Enabled.Hint");
         OnPropertyChanged(nameof(UiSpeechInputEnabled));
         OnPropertyChanged(nameof(UiSpeechInputEnabledHint));
+    }
+
+    private void ApplyLlamaEngineLocalizedUi()
+    {
+        UiLlamaCppAutoUpdate = _loc.Get("Settings.General.LlamaAutoUpdate");
+        UiLlamaCppAutoUpdateHint = _loc.Get("Settings.General.LlamaAutoUpdate.Hint");
+        UiGpuBackend = _loc.Get("Settings.General.GpuBackend");
+        UiGpuBackendHint = _loc.Get("Settings.General.GpuBackend.Hint");
+        OnPropertyChanged(nameof(UiLlamaCppAutoUpdate));
+        OnPropertyChanged(nameof(UiLlamaCppAutoUpdateHint));
+        OnPropertyChanged(nameof(UiGpuBackend));
+        OnPropertyChanged(nameof(UiGpuBackendHint));
+        RefreshGpuBackendChoices();
+    }
+
+    private void RefreshGpuBackendChoices(string? selectedId = null)
+    {
+        var keep = LlamaGpuBackendPreferences.Normalize(
+            selectedId
+            ?? SelectedGpuBackend?.Id
+            ?? _appearance.Current.GpuBackendPreference);
+        var suppress = _suppressGeneralOptionSave;
+        _suppressGeneralOptionSave = true;
+        GpuBackendChoices.Clear();
+        GpuBackendChoices.Add(new(LlamaGpuBackendPreferences.Auto, _loc.Get("Settings.General.GpuBackend.Auto")));
+        GpuBackendChoices.Add(new(LlamaGpuBackendPreferences.HipRadeon, _loc.Get("Settings.General.GpuBackend.Hip")));
+        GpuBackendChoices.Add(new(LlamaGpuBackendPreferences.Vulkan, _loc.Get("Settings.General.GpuBackend.Vulkan")));
+        SelectedGpuBackend = GpuBackendChoices.FirstOrDefault(x =>
+            string.Equals(x.Id, keep, StringComparison.OrdinalIgnoreCase))
+            ?? GpuBackendChoices[0];
+        _suppressGeneralOptionSave = suppress;
     }
 
     private void UpdateGeneralPreview()
@@ -120,6 +167,8 @@ public partial class SettingsPageViewModel
         dto.ConfirmHistoryDelete = ConfirmHistoryDelete;
         dto.ThemeMode = AppThemeModes.Dark;
         dto.SpeechInputEnabled = SpeechInputEnabled;
+        dto.LlamaCppAutoUpdate = LlamaCppAutoUpdate;
+        dto.GpuBackendPreference = SelectedGpuBackend?.Id ?? LlamaGpuBackendPreferences.Auto;
         _appearance.Save(dto);
     }
 
@@ -145,6 +194,8 @@ public partial class SettingsPageViewModel
         dto.ChatFontSize = defaults.ChatFontSize;
         dto.UserDisplayName = defaults.UserDisplayName;
         dto.SpeechInputEnabled = defaults.SpeechInputEnabled;
+        dto.LlamaCppAutoUpdate = defaults.LlamaCppAutoUpdate;
+        dto.GpuBackendPreference = defaults.GpuBackendPreference;
         var saved = _appearance.Save(dto);
         ApplyGeneralForm(saved);
         SetGeneralStatus("Settings.General.ResetDone");
@@ -159,6 +210,8 @@ public partial class SettingsPageViewModel
         dto.ChatFontSize = GeneralChatFontSize;
         dto.UserDisplayName = UserDisplayName;
         dto.SpeechInputEnabled = SpeechInputEnabled;
+        dto.LlamaCppAutoUpdate = LlamaCppAutoUpdate;
+        dto.GpuBackendPreference = SelectedGpuBackend?.Id ?? LlamaGpuBackendPreferences.Auto;
         return dto;
     }
 }

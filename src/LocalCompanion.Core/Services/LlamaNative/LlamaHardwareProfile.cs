@@ -1,6 +1,7 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using LocalCompanion.Localization;
+using LocalCompanion.Models;
 using Microsoft.Win32;
 
 namespace LocalCompanion.Services.LlamaNative;
@@ -22,7 +23,9 @@ internal static class LlamaHardwareProfile
 
     internal static LlamaHardwareSnapshot Current => Cached.Value;
 
-    internal static string ResolvePreferredVariant(LlamaHardwareSnapshot? snapshot = null)
+    internal static string ResolvePreferredVariant(
+        LlamaHardwareSnapshot? snapshot = null,
+        string? preference = null)
     {
         var hw = snapshot ?? Current;
         if (hw.IsArm64)
@@ -34,6 +37,13 @@ internal static class LlamaHardwareProfile
 
         if (hw.HasNvidiaGpu)
             return "cuda";
+
+        var pref = LlamaGpuBackendPreferences.Normalize(preference);
+        if (pref == LlamaGpuBackendPreferences.Vulkan)
+            return "vulkan";
+        if (pref == LlamaGpuBackendPreferences.HipRadeon)
+            return "hip-radeon";
+
         if (hw.HasAmdRadeonGpu)
             return "hip-radeon";
         if (hw.HasVulkanCapableGpu)
