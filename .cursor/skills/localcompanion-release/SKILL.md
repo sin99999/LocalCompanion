@@ -34,8 +34,7 @@ description: >-
 ```
 
 出力: `dist\LocalCompanion-{Version}.zip`  
-（`package-zip.ps1` が中で publish する。Version は csproj。上書きでよい）  
-デスクトップに既存の解凍フォルダ（`LocalCompanion.exe` と `scripts\`）があれば、ZIP のあと同じ内容を重ねる（`data\` / `tools\` / `appsettings.json` / 個人モデル・キャラは残す）。手で ZIP を解凍して差し替える作業はしない。
+（`package-zip.ps1` が中で publish する。Version は csproj。上書きでよい）
 
 ## コマンド（リポ root・PowerShell）
 
