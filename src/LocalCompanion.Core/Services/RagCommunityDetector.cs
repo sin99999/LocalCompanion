@@ -44,11 +44,13 @@ internal static class RagCommunityDetector
         var degree = Degrees(edges);
         var result = new List<RagCommunity>();
 
-        // id は level 1 を 1..、level 0 を 1001.. のように衝突しない範囲で振る
-        var level1Ids = level1.Values.Distinct().OrderBy(v => v).Select((v, i) => (v, Id: (long)(i + 1))).ToDictionary(x => x.v, x => x.Id);
+        // id は level 0 を 1..N、level 1 を N+1.. と連番。1000 起点だと孤立が多い資料で交差する
+        var level1Ids = level1.Values.Distinct().OrderBy(v => v)
+            .Select((v, i) => (v, Id: (long)(groups0.Count + 1 + i)))
+            .ToDictionary(x => x.v, x => x.Id);
         var level1Members = new Dictionary<long, List<long>>();
 
-        var next0 = 1000L;
+        var next0 = 0L;
         foreach (var group in groups0)
         {
             next0++;

@@ -95,4 +95,21 @@ public sealed class RagCommunityDetectorTests
         Assert.Equal(7, communities.Count(c => c.Level == 1));
         Assert.Empty(RagCommunityDetector.Detect([], []));
     }
+
+    /// <summary>
+    /// level 0 を 1001 起点にすると、孤立が多い資料で level 1（1..）と id が重なり、
+    /// rag_communities.id の UNIQUE で再構築が落ちる（151k チャンクの実機）。
+    /// </summary>
+    [Fact]
+    public void Detect_ManyIsolatedNodes_CommunityIdsDoNotCollide()
+    {
+        var nodes = Enumerable.Range(1, 1100).Select(i => new RagCommunityDetector.Node(i, $"n{i}")).ToList();
+        var communities = RagCommunityDetector.Detect(nodes, []);
+
+        var ids = communities.Select(c => c.Id).ToList();
+        Assert.Equal(ids.Count, ids.Distinct().Count());
+        Assert.Equal(1100, communities.Count(c => c.Level == 0));
+        Assert.Equal(1100, communities.Count(c => c.Level == 1));
+        Assert.All(communities.Where(c => c.Level == 0), c => Assert.Contains(communities, p => p.Level == 1 && p.Id == c.ParentId));
+    }
 }
