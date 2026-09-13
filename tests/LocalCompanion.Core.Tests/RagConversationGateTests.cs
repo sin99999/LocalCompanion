@@ -6,13 +6,38 @@ namespace LocalCompanion.Core.Tests;
 public sealed class RagConversationGateTests
 {
     [Fact]
-    public void Resolve_CasualChitchat_SkipsRag()
+    public void Resolve_CasualChitchatWithContentWords_ProbesLexically()
     {
+        // 合図語なし＋内容語あり → Probe（語彙検索だけ走らせ、根拠が無ければ何も載せない）
         var plan = RagQueryPlanner.Plan("AIさんは女の子ですか？可愛らしく感じます。", null);
         Assert.Equal(RagQueryIntent.General, plan.Intent);
         Assert.Equal(
-            RagConversationMode.Skip,
+            RagConversationMode.Probe,
             RagConversationGate.Resolve(plan, "AIさんは女の子ですか？可愛らしく感じます。"));
+    }
+
+    [Fact]
+    public void Resolve_HiraganaOnlyGreeting_SkipsRag()
+    {
+        var plan = RagQueryPlanner.Plan("ありがとう、助かった", null);
+        Assert.Equal(RagConversationMode.Skip, RagConversationGate.Resolve(plan, "ありがとう、助かった"));
+    }
+
+    [Fact]
+    public void ApplyHitPolicy_Probe_KeepsOnlyHitsContainingQuestionWords()
+    {
+        var message = "ビルドはどうやるの？";
+        var plan = RagQueryPlanner.Plan(message, null);
+        var hits = new[]
+        {
+            new RagSearchHit("他人の財物を窃取した者は、窃盗の罪とする。", "刑法.md", "第235条", 0, "c1"),
+            new RagSearchHit("dotnet build を実行します。", "readme.md", "ビルド", 0, "r1"),
+        };
+
+        var filtered = RagConversationGate.ApplyHitPolicy(new RagSearchResult(hits, plan), message, RagConversationMode.Probe);
+
+        Assert.Single(filtered.Hits);
+        Assert.Equal("readme.md", filtered.Hits[0].Source);
     }
 
     [Fact]
@@ -93,7 +118,9 @@ public sealed class RagConversationGateTests
     public void RagRiskCautionInstruction_MentionsGentleWarning()
     {
         var text = ChatSystemPromptTexts.RagRiskCautionInstruction(japanese: true);
-        Assert.Contains("気を付けて", text);
-        Assert.Contains("資料記載の回答", text);
+        Assert.Contains("短く注意", text);
+        Assert.Contains("説教", text);
+        Assert.Contains("実行方法", text);
+        Assert.Contains("断定しない", text);
     }
 }

@@ -212,6 +212,7 @@ public sealed partial class MainWindow : Window
             await OfferWebView2IfNeededAsync();
             await OfferAppUpdateIfNeededAsync();
             _ = OfferVoicevoxUpdateIfNeededAsync();
+            _ = BuildRagGraphIfNeededAsync();
         }
         catch (Exception ex)
         {
@@ -965,6 +966,19 @@ public sealed partial class MainWindow : Window
         catch
         {
             /* 更新確認失敗は起動を妨げない */
+        }
+    }
+
+    /// <summary>RAG の概念グラフが未構築・旧版なら裏で作る（LLM 不要・既存 DB の再 ingest 不要）。</summary>
+    private static async Task BuildRagGraphIfNeededAsync()
+    {
+        try
+        {
+            await AppServices.Get<RagService>().EnsureGraphBuiltAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write($"RagGraph build failed: {ex.Message}");
         }
     }
 }

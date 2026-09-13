@@ -55,10 +55,13 @@ public sealed record RagSearchHit(
         return string.Join(" / ", parts);
     }
 
-    public string FormatForPrompt(int index)
+    /// <param name="maxBodyChars">0 以下なら切らない。超える本文は末尾を「…」で省く（引用行は切らない）。</param>
+    public string FormatForPrompt(int index, int maxBodyChars = 0)
     {
         var label = FormatSourceLabel(index);
         var body = PromptText;
+        if (maxBodyChars > 0 && body.Length > maxBodyChars)
+            body = body[..maxBodyChars].TrimEnd() + "…";
         var quote = !string.IsNullOrWhiteSpace(PenaltyLead) ? PenaltyLead
             : !string.IsNullOrWhiteSpace(DefinitionLead) ? DefinitionLead
             : VerbatimQuote;

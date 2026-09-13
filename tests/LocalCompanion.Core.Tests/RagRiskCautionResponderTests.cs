@@ -25,7 +25,7 @@ public sealed class RagRiskCautionResponderTests
         Assert.True(RagRiskCautionResponder.TryFormat(
             RagConversationMode.RiskCaution, hits, "万引きしたら捕まる？", japanese: true, out var reply));
         Assert.Contains(penalty, reply, StringComparison.Ordinal);
-        Assert.Contains("やり方は教えない", reply, StringComparison.Ordinal);
+        Assert.Contains("実行方法の説明はできません", reply, StringComparison.Ordinal);
     }
 
     [Fact]

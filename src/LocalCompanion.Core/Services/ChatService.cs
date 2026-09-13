@@ -526,7 +526,8 @@ public sealed class ChatService
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
-        var systemParts = await BuildSystemPartsAsync(profile, runtime, effectiveMessage, japaneseReply, ct);
+        var (systemParts, promptContext) = await BuildSystemPartsAsync(
+            profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -566,12 +567,7 @@ public sealed class ChatService
             }
 
             if (ragResult is not null && ragMode != RagConversationMode.Skip)
-            {
-                ragSources = TryAppendRagHits(
-                    systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply, ragMode);
-                if (ragSources is null)
-                    systemParts.Add(ChatSystemPromptTexts.RagEmptyHitsInstruction(japaneseReply, ragResult.SearchFailed));
-            }
+                ragSources = TryAppendRagHits(systemParts, ragResult, ragMode, japaneseReply);
         }
         else if (!req.UseRag)
         {
@@ -579,7 +575,7 @@ public sealed class ChatService
         }
 
         var userContent = BuildUserContent(req, _opt.MaxAttachTextChars, effectiveMessage);
-        var systemText = string.Join("\n\n", systemParts);
+        var systemText = ChatPromptAssembler.Compose(systemParts, promptContext, ragSources is { Length: > 0 });
 
         var attempts = BuildAttempts(heavyRequest, effectiveContext);
         string? reply = null;
@@ -709,7 +705,8 @@ public sealed class ChatService
         var modelFileName = runtime.ActiveModelFileName;
         var japaneseReply = TextScriptHelper.LooksJapanese(effectiveMessage);
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
-        var systemParts = await BuildSystemPartsAsync(profile, runtime, effectiveMessage, japaneseReply, ct);
+        var (systemParts, promptContext) = await BuildSystemPartsAsync(
+            profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -726,10 +723,7 @@ public sealed class ChatService
             }
             else if (ragResult is not null && ragMode != RagConversationMode.Skip)
             {
-                ragSources = TryAppendRagHits(
-                    systemParts, ragResult.Hits, ragResult.Plan, isCharacter, effectiveMessage, japaneseReply, ragMode);
-                if (ragSources is null)
-                    systemParts.Add(ChatSystemPromptTexts.RagEmptyHitsInstruction(japaneseReply, ragResult.SearchFailed));
+                ragSources = TryAppendRagHits(systemParts, ragResult, ragMode, japaneseReply);
             }
         }
         else if (!req.UseRag)
@@ -763,7 +757,7 @@ public sealed class ChatService
         }
 
         var userContent = BuildUserContent(req, _opt.MaxAttachTextChars, effectiveMessage);
-        var systemText = string.Join("\n\n", systemParts);
+        var systemText = ChatPromptAssembler.Compose(systemParts, promptContext, ragSources is { Length: > 0 });
         var attempts = BuildAttempts(heavyRequest, effectiveContext);
 
         var replyBuilder = new StringBuilder();
@@ -1037,87 +1031,43 @@ public sealed class ChatService
         return string.Join(" ", parts);
     }
 
-    private async Task<List<string>> BuildSystemPartsAsync(
+    /// <summary>材料（設定・長期記憶）を集めて <see cref="ChatPromptAssembler"/> に渡す。組み立ての判断はアセンブラ側。</summary>
+    private async Task<(List<string> Parts, ChatPromptContext Context)> BuildSystemPartsAsync(
         CharacterProfileDto profile,
         ModelRuntimeStatus runtime,
         string userMessage,
         bool japaneseReply,
+        bool hasAttachment,
+        bool hasImage,
         CancellationToken ct)
     {
-        var isDefaultCharacter = CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
-        var parts = new List<string>();
-
+        var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var userDisplayName = _appSettings.Load().UserDisplayName?.Trim();
-        if (!string.IsNullOrEmpty(userDisplayName))
-            parts.Add(ChatSystemPromptTexts.UserNameLine(userDisplayName, japaneseReply));
 
-        var memoryInjected = false;
+        string? memoryBlock = null;
         var sessionPresetKey = CharacterPresetService.ResolveSessionPresetKey(_presets.GetActivePresetFileName());
         try
         {
             var memories = await _memory.GetRelevantForPromptAsync(userMessage, sessionPresetKey, ct);
-            var memoryBlock = MemoryService.FormatForSystemPrompt(memories, japaneseReply);
-            if (!string.IsNullOrWhiteSpace(memoryBlock))
-            {
-                parts.Add(memoryBlock);
-                memoryInjected = true;
-            }
+            memoryBlock = MemoryService.FormatForSystemPrompt(memories, japaneseReply);
         }
         catch
         {
             /* memory is optional */
         }
 
-        parts.Add(isDefaultCharacter
-            ? ChatSystemPromptTexts.DefaultLanguageInstruction(japaneseReply)
-            : ChatSystemPromptTexts.CharacterLanguageInstruction(japaneseReply));
-
-        if (memoryInjected)
-            parts.Add(ChatSystemPromptTexts.SpontaneousMemoryInstruction(japaneseReply));
-
-        if (!isDefaultCharacter)
-        {
-            if (!string.IsNullOrWhiteSpace(profile.Persona))
-                parts.Add(profile.Persona.Trim());
-            if (!string.IsNullOrWhiteSpace(profile.SpeakingStyle))
-                parts.Add(ChatSystemPromptTexts.SpeakingStyleLine(profile.SpeakingStyle.Trim(), japaneseReply));
-            if (!string.IsNullOrWhiteSpace(profile.Name))
-                parts.Add(ChatSystemPromptTexts.CharacterNameLine(profile.Name.Trim(), japaneseReply));
-            if (!string.IsNullOrEmpty(userDisplayName) && !string.IsNullOrWhiteSpace(profile.Name))
-            {
-                parts.Add(ChatSystemPromptTexts.UserAndCharacterNameDistinction(
-                    userDisplayName,
-                    profile.Name.Trim(),
-                    japaneseReply));
-            }
-        }
-
-        parts.Add(ChatSystemPromptTexts.ReadabilityInstruction(japaneseReply));
-        parts.Add(ChatReplyLimitHelper.SystemLimitNote(_opt.MaxReplyChars, japaneseReply));
-        if (ChatReplyLimitHelper.UserRequestsExcessiveLength(userMessage, _opt.MaxReplyChars))
-            parts.Add(ChatReplyLimitHelper.ExcessiveRequestNote(_opt.MaxReplyChars, japaneseReply));
-
-        if (!string.IsNullOrWhiteSpace(runtime.LoadedModelFileName))
-            parts.Add(ChatSystemPromptTexts.LoadedModelLine(runtime.LoadedModelFileName, japaneseReply));
-        else if (!string.IsNullOrWhiteSpace(runtime.SelectedModelFileName))
-            parts.Add(ChatSystemPromptTexts.SelectedModelLine(runtime.SelectedModelFileName, japaneseReply));
-
-        if (runtime.ModelMismatch)
-        {
-            parts.Add(ChatSystemPromptTexts.ModelMismatchLine(
-                runtime.SelectedModelFileName ?? "",
-                runtime.LoadedModelFileName ?? "",
-                japaneseReply));
-        }
-
-        if (!string.IsNullOrWhiteSpace(runtime.MmprojWarning))
-            parts.Add(runtime.MmprojWarning);
-
-        parts.Add(ChatSystemPromptTexts.MemoryDistinction(japaneseReply));
-        parts.Add(ChatSystemPromptTexts.AttachmentInstruction(japaneseReply));
-        parts.Add(ChatSystemPromptTexts.ImageInstruction(japaneseReply));
-        parts.Add(ChatInputLanguageDirective.Build(userMessage));
-        return parts;
+        var context = new ChatPromptContext(
+            isCharacter,
+            profile,
+            userDisplayName,
+            memoryBlock,
+            runtime,
+            hasAttachment,
+            hasImage,
+            japaneseReply,
+            userMessage,
+            _opt.MaxReplyChars);
+        return (ChatPromptAssembler.BuildCoreParts(context), context);
     }
 
     private static string BuildUserContent(ChatRequestDto req, int maxAttachChars, string? messageOverride = null)
@@ -1404,49 +1354,38 @@ public sealed class ChatService
         return selected;
     }
 
-    private static string[]? TryAppendRagHits(
+    /// <summary>
+    /// 参考資料を system に足す。ヒットがあれば共通指示 1 本＋回答ルール表（<see cref="RagAnswerPolicy"/>）の追加指示＋予算内の本文。
+    /// ヒットが無いときは表に従って「資料なし」を言うか、何も言わない。戻り値は UI 用の出典ラベル（ヒット無しは null）。
+    /// </summary>
+    private string[]? TryAppendRagHits(
         List<string> systemParts,
-        IReadOnlyList<RagSearchHit> hits,
-        RagQueryPlan plan,
-        bool isCharacter,
-        string userMessage,
-        bool japanese,
-        RagConversationMode conversationMode = RagConversationMode.Structured)
+        RagSearchResult ragResult,
+        RagConversationMode conversationMode,
+        bool japanese)
     {
+        var hits = ragResult.Hits;
+        var plan = ragResult.Plan;
         if (hits.Count == 0)
+        {
+            var empty = RagAnswerPolicy.ChooseEmptyHitInstruction(conversationMode, ragResult.SearchFailed, japanese);
+            if (empty is not null)
+                systemParts.Add(empty);
             return null;
-
-        var ragSources = hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
-        var usePersonaMode = RagArticleAnswerPolicy.UsePersonaRagInstruction(
-            isCharacter, plan, userMessage, conversationMode);
-
-        if (usePersonaMode)
-        {
-            systemParts.Add(ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese));
-            if (conversationMode == RagConversationMode.RiskCaution)
-                systemParts.Add(ChatSystemPromptTexts.RagRiskCautionInstruction(japanese));
-            if (plan.Intent == RagQueryIntent.Advisory)
-                systemParts.Add(ChatSystemPromptTexts.RagAdvisoryInstruction(japanese));
-        }
-        else if (plan.ResponseMode == RagResponseMode.CitationFirst)
-        {
-            systemParts.Add(ChatSystemPromptTexts.RagCitationFirstInstruction(japanese));
-            if (hits.Any(static h => RagPenaltyTextHelper.ExtractLeadingPenaltySentence(h.PromptText) is not null))
-                systemParts.Add(ChatSystemPromptTexts.RagPenaltyScopeInstruction(japanese));
-        }
-        else
-        {
-            systemParts.Add(ChatSystemPromptTexts.RagPriorityInstruction(japanese));
-            if (hits.Any(static h => RagPenaltyTextHelper.ExtractLeadingPenaltySentence(h.PromptText) is not null))
-                systemParts.Add(ChatSystemPromptTexts.RagPenaltyScopeInstruction(japanese));
         }
 
-        if (plan.Intent == RagQueryIntent.Article)
-            systemParts.Add(ChatSystemPromptTexts.RagArticleScopeInstruction(japanese));
+        var rules = RagAnswerPolicy.Decide(plan, conversationMode, hits);
+        systemParts.Add(ChatSystemPromptTexts.RagGroundingInstruction(japanese));
+        if (rules.Legal)
+            systemParts.Add(ChatSystemPromptTexts.RagLegalAddendum(japanese, rules.QuotePenalty, rules.SingleArticle));
+        if (rules.Risk)
+            systemParts.Add(ChatSystemPromptTexts.RagRiskCautionInstruction(japanese));
+        if (rules.Advisory)
+            systemParts.Add(ChatSystemPromptTexts.RagAdvisoryInstruction(japanese));
 
-        var ragHeader = ChatSystemPromptTexts.RagHitsHeader(japanese);
-        systemParts.Add(ragHeader + "\n" + FormatRagHitsForPrompt(hits, plan));
-        return ragSources;
+        var block = RagPromptBudget.FormatHits(hits, plan, _opt.RagPromptHitMaxChars, _opt.RagPromptBlockMaxChars);
+        systemParts.Add(ChatSystemPromptTexts.RagHitsHeader(japanese) + "\n" + block);
+        return hits.Select((h, i) => h.FormatSourceLabel(i)).ToArray();
     }
 
     private static bool IsHeavyRequest(bool hasImage, bool hasFile, string? attachedText, int lightAttachMaxChars)
@@ -1456,23 +1395,6 @@ public sealed class ChatService
         if (!hasFile)
             return false;
         return (attachedText?.Length ?? 0) > lightAttachMaxChars;
-    }
-
-    private static string FormatRagHitsForPrompt(IReadOnlyList<RagSearchHit> hits, RagQueryPlan plan)
-    {
-        if (plan.Intent != RagQueryIntent.Advisory)
-            return string.Join("\n\n", hits.Select((h, i) => h.FormatForPrompt(i)));
-
-        var parts = new List<string>();
-        foreach (var group in hits.GroupBy(static h => h.SourceFileName))
-        {
-            parts.Add($"■ {group.Key}");
-            var index = 0;
-            foreach (var hit in group)
-                parts.Add(hit.FormatForPrompt(index++));
-        }
-
-        return string.Join("\n\n", parts);
     }
 
     private string BuildRagSearchQuery(string currentMessage, HistoryMode historyMode)
@@ -1577,7 +1499,7 @@ public sealed class ChatService
         if (mode == RagConversationMode.Skip)
             return (null, mode);
 
-        var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, plan, ct);
+        var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, plan, mode, ct);
         if (result is null)
         {
             // 呼び出し側キャンセルなど。条文は創作ブロック、一般も沈黙させず未完了扱い。
@@ -1587,17 +1509,31 @@ public sealed class ChatService
         return (RagConversationGate.ApplyHitPolicy(result, currentMessage, mode), mode);
     }
 
+    /// <summary>俯瞰は LLM を予算内で何度か呼ぶので、その予算＋余裕まで待つ。</summary>
+    internal TimeSpan ResolveRagSearchTimeout(RagQueryPlan plan, bool lexicalOnly)
+    {
+        if (lexicalOnly)
+            return TimeSpan.FromSeconds(3);
+        if (plan.Intent == RagQueryIntent.Overview)
+            return TimeSpan.FromMilliseconds(Math.Max(12_000, _opt.RagGraphTimeBudgetMs + 6_000));
+        return TimeSpan.FromSeconds(12);
+    }
+
     private async Task<RagSearchResult?> TrySearchRagWithPlanAsync(
         string currentMessage,
         string? previousUserMessage,
         RagQueryPlan plan,
+        RagConversationMode mode,
         CancellationToken ct)
     {
         try
         {
+            // Probe は毎ターン走るので埋め込みを呼ばず語彙だけ・短い上限
+            var lexicalOnly = mode == RagConversationMode.Probe;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(12));
-            return await _rag.SearchWithPlanAsync(currentMessage, previousUserMessage, _opt.RagTopK, timeout.Token);
+            timeout.CancelAfter(ResolveRagSearchTimeout(plan, lexicalOnly));
+            return await _rag.SearchWithPlanAsync(
+                currentMessage, previousUserMessage, _opt.RagTopK, timeout.Token, lexicalOnly);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {

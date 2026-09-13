@@ -82,7 +82,8 @@ internal static class ChatAgentResearchEnricher
         if (plan.Intent is not RagQueryIntent.General)
             return true;
 
-        return RagConversationGate.Resolve(plan, stripped) != RagConversationMode.Skip;
+        // Probe（合図語なし）は資料調査の意思ではないので、Web 検索を止めない
+        return RagConversationGate.Resolve(plan, stripped) is not (RagConversationMode.Skip or RagConversationMode.Probe);
     }
 
     private static string StripSoftResearchCues(string message)

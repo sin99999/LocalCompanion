@@ -1,6 +1,6 @@
 ﻿namespace LocalCompanion.Services;
 
-/// <summary>FTS5 とベクトル検索の Reciprocal Rank Fusion。</summary>
+/// <summary>FTS5・ベクトル・グラフ（同コミュニティ）の Reciprocal Rank Fusion。</summary>
 internal static class RagHybridSearch
 {
     public static IReadOnlyList<long> FuseRrf(
@@ -9,7 +9,18 @@ internal static class RagHybridSearch
         int topK,
         int rrfK,
         double weightFts,
-        double weightVec)
+        double weightVec) =>
+        FuseRrf(ftsIds, vectorIds, Array.Empty<long>(), topK, rrfK, weightFts, weightVec, 0);
+
+    public static IReadOnlyList<long> FuseRrf(
+        IReadOnlyList<long> ftsIds,
+        IReadOnlyList<long> vectorIds,
+        IReadOnlyList<long> graphIds,
+        int topK,
+        int rrfK,
+        double weightFts,
+        double weightVec,
+        double weightGraph)
     {
         if (topK <= 0)
             return Array.Empty<long>();
@@ -17,6 +28,7 @@ internal static class RagHybridSearch
         var scores = new Dictionary<long, double>();
         Accumulate(scores, ftsIds, weightFts, rrfK);
         Accumulate(scores, vectorIds, weightVec, rrfK);
+        Accumulate(scores, graphIds, weightGraph, rrfK);
 
         if (scores.Count == 0)
             return Array.Empty<long>();

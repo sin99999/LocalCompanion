@@ -6,8 +6,11 @@ namespace LocalCompanion.Services;
 /// <summary>雑談中心アプリ向けの RAG 実行モード。</summary>
 internal enum RagConversationMode
 {
-    /// <summary>検索しない（雑談）。</summary>
+    /// <summary>検索しない（ひらがなだけの挨拶・相槌など、内容語が無い）。</summary>
     Skip,
+
+    /// <summary>合図語なし。語彙検索だけ安く走らせ、質問の語が本文に実在するヒットだけ載せる（無ければ何も言わない）。</summary>
+    Probe,
 
     /// <summary>話題に応じて検索し、弱いヒットは捨てる。</summary>
     SoftTopic,
@@ -20,8 +23,8 @@ internal enum RagConversationMode
 }
 
 /// <summary>
-/// 雑談では RAG を走らせず、法律・資料・危険話題のときだけ検索する。
-/// 弱いヒットは語の重なりで落とす。
+/// 法律・資料・危険話題は合図語で厳密パスへ。合図語が無くても内容語があれば <see cref="RagConversationMode.Probe"/> で
+/// 語彙検索だけ走らせ、根拠（<see cref="RagEvidenceGate"/>）があるヒットだけ載せる。弱いヒットは語の重なりで落とす。
 /// </summary>
 internal static class RagConversationGate
 {
@@ -74,6 +77,9 @@ internal static class RagConversationGate
         if (LooksLikeSoftTopic(userMessage))
             return RagConversationMode.SoftTopic;
 
+        if (RagEvidenceGate.IsWorthProbing(userMessage))
+            return RagConversationMode.Probe;
+
         return RagConversationMode.Skip;
     }
 
@@ -117,7 +123,12 @@ internal static class RagConversationGate
             return result;
 
         IReadOnlyList<RagSearchHit> hits = result.Hits;
-        if (mode == RagConversationMode.RiskCaution)
+        if (mode == RagConversationMode.Probe)
+        {
+            // 合図語なし。質問の語がそのまま本文に無いヒットは載せない
+            hits = RagEvidenceGate.KeepEvidenced(hits, userMessage);
+        }
+        else if (mode == RagConversationMode.RiskCaution)
         {
             // 危険話題は法令資料を優先（条文本文に「万引き」等が無くても拾う）
             var legal = hits.Where(IsLegalSource).Take(3).ToList();

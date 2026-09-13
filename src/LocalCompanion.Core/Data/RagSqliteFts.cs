@@ -57,6 +57,7 @@ public sealed class RagSqliteFts
         delete.Parameters.AddWithValue("$id", chunkId);
         delete.ExecuteNonQuery();
 
+        // 日本語はバイグラムに割って入れる（質問側は BuildSegmentedMatchQuery で同じ割り方）
         var insert = conn.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = """
@@ -64,12 +65,18 @@ public sealed class RagSqliteFts
             VALUES ($id, $t, $h, $ch, $sec)
             """;
         insert.Parameters.AddWithValue("$id", chunkId);
-        insert.Parameters.AddWithValue("$t", text);
-        insert.Parameters.AddWithValue("$h", headerText);
-        insert.Parameters.AddWithValue("$ch", chapter);
-        insert.Parameters.AddWithValue("$sec", section);
+        insert.Parameters.AddWithValue("$t", RagFtsSegmenter.Segment(text));
+        insert.Parameters.AddWithValue("$h", RagFtsSegmenter.Segment(headerText));
+        insert.Parameters.AddWithValue("$ch", RagFtsSegmenter.Segment(chapter));
+        insert.Parameters.AddWithValue("$sec", RagFtsSegmenter.Segment(section));
         insert.ExecuteNonQuery();
     }
+
+    /// <summary>索引の割り方（<see cref="RagFtsSegmenter"/>）が変わったら上げる。<c>app_metadata.rag_fts_backfilled</c> と比較して再索引する。</summary>
+    public const string IndexFormatVersion = "2";
+
+    /// <summary>rag_fts 向け（バイグラム索引）の MATCH 式。memory / chat 索引には <see cref="BuildMatchQuery"/> を使う。</summary>
+    public static string BuildSegmentedMatchQuery(string query) => RagFtsSegmenter.BuildMatchQuery(query);
 
     public void DeleteForSource(SqliteConnection conn, string source, SqliteTransaction? transaction = null)
     {

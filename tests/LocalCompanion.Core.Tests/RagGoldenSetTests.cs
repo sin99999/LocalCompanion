@@ -1,4 +1,5 @@
 ﻿using LocalCompanion.Core.Tests.Fixtures;
+using LocalCompanion.Data;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
 using Microsoft.Data.Sqlite;
@@ -59,6 +60,15 @@ public sealed class RagGoldenSetTests : IDisposable
             case RagGoldenKind.PromptCopy:
                 AssertPromptCopy(c);
                 break;
+            case RagGoldenKind.EvidenceAttach:
+                AssertEvidenceAttach(c);
+                break;
+            case RagGoldenKind.Overview:
+                AssertOverview(c);
+                break;
+            case RagGoldenKind.MultiHop:
+                AssertMultiHop(c);
+                break;
             default:
                 Assert.Fail($"Unknown kind {c.Kind}");
                 break;
@@ -72,10 +82,108 @@ public sealed class RagGoldenSetTests : IDisposable
         Assert.Equal(RagGoldenCases.All.Count, RagGoldenCases.All.Select(c => c.Id).Distinct().Count());
     }
 
-    private static void AssertSkip(RagGoldenCase c)
+    /// <summary>評価セット（未実装分）は ID が重複せず、実装済みの All とも被らない。</summary>
+    [Fact]
+    public void PlannedSet_IdsAreUniqueAndNotInAll()
+    {
+        var planned = RagGoldenCases.Planned;
+        Assert.Equal(planned.Count, planned.Select(c => c.Id).Distinct().Count());
+        var live = RagGoldenCases.All.Select(c => c.Id).ToHashSet();
+        Assert.DoesNotContain(planned, c => live.Contains(c.Id));
+    }
+
+    /// <summary>評価用コーパスの新資料（README・窃盗抜粋）が構造チャンクとして入っている。</summary>
+    [Fact]
+    public void Corpus_ContainsReadmeAndTheftSources()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = "SELECT source, COUNT(*), MAX(doc_kind) FROM rag_chunks WHERE source IN ($a, $b) GROUP BY source";
+        cmd.Parameters.AddWithValue("$a", RagGoldenCorpus.ReadmeSource);
+        cmd.Parameters.AddWithValue("$b", RagGoldenCorpus.TheftSource);
+        var kinds = new Dictionary<string, (int Count, string Kind)>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+            kinds[reader.GetString(0)] = (reader.GetInt32(1), reader.GetString(2));
+
+        Assert.True(kinds[RagGoldenCorpus.ReadmeSource].Count >= 3, $"readme chunks: {kinds[RagGoldenCorpus.ReadmeSource].Count} / {DescribeHeaders(RagGoldenCorpus.ReadmeSource)}");
+        Assert.Equal("general", kinds[RagGoldenCorpus.ReadmeSource].Kind);
+        Assert.True(kinds[RagGoldenCorpus.TheftSource].Count >= 4, $"theft chunks: {kinds[RagGoldenCorpus.TheftSource].Count} / {DescribeHeaders(RagGoldenCorpus.TheftSource)}");
+        Assert.Equal("legal", kinds[RagGoldenCorpus.TheftSource].Kind);
+    }
+
+    private string DescribeHeaders(string source)
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = "SELECT header_text, length(text) FROM rag_chunks WHERE source = $s ORDER BY id";
+        cmd.Parameters.AddWithValue("$s", source);
+        var parts = new List<string>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+            parts.Add($"{reader.GetString(0)}({reader.GetInt64(1)})");
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>何も載らない: 門番で Skip、または Probe の語彙検索に質問の語が実在しない。</summary>
+    private void AssertSkip(RagGoldenCase c)
     {
         var plan = RagQueryPlanner.Plan(c.Query, null);
-        Assert.Equal(RagConversationMode.Skip, RagConversationGate.Resolve(plan, c.Query));
+        var mode = RagConversationGate.Resolve(plan, c.Query);
+        Assert.True(mode is RagConversationMode.Skip or RagConversationMode.Probe, $"mode was {mode}");
+        if (mode == RagConversationMode.Skip)
+            return;
+
+        var hits = RagGoldenCorpus.SearchFts(_conn, c.Query);
+        var filtered = RagConversationGate.ApplyHitPolicy(new RagSearchResult(hits, plan), c.Query, mode);
+        Assert.Empty(filtered.Hits);
+    }
+
+    /// <summary>合図語なしでも、語彙検索で根拠のある資料が載る（Probe）。合図語ありなら SoftTopic でもよい。</summary>
+    private void AssertEvidenceAttach(RagGoldenCase c)
+    {
+        var plan = RagQueryPlanner.Plan(c.Query, null);
+        var mode = RagConversationGate.Resolve(plan, c.Query);
+        Assert.True(mode is RagConversationMode.Probe or RagConversationMode.SoftTopic, $"mode was {mode}");
+
+        var hits = RagGoldenCorpus.SearchFts(_conn, c.Query);
+        var filtered = RagConversationGate.ApplyHitPolicy(new RagSearchResult(hits, plan), c.Query, mode);
+        Assert.NotEmpty(filtered.Hits);
+        Assert.True(filtered.Hits.Count <= RagEvidenceGate.MaxProbeHits);
+        if (c.ExpectSourceContains is not null)
+            Assert.Contains(c.ExpectSourceContains, filtered.Hits[0].Source, StringComparison.OrdinalIgnoreCase);
+        if (c.ExpectHeaderContains is not null)
+            Assert.Contains(c.ExpectHeaderContains, filtered.Hits[0].HeaderText + filtered.Hits[0].Text, StringComparison.Ordinal);
+    }
+
+    /// <summary>俯瞰: Overview 意図になり、グラフ検索（LLM は Fake）が資料から材料を返す。</summary>
+    private void AssertOverview(RagGoldenCase c)
+    {
+        var plan = RagQueryPlanner.Plan(c.Query, null);
+        Assert.Equal(RagQueryIntent.Overview, plan.Intent);
+        if (c.ExpectSourceContains is null)
+            return;
+
+        var graph = RagGoldenCorpus.BuildGraph(_conn);
+        var fts = new RagSqliteFts();
+        fts.TryPrepare(_conn);
+        var llm = FakeGraphLlm.JudgeByWords(c.Query);
+        var search = new RagGraphSearch(graph, fts, llm);
+        var hits = search.SearchAsync(_conn, c.Query, RagGoldenCorpus.AllSources, 5, RagGraphSearchBudget.Default, CancellationToken.None)
+            .GetAwaiter().GetResult();
+
+        Assert.NotEmpty(hits);
+        Assert.Contains(c.ExpectSourceContains, hits[0].Source, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>多段: FTS＋グラフ第 3 レーンの融合で、質問語を含まない参照先の条にも届く。</summary>
+    private void AssertMultiHop(RagGoldenCase c)
+    {
+        var graph = RagGoldenCorpus.BuildGraph(_conn);
+        var hits = RagGoldenCorpus.SearchFtsWithGraphLane(_conn, graph, c.Query);
+
+        Assert.NotEmpty(hits);
+        var match = hits.FirstOrDefault(h => h.HeaderText.Contains(c.ExpectHeaderContains!, StringComparison.Ordinal));
+        Assert.True(match is not null, $"expected {c.ExpectHeaderContains} in: {string.Join(" | ", hits.Select(h => h.HeaderText))}");
+        Assert.Contains(c.ExpectSourceContains!, match!.Source, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AssertMode(RagGoldenCase c)

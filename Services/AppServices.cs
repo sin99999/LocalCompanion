@@ -1,4 +1,4 @@
-using LocalCompanion.Data;
+﻿using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
@@ -64,6 +64,7 @@ public static class AppServices
         services.AddSingleton<ChatSearchService>();
         services.AddSingleton<SpeechInputService>();
         services.AddSingleton<RagDocumentStructurer>();
+        services.AddSingleton<IRagWordSegmenter, WinRtWordSegmenter>();
         services.AddSingleton<RagService>();
         services.AddSingleton<CharacterPresetService>();
         services.AddSingleton<CharacterRepository>();

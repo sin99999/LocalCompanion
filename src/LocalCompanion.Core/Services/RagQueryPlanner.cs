@@ -47,6 +47,10 @@ internal static class RagQueryPlanner
                 ArticleBindings: bindings.Count > 0 ? bindings : null);
         }
 
+        // 「A と B の違い」は罰則・定義の機械引用では答えられないので、先に俯瞰へ
+        if (RagOverviewQueryParser.TryDetectComparison(effective))
+            return OverviewPlan(effective, sourceHint, sourceHints);
+
         if (RagPenaltyTopicParser.TryGetTopicKeyword(effective, out var topic))
         {
             return new RagQueryPlan(
@@ -89,6 +93,10 @@ internal static class RagQueryPlanner
                 Confidence: 0.84);
         }
 
+        // 「資料全体で何が書いてある」は資料一覧ではなく中身の俯瞰
+        if (RagOverviewQueryParser.TryDetect(effective))
+            return OverviewPlan(effective, sourceHint, sourceHints);
+
         if (RagSourceCatalogQueryParser.TryDetect(effective))
         {
             return new RagQueryPlan(
@@ -128,4 +136,16 @@ internal static class RagQueryPlanner
             ResponseMode: RagResponseMode.Synthesis,
             Confidence: 0.5);
     }
+
+    private static RagQueryPlan OverviewPlan(string effective, string? sourceHint, IReadOnlyList<string> sourceHints) =>
+        new(
+            RagQueryIntent.Overview,
+            effective,
+            ArticleSortKey: null,
+            Boundary: null,
+            TopicKeyword: null,
+            SourceHint: sourceHint,
+            SourceHints: sourceHints,
+            ResponseMode: RagResponseMode.Synthesis,
+            Confidence: 0.7);
 }

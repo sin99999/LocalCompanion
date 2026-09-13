@@ -444,6 +444,11 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
+                        <TextBlock Margin="0,8,0,0" Style="{StaticResource SettingsSectionLabelStyle}" Text="{x:Bind ViewModel.RagGraphStatusText, Mode=OneWay}" TextWrapping="Wrap" />
+                        <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiRagGraphHint, Mode=OneWay}" />
+                        <StackPanel Style="{StaticResource SettingsTabButtonRowStyle}">
+                            <Button Command="{x:Bind ViewModel.RebuildRagGraphCommand}" Content="{x:Bind ViewModel.UiRagGraphRebuild, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" />
+                        </StackPanel>
                         <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Header="{x:Bind ViewModel.UiRagIngestOptions, Mode=OneWay}">
                             <StackPanel Spacing="8" Padding="0,8,0,0">
                                 <ToggleSwitch Header="{x:Bind ViewModel.UiRagHtmlMarkdown, Mode=OneWay}" IsOn="{x:Bind ViewModel.RagUseHtmlMarkdown, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsSettingsInputEnabled, Mode=OneWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />

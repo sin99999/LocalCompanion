@@ -157,7 +157,7 @@ internal static class RagRiskCautionResponder
 
             出典: {source}
 
-            やり方は教えないよ。捕まるかどうかは状況次第だけど、見つかればこういう罪・罰則になりうる、って資料には書いてある。条文番号や罪名でもう一回聞いてくれたら探しやすいよ。
+            実行方法の説明はできません。状況によりますが、資料ではこの罪・罰則に当たる可能性が示されています。条文番号や罪名を指定すると、より正確に探せます。
             """.Trim();
     }
 
@@ -172,7 +172,7 @@ internal static class RagRiskCautionResponder
 
             Source: {source}
 
-            I won't help with how to do it. Whether you're caught depends on the situation, but the materials say it can be treated under penalties like these. Ask again with an article number or offense name if you want a tighter lookup.
+            Instructions on how to do this cannot be provided. Depending on the circumstances, the materials indicate this may fall under the offense and penalty above. Specify an article number or offense name for a more precise lookup.
             """.Trim();
     }
 

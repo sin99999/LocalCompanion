@@ -16,12 +16,14 @@ public enum RagQueryIntent
     Faq,
     Advisory,
     SourceCatalog,
+
+    /// <summary>資料全体の主題・要約・比較（条番号なし）。概念グラフのコミュニティ単位で探す。</summary>
+    Overview,
 }
 
 public enum RagResponseMode
 {
     Synthesis,
-    CitationFirst,
     Verbatim,
     PersonaSynthesis,
 }

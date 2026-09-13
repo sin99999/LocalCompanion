@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
@@ -26,6 +26,13 @@ public partial class SettingsPageViewModel
 
     [ObservableProperty]
     public partial string RagIngestUrl { get; set; } = "";
+
+    /// <summary>概念グラフの状況（概念・関係・束の数。失敗があればその理由）。</summary>
+    [ObservableProperty]
+    public partial string RagGraphStatusText { get; set; } = "";
+
+    public string UiRagGraphHint { get; private set; } = "";
+    public string UiRagGraphRebuild { get; private set; } = "";
 
     public string UiRagHtmlMarkdown { get; private set; } = "";
     public string UiRagHtmlMarkdownHint { get; private set; } = "";
@@ -86,6 +93,55 @@ public partial class SettingsPageViewModel
             RagIngestReportText = string.IsNullOrWhiteSpace(RagIngestReportText)
                 ? string.Join("\n", result.Skipped)
                 : RagIngestReportText + "\n" + string.Join("\n", result.Skipped);
+    }
+
+    private void ApplyRagGraphLocalizedUi()
+    {
+        UiRagGraphHint = _loc.Get("Settings.Rag.Graph.Hint");
+        UiRagGraphRebuild = _loc.Get("Settings.Rag.Graph.Rebuild");
+        OnPropertyChanged(nameof(UiRagGraphHint));
+        OnPropertyChanged(nameof(UiRagGraphRebuild));
+        RefreshRagGraphStatus();
+    }
+
+    private void RefreshRagGraphStatus()
+    {
+        try
+        {
+            var stats = _rag.GetGraphStats();
+            var text = _loc.Format("Settings.Rag.Graph.Status", stats.ConceptCount, stats.EdgeCount, stats.CommunityCount);
+            var lastError = _rag.GetGraphLastError();
+            if (!string.IsNullOrWhiteSpace(lastError))
+                text += "\n" + _loc.Format("Settings.Rag.Graph.LastError", lastError);
+            RagGraphStatusText = text;
+        }
+        catch
+        {
+            RagGraphStatusText = "";
+        }
+    }
+
+    [RelayCommand]
+    private async Task RebuildRagGraphAsync(CancellationToken ct)
+    {
+        IsBusy = true;
+        ClearRagError();
+        SetRagStatus("Settings.Rag.Graph.Rebuilding");
+        try
+        {
+            await _rag.RebuildGraphAsync(ct);
+            SetRagStatus("Settings.Rag.Graph.Rebuilt");
+        }
+        catch (Exception ex)
+        {
+            SetRagError(ex);
+            SetRagStatus("Settings.Rag.Graph.RebuildFailed");
+        }
+        finally
+        {
+            RefreshRagGraphStatus();
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]

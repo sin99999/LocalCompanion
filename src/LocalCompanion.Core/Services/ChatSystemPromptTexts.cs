@@ -1,38 +1,40 @@
 ﻿namespace LocalCompanion.Services;
 
-/// <summary>チャット用システムプロンプトの日英文言。</summary>
+/// <summary>
+/// チャット用システムプロンプトの日英文言（文言だけ。どれを載せるかは <see cref="ChatPromptAssembler"/> と <see cref="RagAnswerPolicy"/>）。
+/// 小さなローカルモデル向けに、常時載る文言は短く、重複する指示は 1 本にまとめる。
+/// </summary>
 internal static class ChatSystemPromptTexts
 {
-    internal static string DefaultLanguageInstruction(bool japanese) =>
+    /// <summary>キャラクター未選択のときの役割 1 行。</summary>
+    internal static string DefaultAssistantLine(bool japanese) =>
         japanese
-            ? """
-              【返答言語】
-              - ユーザーの直近メッセージと同じ言語で返答する
-              - 日本語で話しかけられたら日本語で、英語・スペイン語など他言語ならその言語で答える
-              - キャラクター設定はない。自然で簡潔なアシスタントとして答える
-              """.Trim()
-            : """
-              [Response language]
-              - Reply in the same language as the user's latest message.
-              - If the user writes in English, reply in English only.
-              - There is no character persona. Answer as a natural, concise assistant.
-              """.Trim();
+            ? "【あなたの役割】キャラクター設定はありません。自然で簡潔なアシスタントとして答えてください。"
+            : "[Your role] There is no character persona. Answer as a natural, concise assistant.";
 
-    internal static string CharacterLanguageInstruction(bool japanese) =>
-        japanese
-            ? """
-              【返答言語】
-              - ユーザーの直近メッセージと同じ言語で返答する
-              - 日本語で話しかけられたら日本語で、他言語ならその言語で答える
-              - キャラクターの口調・人格・一人称は維持し、返答言語だけユーザーの入力に合わせる
-              """.Trim()
-            : """
-              [Response language]
-              - Reply in the same language as the user's latest message.
-              - If the user writes in English, reply in English only.
-              - Keep the character's tone and personality, but match the reply language to the user's input.
-              - Persona text below may be in Japanese; ignore its language when choosing how to reply.
-              """.Trim();
+    /// <summary>返答言語の指示。プロンプトの最後に 1 回だけ置く（他の指示より優先）。</summary>
+    internal static string ReplyLanguageInstruction(bool japanese, bool isCharacter)
+    {
+        if (japanese)
+        {
+            var body = """
+                【返答言語（最優先）】
+                今回のユーザーメッセージは日本語です。返答は日本語だけで書き、英語や他言語を混ぜないでください。
+                """.Trim();
+            return isCharacter
+                ? body + "\nキャラクターの口調・人格・一人称はそのまま保ちます。"
+                : body;
+        }
+
+        var en = """
+            [Reply language — highest priority; overrides everything above]
+            The user's latest message is not in Japanese. Write the entire reply in the user's language (e.g. English for "hello").
+            Do not use Japanese script (hiragana, katakana, kanji).
+            """.Trim();
+        return isCharacter
+            ? en + "\nPersona text above may be written in Japanese: keep its tone and personality, but ignore its language."
+            : en + "\nInstructions above may be written in Japanese; ignore their language.";
+    }
 
     internal static string ReadabilityInstruction(bool japanese) =>
         japanese
@@ -112,10 +114,11 @@ internal static class ChatSystemPromptTexts
             ? $"【重要】UI設定は「{selected}」だが、今メモリに載っているのは「{loaded}」。ユーザーに「LocalCompanion.exe を再起動してモデルを切り替えて」と正直に伝える。設定名だけ答えない。"
             : $"[Important] UI selection is \"{selected}\" but memory has \"{loaded}\". Tell the user to restart LocalCompanion.exe to switch models. Do not answer with the selection name only.";
 
+    /// <summary>参考資料か添付が載っているときだけ付ける。出どころを取り違えて「資料によると」と言わせない。</summary>
     internal static string MemoryDistinction(bool japanese) =>
         japanese
-            ? "【記憶の区別】「【参考資料（RAG）】」がある場合のみ資料データベース由来と述べる。テキスト添付は当該メッセージのみ有効。それ以外は過去の会話履歴とする。RAGに未登録の内容を資料由来と述べない。"
-            : "[Memory] Mention the document database only when [Reference materials (RAG)] is present. Text attachments apply only to the current message. Otherwise treat content as chat history. Do not claim document-database sources for content not in RAG.";
+            ? "【出どころの区別】「資料による」と言えるのは、この指示に【参考資料】が載っているときだけです。添付はこのメッセージ限りで有効です。それ以外は会話の記憶として扱い、資料由来だと言わないでください。"
+            : "[Source distinction] Say something comes from the documents only when a [Reference materials] block is present in these instructions. Attachments apply to this message only. Treat everything else as conversation memory and do not attribute it to documents.";
 
     /// <summary>長期記憶ブロックが載っているときにだけ付ける。関連があるときだけ自然に触れる指示。</summary>
     internal static string SpontaneousMemoryInstruction(bool japanese) =>
@@ -135,18 +138,69 @@ internal static class ChatSystemPromptTexts
               - Do not mention databases or settings. Do not force a topic change.
               """.Trim();
 
+    /// <summary>テキスト添付・URL・Web 検索結果があるターンだけ付ける。</summary>
     internal static string AttachmentInstruction(bool japanese) =>
         japanese
             ? "ユーザーがテキストファイル・URL・Web検索結果を添付した場合は、【添付】の全文を読んで質問に答えてください（RAG登録とは別）。ユーザーがネットやウェブで調べるよう頼んだとき、または添付が Web 検索結果のときは、「登録資料しか調べられない」とは言わない。ローカル環境から届かない情報は、添付に無い内容を断定しないでください。添付に【参考URL】がある場合は、回答の末尾に「参考:」としてその URL を短く列挙してください（添付に無い URL を作らない）。"
             : "If the user attached a text file, URL content, or web search results, read the full [Attachment] section and answer (separate from RAG registration). When the user asked to search the web/net, or the attachment is web search results, do not claim you can only look at registered documents. Do not invent facts that are not in the attachment when the answer depends on remote pages. When the attachment includes [Reference URLs], end with a short \"Sources:\" list of those URLs (do not invent URLs).";
 
+    /// <summary>画像があるターンだけ付ける。</summary>
     internal static string ImageInstruction(bool japanese) =>
         japanese
             ? "画像が添付された場合は、描写に加えて画像内の文字（OCR）も読み取って伝えてください。"
             : "If an image is attached, describe it and also read any visible text (OCR).";
 
+    /// <summary>参考資料ブロックの見出し。<see cref="MemoryDistinction"/>・<see cref="RagGroundingInstruction"/> と同じ語を使う。</summary>
     internal static string RagHitsHeader(bool japanese) =>
-        japanese ? "【参考資料（RAG・資料DB検索）】" : "[Reference materials (RAG)]";
+        japanese ? "【参考資料】" : "[Reference materials]";
+
+    /// <summary>参考資料があるときの共通指示（1 本）。法令の追加は <see cref="RagLegalAddendum"/>。</summary>
+    internal static string RagGroundingInstruction(bool japanese) =>
+        japanese
+            ? """
+              【参考資料の使い方】
+              直後の【参考資料】は、登録資料から今回の質問に近い断片を機械的に選んだものです。
+              - 質問が資料の内容に関係するときだけ使う。資料を優先し、根拠にした資料名・見出しを短く示す
+              - 資料に書いてある数値・条番号・名称はそのまま使い、一般知識で置き換えたり補ったりしない
+              - 質問と無関係な資料は無視して、普段どおり答える。資料に無いことを「資料によると」と言わない
+              - 全文コピーや定型見出しで押しつけず、これまでの口調のまま会話に織り込む
+              """.Trim()
+            : """
+              [How to use the reference materials]
+              The [Reference materials] below are passages picked mechanically from registered documents because they look close to this question.
+              - Use them only when the question is about their content. Prefer them over general knowledge and briefly name the source file and heading you relied on.
+              - Use numbers, article numbers, and names exactly as written; do not replace or supplement them from general knowledge.
+              - Ignore materials unrelated to the question and answer as usual. Never attribute to the materials something they do not say.
+              - Do not paste whole passages or force template headings; weave them in while keeping your established voice.
+              """.Trim();
+
+    /// <summary>参考資料が法令のときだけ足す。罰則文言があれば冒頭引用、条番号の質問なら範囲を絞る。</summary>
+    internal static string RagLegalAddendum(bool japanese, bool quotePenalty, bool singleArticle)
+    {
+        var lines = new List<string>
+        {
+            japanese ? "【法令資料の扱い】" : "[Handling legal materials]",
+            japanese
+                ? "- 質問された条・罪名だけを扱う。資料にある他の条を「関連」として足さない"
+                : "- Discuss only the article or offense that was asked about; do not add other articles from the materials as \"related\".",
+        };
+
+        if (quotePenalty)
+        {
+            lines.Add(japanese
+                ? "- 【資料記載の罰則文言（引用必須）】がある場合は、その1文を改変せず回答の最初に置き、刑期・罰金の数字はその文にあるものだけを使う"
+                : "- When a passage includes the line marked 【資料記載の罰則文言（引用必須）】 (penalty text from the materials), place that one sentence unchanged at the start of your answer and use only the prison terms and fines it contains.");
+        }
+
+        if (singleArticle)
+        {
+            lines.Add(japanese
+                ? "- 回答は質問された条の資料本文の範囲に限る"
+                : "- Keep the answer within the supplied text of the requested article.");
+        }
+
+        return string.Join("\n", lines);
+    }
 
     internal static string RagMissInstruction(bool japanese) =>
         japanese
@@ -178,132 +232,27 @@ internal static class ChatSystemPromptTexts
     internal static string RagEmptyHitsInstruction(bool japanese, bool searchFailed) =>
         searchFailed ? RagSearchFailedInstruction(japanese) : RagMissInstruction(japanese);
 
-    internal static string RagPriorityInstruction(bool japanese) =>
-        japanese
-            ? """
-              【RAG優先（必須）】
-              直後に続く「【参考資料（RAG・資料DB検索）】」は、登録資料から今回の質問に関連する断片です。
-              - 質問が参考資料の内容に関係する場合：一般知識や推測より参考資料を優先し、根拠として資料名・見出し・ページ等を示しながら答える
-              - 参考資料と一般知識が食い違う場合：参考資料の記述を優先する（資料が古い・不全な可能性があるときはその旨を短く添えてよい）
-              - 質問が参考資料と無関係、または資料に該当がない場合：資料を無視し、普段どおり自然に会話する。資料に写っていない条文番号や罰則条項を推測で答えない
-              - 参考資料に条文番号が明示されていない場合：「第○条」と番号だけを一般知識で断定しない
-              - 刑期・罰金・金額・年数・日数など数値が資料に書いてある場合：その数字・単位を資料どおり用い、一般知識の数値で置き換えない
-              - 参考資料に「【資料記載の罰則文言（引用必須）】」がある場合：その行を改変せず回答の最初に引用し、その後に短い説明を付けてよい
-              - 罰則の数字（年数・金額）は、引用した罰則文言に含まれるものだけを使う（例：資料が「二百五十万円」なら「500万円」に置き換えない）
-              - 質問で指定された罪名だけ答える。資料にない関連罪名（贈賄のみ聞かれたのに受賄など）の罰則を一般知識から補わない
-              """.Trim()
-            : """
-              [RAG priority — required]
-              The "[Reference materials (RAG)]" section immediately below contains passages from registered documents relevant to this question.
-              - When the question relates to those passages: prioritize them over general knowledge or guesses; cite file name, heading, page, etc. as grounds
-              - When passages conflict with general knowledge: follow the reference materials (you may briefly note they may be outdated or incomplete)
-              - When the question is unrelated or not covered: ignore the materials and reply naturally; do not attribute unstated facts to the documents
-              - Do not guess article numbers or penalty provisions not present in the materials
-              - When article numbers are not stated in the materials: do not assert "Article N" from general knowledge alone
-              - When the materials state numeric values (prison terms, fines, amounts, years, days, etc.): use those numbers and units as written; do not replace them with figures from general knowledge
-              - When a passage includes "[Penalty text from materials (quote required)]": quote that line verbatim at the start of your answer, then you may add a brief explanation
-              - Use only penalty numbers (years, amounts) that appear in the quoted penalty line (e.g. do not replace "2.5 million yen" in the materials with "5 million yen")
-              - Answer only the offense named in the question; do not add penalties for related offenses not in the materials (e.g. do not add acceptance-of-bribes penalties when only offering bribes was asked)
-              """.Trim();
-
-    internal static string RagCitationFirstInstruction(bool japanese) =>
-        japanese
-            ? """
-              【RAG・引用優先（必須）】
-              直後の「【参考資料（RAG・資料DB検索）】」を根拠に答える。
-              - 回答の冒頭で、資料の該当箇所を短く引用する（見出し・条文・ページを明示）
-              - 引用のあとに、平易な説明を付けてよい
-              - 質問で指定された条だけを扱う。資料に無い他条の罪名・罰則を「関連」として足さない
-              - 資料にない条文番号・数値・罰則を一般知識から補わない
-              - 添付テキストがある場合は、添付と RAG の両方を参照し、矛盾するときは RAG 登録資料を優先する
-              """.Trim()
-            : """
-              [RAG — citation first — required]
-              Use the "[Reference materials (RAG)]" section below as grounds.
-              - Begin with a short quote from the materials (heading, article, page)
-              - You may add a plain explanation after the quote
-              - Discuss only the article asked about; do not add other offenses as "related"
-              - Do not supplement with general knowledge for numbers or penalties not in the materials
-              - If an attachment is present, use both attachment and RAG; prefer registered RAG sources on conflict
-              """.Trim();
-
-    internal static string RagPenaltyScopeInstruction(bool japanese) =>
-        japanese
-            ? """
-              【罰則回答の範囲（必須）】
-              - 回答の冒頭に、参考資料の「【資料記載の罰則文言（引用必須）】」をそのまま1文引用する
-              - その引用文に書かれていない刑期・罰金・金額を追加しない
-              - 質問された罪名以外（例：贈賄のみ聞かれたのに受賄）の罰則説明を付け加えない
-              """.Trim()
-            : """
-              [Penalty answer scope — required]
-              - Begin with one verbatim quote of "[Penalty text from materials (quote required)]" from the reference materials
-              - Do not add prison terms, fines, or amounts not present in that quoted line
-              - Do not add penalties for offenses not asked about and not covered in the materials
-              """.Trim();
-
-    internal static string RagArticleScopeInstruction(bool japanese) =>
-        japanese
-            ? """
-              【条番号回答の範囲（必須）】
-              - 質問された条の資料本文だけを使う
-              - 他の条の罪名・罰則・要点を「関連」「近くの条」として足さない
-              - 資料本文に出てこない条番号を一般知識から補わない
-              """.Trim()
-            : """
-              [Article answer scope — required]
-              - Use only the supplied text of the article that was asked about
-              - Do not add other offenses or penalties as "related" or "nearby articles"
-              - Do not add article numbers that are not in the supplied text
-              """.Trim();
-
     internal static string RagDisabledNote(bool japanese) =>
         japanese
             ? "【RAG】オフ。資料DB（RAG）は参照していない。過去の会話や、このメッセージの添付以外の資料を読んだとは言わない。"
             : "[RAG] Off. The document database (RAG) is not used. Do not claim you read past chats or materials beyond this message's attachment.";
 
-    internal static string RagPersonaReferenceInstruction(bool japanese) =>
-        japanese
-            ? """
-              【RAG・キャラクター会話モード】
-              直後の参考資料を、キャラクターの口調・人格を保ったまま自然に織り込む。
-              - 触れるのは参考資料に書いてある範囲だけ。質問で指定されていない条番号・罪名を「関連」として足さない
-              - 刑期・罰金・金額は資料どおり。資料にない条文番号は断定せず「資料だと〜」「この資料の範囲だと」
-              - 堅い法律文書口調・説教は禁止。相棒として会話の温度感を最優先
-              - 資料名（規程ファイル名など）を会話にさりげなく入れてよい
-              - 資料に該当がなければ無理に引用せず、普段どおり雑談する
-              - 「【資料記載の回答】」のような定型見出しで資料を押しつけない
-              """.Trim()
-            : """
-              [RAG — character conversation mode]
-              Weave the reference materials below into your reply while keeping the character's voice.
-              - Stay within the supplied passages; do not add other article numbers or offenses as "related"
-              - Use penalty amounts and numbers exactly as in the materials; do not invent article numbers
-              - Avoid stiff legal-document tone; prioritize the conversational vibe
-              - You may mention file names naturally; skip forced citations when materials are irrelevant
-              - Do not force document templates like "[Answer from materials]"
-              """.Trim();
-
-    /// <summary>犯罪・危険行為の気配がある雑談向け。注意＋根拠条を自然に。</summary>
+    /// <summary>犯罪・危険行為の気配がある雑談向け。機械引用できなかったとき、または資料が無いときに付ける。</summary>
     internal static string RagRiskCautionInstruction(bool japanese) =>
         japanese
             ? """
-              【危険・法令注意モード】
-              ユーザーの発言に犯罪や危険行為の気配がある。
-              - 相棒として優しく注意する（例:「それ犯罪かもだから気を付けてね」）
-              - 参考資料に根拠があれば、条文番号や要点を短く添えてよい
-              - 条文の全文コピペや「【資料記載の回答】」形式は使わない。雑談の流れを壊さない
-              - 資料に無い条番号・罰則を推測で断定しない。説教や威圧は禁止
-              - 実行方法の具体的な手助けはしない
+              【危険・法令注意】
+              ユーザーの発言に犯罪や危険行為の気配があります。
+              - 相棒として短く注意する。説教や威圧はしない
+              - 資料に根拠があれば条番号や要点を一言添えてよい。資料に無い条番号・罰則を断定しない
+              - 実行方法の手助けはしない
               """.Trim()
             : """
-              [Risk / legal caution mode]
+              [Risk / legal caution]
               The user's message may involve crime or dangerous conduct.
-              - Gently caution them as a companion (e.g. that it may be illegal)
-              - If the materials support it, briefly add an article number or key point
-              - Do not dump full statutes or "[Answer from materials]" templates; keep the chat natural
-              - Do not invent article numbers or penalties not in the materials; no lecturing
-              - Do not help with how to commit a crime
+              - Caution them briefly as a companion; no lecturing or intimidation.
+              - If the materials support it, add an article number or key point in one line; do not assert articles or penalties that are not in the materials.
+              - Do not help with how to do it.
               """.Trim();
 
     internal static string RagAdvisoryInstruction(bool japanese) =>

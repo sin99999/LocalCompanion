@@ -21,15 +21,69 @@ public sealed class ChatSystemPromptTextsTests
         Assert.Contains("花子", line);
     }
 
+    /// <summary>共通指示 1 本: 資料優先・無関係なら無視・数値はそのまま・口調維持。</summary>
     [Fact]
-    public void RagPriorityInstruction_RequiresCitingSourcesWhenRelevant()
+    public void RagGroundingInstruction_CoversPriorityIgnoreNumbersAndVoice()
     {
-        var line = ChatSystemPromptTexts.RagPriorityInstruction(japanese: true);
-        Assert.Contains("参考資料を優先", line);
-        Assert.Contains("無関係", line);
-        Assert.Contains("数値", line);
-        Assert.Contains("置き換えない", line);
-        Assert.Contains("引用必須", line);
+        var ja = ChatSystemPromptTexts.RagGroundingInstruction(japanese: true);
+        Assert.Contains("資料を優先", ja);
+        Assert.Contains("無関係", ja);
+        Assert.Contains("数値", ja);
+        Assert.Contains("そのまま使い", ja);
+        Assert.Contains("口調", ja);
+        Assert.Contains(ChatSystemPromptTexts.RagHitsHeader(japanese: true), ja);
+
+        var en = ChatSystemPromptTexts.RagGroundingInstruction(japanese: false);
+        Assert.Contains(ChatSystemPromptTexts.RagHitsHeader(japanese: false), en);
+        Assert.Contains("exactly as written", en);
+    }
+
+    /// <summary>法令の追加指示は、罰則文言・単一条の有無で行が増える。</summary>
+    [Fact]
+    public void RagLegalAddendum_AddsPenaltyAndSingleArticleLinesOnlyWhenAsked()
+    {
+        var bare = ChatSystemPromptTexts.RagLegalAddendum(japanese: true, quotePenalty: false, singleArticle: false);
+        Assert.Contains("質問された条", bare);
+        Assert.Contains("関連", bare);
+        Assert.DoesNotContain("引用必須", bare);
+        Assert.DoesNotContain("範囲に限る", bare);
+
+        var full = ChatSystemPromptTexts.RagLegalAddendum(japanese: true, quotePenalty: true, singleArticle: true);
+        Assert.Contains("【資料記載の罰則文言（引用必須）】", full);
+        Assert.Contains("範囲に限る", full);
+
+        var en = ChatSystemPromptTexts.RagLegalAddendum(japanese: false, quotePenalty: true, singleArticle: false);
+        Assert.Contains("【資料記載の罰則文言（引用必須）】", en);
+    }
+
+    /// <summary>返答言語は 1 本。日本語／他言語、キャラクター有無で口調行だけ変わる。</summary>
+    [Fact]
+    public void ReplyLanguageInstruction_SingleBlock_PersonaLineOnlyForCharacter()
+    {
+        var jaPlain = ChatSystemPromptTexts.ReplyLanguageInstruction(japanese: true, isCharacter: false);
+        Assert.Contains("日本語だけ", jaPlain);
+        Assert.DoesNotContain("口調", jaPlain);
+
+        var jaChar = ChatSystemPromptTexts.ReplyLanguageInstruction(japanese: true, isCharacter: true);
+        Assert.Contains("口調", jaChar);
+
+        var enChar = ChatSystemPromptTexts.ReplyLanguageInstruction(japanese: false, isCharacter: true);
+        Assert.Contains("not in Japanese", enChar);
+        Assert.Contains("Persona text above", enChar);
+        Assert.DoesNotContain("Persona text above", ChatSystemPromptTexts.ReplyLanguageInstruction(japanese: false, isCharacter: false));
+    }
+
+    /// <summary>毎ターン必ず載る固定文言（役割・読みやすさ・長さ・返答言語）は日本語で 700 字以下に抑える。</summary>
+    [Fact]
+    public void AlwaysOnJapaneseInstructions_StayUnder700Chars()
+    {
+        var total =
+            ChatSystemPromptTexts.DefaultAssistantLine(japanese: true).Length
+            + ChatSystemPromptTexts.ReadabilityInstruction(japanese: true).Length
+            + ChatReplyLimitHelper.SystemLimitNote(10_000, japanese: true).Length
+            + ChatSystemPromptTexts.ReplyLanguageInstruction(japanese: true, isCharacter: true).Length;
+
+        Assert.True(total <= 700, $"always-on instructions: {total} chars");
     }
 
     [Fact]
@@ -87,17 +141,17 @@ public sealed class ChatSystemPromptTextsTests
     {
         var texts = new[]
         {
-            ChatSystemPromptTexts.DefaultLanguageInstruction(japanese: true),
-            ChatSystemPromptTexts.CharacterLanguageInstruction(japanese: true),
+            ChatSystemPromptTexts.DefaultAssistantLine(japanese: true),
+            ChatSystemPromptTexts.ReplyLanguageInstruction(japanese: true, isCharacter: true),
             ChatSystemPromptTexts.ReadabilityInstruction(japanese: true),
             ChatSystemPromptTexts.UserNameLine("太郎", japanese: true),
             ChatSystemPromptTexts.CharacterNameLine("花子", japanese: true),
             ChatSystemPromptTexts.UserAndCharacterNameDistinction("太郎", "花子", japanese: true),
             ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: true),
-            ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese: true),
+            ChatSystemPromptTexts.RagGroundingInstruction(japanese: true),
             ChatSystemPromptTexts.RagAdvisoryInstruction(japanese: true),
-            ChatSystemPromptTexts.RagArticleScopeInstruction(japanese: true),
-            ChatSystemPromptTexts.RagCitationFirstInstruction(japanese: true),
+            ChatSystemPromptTexts.RagLegalAddendum(japanese: true, quotePenalty: true, singleArticle: true),
+            ChatSystemPromptTexts.RagRiskCautionInstruction(japanese: true),
         };
 
         foreach (var text in texts)
@@ -107,15 +161,11 @@ public sealed class ChatSystemPromptTextsTests
         }
     }
 
+    /// <summary>出どころの区別は参考資料の見出し語と同じ語を使う（見出し名の食い違いで無視されない）。</summary>
     [Fact]
-    public void RagPersonaReferenceInstruction_ForbidsMixingUnaskedArticles()
+    public void MemoryDistinction_UsesSameHeaderWordAsRagBlock()
     {
-        var ja = ChatSystemPromptTexts.RagPersonaReferenceInstruction(japanese: true);
-        Assert.DoesNotContain("関連する条項チェック", ja);
-        Assert.Contains("指定されていない条番号", ja);
-
-        var scope = ChatSystemPromptTexts.RagArticleScopeInstruction(japanese: true);
-        Assert.Contains("質問された条", scope);
-        Assert.Contains("関連", scope);
+        Assert.Contains(ChatSystemPromptTexts.RagHitsHeader(japanese: true), ChatSystemPromptTexts.MemoryDistinction(japanese: true));
+        Assert.Contains(ChatSystemPromptTexts.RagHitsHeader(japanese: false), ChatSystemPromptTexts.MemoryDistinction(japanese: false));
     }
 }

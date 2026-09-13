@@ -41,6 +41,20 @@ public sealed class LlamaOptions
     public int MaxAttachTextChars { get; set; } = 8000;
     /// <summary>この文字数以下のテキスト添付では RAG 検索も併用する。</summary>
     public int RagLightAttachMaxChars { get; set; } = 3000;
+    /// <summary>参考資料 1 件の本文上限（字）。親セクション全文でコンテキストを食い尽くさない。</summary>
+    public int RagPromptHitMaxChars { get; set; } = Services.RagPromptBudget.DefaultHitChars;
+    /// <summary>参考資料ブロック全体の上限（字）。</summary>
+    public int RagPromptBlockMaxChars { get; set; } = Services.RagPromptBudget.DefaultBlockChars;
+    /// <summary>概念グラフ: 共起辺を残す最小の合計重み（refers 辺は対象外）。</summary>
+    public double RagGraphMinEdgeWeight { get; set; } = Services.RagCooccurrenceGraphBuilder.DefaultMinEdgeWeight;
+    /// <summary>概念グラフ: 1 チャンクからペア化に使う上位語数。</summary>
+    public int RagGraphTopTerms { get; set; } = Services.RagConceptExtractor.DefaultTopK;
+    /// <summary>一般質問の RRF に足す「同コミュニティ」レーンの重み（0 で無効）。</summary>
+    public double RagWeightGraph { get; set; } = 0.2;
+    /// <summary>俯瞰検索: 関連判定に使う LLM 呼び出しの上限回数（0 で退化版のみ）。</summary>
+    public int RagGraphRelevanceBudget { get; set; } = 12;
+    /// <summary>俯瞰検索: 全体の時間予算（ms）。切れたらそこまでの結果で返す。</summary>
+    public int RagGraphTimeBudgetMs { get; set; } = 8000;
     /// <summary>メッセージ内 URL を自動取得する最大件数。</summary>
     public int InlineUrlMaxCount { get; set; } = 3;
     /// <summary>インライン URL 1件あたりの最大文字数。</summary>

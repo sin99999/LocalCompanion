@@ -2,7 +2,7 @@
 
 internal enum RagGoldenKind
 {
-    /// <summary>雑談 → RAG Skip。</summary>
+    /// <summary>雑談 → 何も載せない（門番で Skip、または Probe の語彙検索に根拠が無い）。</summary>
     Skip,
 
     /// <summary>モードだけ確認（検索はしない）。</summary>
@@ -31,6 +31,15 @@ internal enum RagGoldenKind
 
     /// <summary>検索失敗と miss の指示文。</summary>
     PromptCopy,
+
+    /// <summary>合図語が無くても、資料に根拠があれば RAG を載せる（根拠門番）。</summary>
+    EvidenceAttach,
+
+    /// <summary>資料全体・比較の質問は Overview 意図になる。</summary>
+    Overview,
+
+    /// <summary>条文の参照関係（第N条から第M条まで）を辿って別条に届く。</summary>
+    MultiHop,
 }
 
 internal sealed record RagGoldenCase(
@@ -55,8 +64,32 @@ internal static class RagGoldenCases
     public static IReadOnlyList<RagGoldenCase> All { get; } =
     [
         // --- Skip / Mode (1-8) ---
-        new("skip-chitchat", RagGoldenKind.Skip, "AIさんは女の子ですか？可愛らしく感じます。"),
+        // 前後差分（根拠門番）: 旧 "skip-chitchat" は合図語なし＝Skip だった。今は雑談メモに同じ語（AI・女の子）が実在するので載る。
+        new("evidence-chitchat-in-notes", RagGoldenKind.EvidenceAttach, "AIさんは女の子ですか？可愛らしく感じます。",
+            ExpectSourceContains: "雑談メモ"),
         new("skip-greeting", RagGoldenKind.Skip, "おはよう、今日もよろしくね"),
+        new("skip-tired", RagGoldenKind.Skip, "今日は疲れたなあ"),
+        new("skip-thanks", RagGoldenKind.Skip, "ありがとう、助かった"),
+
+        // --- 根拠門番: 合図語なしの資料質問で RAG が動く ---
+        new("evidence-readme-build", RagGoldenKind.EvidenceAttach, "ビルドはどうやるの？",
+            ExpectSourceContains: "README", ExpectHeaderContains: "ビルド"),
+        new("evidence-readme-webview2", RagGoldenKind.EvidenceAttach, "WebView2 って入れないとだめ？",
+            ExpectSourceContains: "README"),
+        new("evidence-readme-data-dir", RagGoldenKind.EvidenceAttach, "データってどこに保存されるの",
+            ExpectSourceContains: "README", ExpectHeaderContains: "保存場所"),
+
+        // --- Overview 意図（資料全体・比較。条番号があれば条文経路のまま） ---
+        new("overview-all-themes", RagGoldenKind.Overview, "登録してある資料全体で、主なテーマを教えて"),
+        new("overview-what-inside", RagGoldenKind.Overview, "この資料には何が書いてあるの？概要をまとめて"),
+        new("overview-compare", RagGoldenKind.Overview, "窃盗と強盗の違いを比較して", ExpectSourceContains: "窃盗"),
+        new("overview-not-article-compare", RagGoldenKind.Mode, "刑法4条と104条の違いを比較して", ExpectMode: "Structured"),
+
+        // --- 多段: 第243条は「窃盗」の語を含まないが、第235条への参照（グラフ）で届く ---
+        new("multihop-theft-attempt", RagGoldenKind.MultiHop, "窃盗の未遂って罰せられる？",
+            ExpectSourceContains: "窃盗", ExpectHeaderContains: "第243条"),
+        new("multihop-theft-relative", RagGoldenKind.MultiHop, "親族の間で窃盗したらどうなる？",
+            ExpectSourceContains: "窃盗", ExpectHeaderContains: "第244条"),
         new("mode-soft-overtime", RagGoldenKind.Mode, "残業の法律ってどうなってる？", ExpectMode: "SoftTopic"),
         new("mode-soft-rag-word", RagGoldenKind.Mode, "RAGの資料を参照して説明して", ExpectMode: "SoftTopic"),
         new("mode-risk-steal", RagGoldenKind.Mode, "万引きしたら捕まる？", ExpectMode: "RiskCaution"),
@@ -117,4 +150,10 @@ internal static class RagGoldenCases
         new("prompt-search-failed", RagGoldenKind.PromptCopy, "",
             SearchFailedPrompt: true, ExpectReplyContains: "検索未完了"),
     ];
+
+    /// <summary>
+    /// RAG 作り直し（根拠門番・Overview・グラフ）の評価セット。
+    /// 実装が入った段で <see cref="All"/> へ移す。ここにある間は ID の重複だけを検査する。
+    /// </summary>
+    public static IReadOnlyList<RagGoldenCase> Planned { get; } = [];
 }

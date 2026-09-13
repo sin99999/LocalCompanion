@@ -32,6 +32,30 @@ public sealed class RagHybridSearchTests
         Assert.Equal(new long[] { 7, 8 }, fused);
     }
 
+    /// <summary>グラフ第 3 レーンは 3 レーン共通のチャンクを押し上げ、グラフだけのチャンクは末尾に足す（語一致の上位を追い越さない）。</summary>
+    [Fact]
+    public void FuseRrf_GraphLane_BoostsSharedChunk_AddsGraphOnlyChunkLast()
+    {
+        var ftsIds = new long[] { 10, 20, 30 };
+        var vecIds = new long[] { 20, 10 };
+        var graphIds = new long[] { 30, 99, 10 };
+
+        var fused = RagHybridSearch.FuseRrf(ftsIds, vecIds, graphIds, topK: 4, rrfK: 60, weightFts: 0.4, weightVec: 0.6, weightGraph: 0.2);
+
+        Assert.Equal(new long[] { 10, 20, 30, 99 }, fused);
+
+        var withoutGraph = RagHybridSearch.FuseRrf(ftsIds, vecIds, topK: 4, rrfK: 60, weightFts: 0.4, weightVec: 0.6);
+        Assert.Equal(20, withoutGraph[0]);
+        Assert.DoesNotContain(99L, withoutGraph);
+    }
+
+    [Fact]
+    public void FuseRrf_GraphWeightZero_IgnoresGraphLane()
+    {
+        var fused = RagHybridSearch.FuseRrf([1, 2], [], [99], topK: 5, rrfK: 60, 0.4, 0.6, weightGraph: 0);
+        Assert.Equal(new long[] { 1, 2 }, fused);
+    }
+
     [Fact]
     public void ResolveWeights_ArticleQuery_BoostsFts()
     {

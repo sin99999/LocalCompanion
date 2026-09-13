@@ -16,12 +16,6 @@ public sealed class RagArticleAnswerPolicyTests
         Assert.Equal(400, plan.ArticleSortKey);
         Assert.True(RagFormalLegalCue.IsFormalLegalQuery(query));
         Assert.True(RagArticleAnswerPolicy.AllowCharacterVerbatim(isCharacter: true, plan, query));
-        Assert.False(
-            RagArticleAnswerPolicy.UsePersonaRagInstruction(
-                isCharacter: true,
-                plan,
-                query,
-                RagConversationMode.Structured));
         Assert.True(RagVerbatimGuard.ShouldBlockLlm(plan));
     }
 

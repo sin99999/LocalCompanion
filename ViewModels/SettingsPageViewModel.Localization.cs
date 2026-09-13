@@ -276,6 +276,7 @@ public partial class SettingsPageViewModel
         OnPropertyChanged(nameof(UiRagPdfLayoutReaderHint));
         OnPropertyChanged(nameof(UiRagIngestUrl));
         OnPropertyChanged(nameof(UiRagIngestUrlButton));
+        ApplyRagGraphLocalizedUi();
         UiVoicevoxEnabled = _loc.Get("Settings.Voicevox.Enabled");
         UiVoicevoxAutoSpeak = _loc.Get("Settings.Voicevox.AutoSpeak");
         UiVoicevoxSpeakInJapanesePronunciation = _loc.Get("Settings.Voicevox.SpeakInJapanesePronunciation");

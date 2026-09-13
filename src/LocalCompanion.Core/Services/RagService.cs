@@ -19,6 +19,9 @@ public sealed class RagService
     private readonly RagDocumentStructurer _structurer;
     private readonly AppSettingsStore _settings;
     private readonly LlamaOptions _opt;
+    private readonly RagGraphIndexer _graphIndexer;
+    private readonly RagGraphLane _graphLane;
+    private readonly RagGraphSearch _graphSearch;
     private readonly SemaphoreSlim _ingestLock = new(1, 1);
 
     private const int MaxLegacySearchChunks = 3000;
@@ -28,13 +31,89 @@ public sealed class RagService
         LlamaServerClient llama,
         RagDocumentStructurer structurer,
         AppSettingsStore settings,
-        IOptions<LlamaOptions> opt)
+        IOptions<LlamaOptions> opt,
+        IRagWordSegmenter? segmenter = null,
+        IRagGraphLlm? graphLlm = null)
     {
         _db = db;
         _llama = llama;
         _structurer = structurer;
         _settings = settings;
         _opt = opt.Value;
+        var words = segmenter ?? new HeuristicWordSegmenter();
+        _graphIndexer = new RagGraphIndexer(db.Graph, words, _opt.RagGraphMinEdgeWeight, _opt.RagGraphTopTerms);
+        _graphLane = new RagGraphLane(db.Graph, words);
+        _graphSearch = new RagGraphSearch(db.Graph, db.Fts, graphLlm ?? new LlamaGraphLlmAdapter(llama));
+    }
+
+    /// <summary>概念グラフが未構築・旧版なら作り直す（LLM・埋め込み不要。起動後に裏で呼ぶ）。</summary>
+    public Task EnsureGraphBuiltAsync(CancellationToken ct) => Task.Run(() =>
+    {
+        using var conn = _db.Open();
+        if (!_graphIndexer.NeedsRebuild(conn))
+            return;
+        RebuildGraphCore(conn);
+    }, ct);
+
+    /// <summary>設定画面の再構築ボタン。</summary>
+    public Task RebuildGraphAsync(CancellationToken ct) => Task.Run(() =>
+    {
+        using var conn = _db.Open();
+        RebuildGraphCore(conn);
+    }, ct);
+
+    public RagGraphStats GetGraphStats()
+    {
+        using var conn = _db.Open();
+        return _db.Graph.GetStats(conn);
+    }
+
+    /// <summary>直近のグラフ構築で出た失敗（無ければ null）。ingest 自体は止めない方針なので、ここで見える形にする。</summary>
+    public string? GetGraphLastError()
+    {
+        using var conn = _db.Open();
+        return _db.Graph.GetMeta(conn, GraphLastErrorKey);
+    }
+
+    private const string GraphLastErrorKey = "graph_last_error";
+
+    private void RebuildGraphCore(SqliteConnection conn)
+    {
+        try
+        {
+            _graphIndexer.RebuildAll(conn);
+            _db.Graph.SetMeta(conn, GraphLastErrorKey, "");
+        }
+        catch (Exception ex)
+        {
+            _db.Graph.SetMeta(conn, GraphLastErrorKey, ex.Message);
+            throw;
+        }
+    }
+
+    /// <summary>ingest 直後に source 分のグラフを差し替える。失敗しても ingest は成功扱い（エラーは meta に残す）。</summary>
+    private void TryIndexGraphForSource(SqliteConnection conn, string source)
+    {
+        try
+        {
+            using var tx = conn.BeginTransaction();
+            _graphIndexer.IndexSource(conn, source, tx);
+            _graphIndexer.RebuildCommunities(conn, tx);
+            _graphIndexer.MarkBuilt(conn, tx);
+            _db.Graph.SetMeta(conn, GraphLastErrorKey, "", tx);
+            tx.Commit();
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                _db.Graph.SetMeta(conn, GraphLastErrorKey, ex.Message);
+            }
+            catch
+            {
+                /* meta 書き込みも失敗したら諦める（ingest は成功している） */
+            }
+        }
     }
 
     public async Task<(int ChunkCount, int EmbedSkipped, RagIngestStats Stats)> IngestTextAsync(string source, string text, CancellationToken ct)
@@ -156,6 +235,7 @@ public sealed class RagService
                 }
 
                 await tx.CommitAsync(ct);
+                TryIndexGraphForSource(conn, source);
                 return (count, embedSkipped, stats with { EmbedSkipped = embedSkipped, TotalChunks = count });
             }
             catch
@@ -170,16 +250,18 @@ public sealed class RagService
         }
     }
 
-    private void DeleteSourceChunks(SqliteConnection conn, string source, SqliteTransaction? transaction = null)
+    /// <returns>消した rag_chunks の行数。</returns>
+    private int DeleteSourceChunks(SqliteConnection conn, string source, SqliteTransaction? transaction = null)
     {
         _db.Vector.DeleteVectorsForSource(conn, source, transaction);
         _db.Fts.DeleteForSource(conn, source, transaction);
+        _db.Graph.DeleteSource(conn, source, transaction);
 
         var cmd = conn.CreateCommand();
         cmd.Transaction = transaction;
         cmd.CommandText = "DELETE FROM rag_chunks WHERE source = $s";
         cmd.Parameters.AddWithValue("$s", source);
-        cmd.ExecuteNonQuery();
+        return cmd.ExecuteNonQuery();
     }
 
     public int DeleteSource(string source)
@@ -190,14 +272,7 @@ public sealed class RagService
         using var tx = conn.BeginTransaction();
         try
         {
-            _db.Vector.DeleteVectorsForSource(conn, source, tx);
-            _db.Fts.DeleteForSource(conn, source, tx);
-
-            var cmd = conn.CreateCommand();
-            cmd.Transaction = tx;
-            cmd.CommandText = "DELETE FROM rag_chunks WHERE source = $s";
-            cmd.Parameters.AddWithValue("$s", source);
-            var deleted = cmd.ExecuteNonQuery();
+            var deletedCount = DeleteSourceChunks(conn, source, tx);
 
             var pref = conn.CreateCommand();
             pref.Transaction = tx;
@@ -205,8 +280,9 @@ public sealed class RagService
             pref.Parameters.AddWithValue("$s", source);
             pref.ExecuteNonQuery();
 
+            _graphIndexer.AfterSourceRemoved(conn, tx);
             tx.Commit();
-            return deleted;
+            return deletedCount;
         }
         catch
         {
@@ -436,18 +512,20 @@ public sealed class RagService
         return result.Hits;
     }
 
+    /// <param name="lexicalOnly">true なら埋め込みを呼ばず FTS だけで探す（合図語なしの Probe 用。毎ターン走るので安く）。</param>
     public async Task<RagSearchResult> SearchWithPlanAsync(
         string currentMessage,
         string? previousUserMessage,
         int topK,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool lexicalOnly = false)
     {
         var plan = RagQueryPlanner.Plan(currentMessage, previousUserMessage);
         if (GetChunkCount() == 0)
             return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
 
         // 埋め込みが死んでも条文 SQL・資料一覧・FTS は通す（ベクトル無しフォールバック）。
-        var allowVector = await _llama.EmbeddingsSupportedAsync(ct);
+        var allowVector = !lexicalOnly && await _llama.EmbeddingsSupportedAsync(ct);
 
         using var conn = _db.Open();
         await conn.OpenAsync(ct);
@@ -477,7 +555,15 @@ public sealed class RagService
             return new RagSearchResult(catalogHits, plan);
         }
 
-        if (plan.Intent != RagQueryIntent.General && plan.Intent != RagQueryIntent.Advisory)
+        if (plan.Intent == RagQueryIntent.Overview)
+        {
+            // 俯瞰: コミュニティ単位で探す（LLM は予算内で短く）。空なら通常のハイブリッドへ落とす
+            var overviewHits = await TryGraphSearchAsync(conn, plan.EffectiveQuery, sources, topK, ct);
+            if (overviewHits.Count > 0)
+                return new RagSearchResult(overviewHits, plan);
+        }
+
+        if (plan.Intent is not (RagQueryIntent.General or RagQueryIntent.Advisory or RagQueryIntent.Overview))
         {
             var structured = CollapseParentHits(RagStructuredSearch.Execute(conn, plan, sources, topK));
             if (structured.Count == 0 && sources.Count < enabledSources.Count)
@@ -494,8 +580,8 @@ public sealed class RagService
                 return new RagSearchResult(Array.Empty<RagSearchHit>(), plan);
         }
 
-        // 一般／助言は言い換え展開してからハイブリッド（計画の Intent 判定は元クエリのまま）
-        var hybridQuery = plan.Intent is RagQueryIntent.General or RagQueryIntent.Advisory
+        // 一般／助言／俯瞰は言い換え展開してからハイブリッド（計画の Intent 判定は元クエリのまま）
+        var hybridQuery = plan.Intent is RagQueryIntent.General or RagQueryIntent.Advisory or RagQueryIntent.Overview
             ? RagSoftQueryExpander.Expand(plan.EffectiveQuery)
             : plan.EffectiveQuery;
 
@@ -506,8 +592,10 @@ public sealed class RagService
             ? sources
             : enabledSources;
         var scopes = RagNavigateRetry.BuildScopes(hybridSources, enabledSources, ranked, sectionNeedle);
+        // 一般／助言／俯瞰だけグラフ第 3 レーン（隣接語で FTS を広げ、同コミュニティを RRF に加点）
+        var graphLane = plan.Intent is RagQueryIntent.General or RagQueryIntent.Advisory or RagQueryIntent.Overview;
         var hybridHits = await HybridSearchWithRetryAsync(
-            conn, hybridQuery, scopes, topK, allowVector, ct);
+            conn, hybridQuery, scopes, topK, allowVector, ct, graphLane);
         return new RagSearchResult(hybridHits.Take(topK).ToList(), plan);
     }
 
@@ -574,11 +662,12 @@ public sealed class RagService
         IReadOnlyList<RagSearchScope> scopes,
         int topK,
         bool allowVector,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool graphLane = false)
     {
         foreach (var scope in scopes)
         {
-            var raw = await HybridSearchAsync(conn, query, scope.Sources, topK, allowVector, ct);
+            var raw = await HybridSearchAsync(conn, query, scope.Sources, topK, allowVector, ct, graphLane);
             var collapsed = CollapseParentHits(raw);
             var kept = RagNavigateRetry.KeepRelevant(collapsed, query, scope.SectionNeedle);
             if (kept.Count > 0)
@@ -594,16 +683,20 @@ public sealed class RagService
         IReadOnlyList<string> enabledSources,
         int topK,
         bool allowVector,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool graphLane = false)
     {
         var pool = Math.Max(_opt.RagSearchPoolSize, topK);
         var rrfK = Math.Max(_opt.RagRrfK, 1);
         var (wFts, wVec) = RagHybridSearch.ResolveWeights(query, _opt.RagWeightFts, _opt.RagWeightVec);
+        var useGraph = graphLane && _opt.RagWeightGraph > 0;
 
         IReadOnlyList<long> ftsIds = Array.Empty<long>();
         if (_db.Fts.IsAvailable)
         {
             var matchQuery = BuildFtsMatchQuery(query);
+            if (useGraph)
+                matchQuery = RagGraphLane.AppendToMatchQuery(matchQuery, TryExpandWithGraph(conn, query));
             if (!string.IsNullOrWhiteSpace(matchQuery))
                 ftsIds = _db.Fts.Search(conn, matchQuery, pool, enabledSources);
         }
@@ -623,7 +716,17 @@ public sealed class RagService
         if (ftsIds.Count > 0 || vectorIds.Count > 0)
         {
             // ベクトル無しのときは FTS 順位だけでも返す（埋め込み死のフォールバック）。
-            var fused = RagHybridSearch.FuseRrf(ftsIds, vectorIds, topK, rrfK, wFts, wVec);
+            var fused = RagHybridSearch.FuseRrf(ftsIds, vectorIds, pool, rrfK, wFts, wVec);
+            if (useGraph)
+            {
+                var graphIds = TrySameCommunityWithGraph(conn, fused, enabledSources, pool);
+                fused = RagHybridSearch.FuseRrf(ftsIds, vectorIds, graphIds, topK, rrfK, wFts, wVec, _opt.RagWeightGraph);
+            }
+            else
+            {
+                fused = fused.Take(topK).ToList();
+            }
+
             if (fused.Count > 0)
                 return LoadHitsByIds(conn, fused);
         }
@@ -632,6 +735,59 @@ public sealed class RagService
             return await LegacySearchAsync(conn, q, topK, enabledSources, ct);
 
         return Array.Empty<RagSearchHit>();
+    }
+
+    private async Task<IReadOnlyList<RagSearchHit>> TryGraphSearchAsync(
+        SqliteConnection conn,
+        string query,
+        IReadOnlyList<string> sources,
+        int topK,
+        CancellationToken ct)
+    {
+        try
+        {
+            var budget = new RagGraphSearchBudget(
+                Math.Max(0, _opt.RagGraphRelevanceBudget),
+                TimeSpan.FromMilliseconds(Math.Max(500, _opt.RagGraphTimeBudgetMs)));
+            return await _graphSearch.SearchAsync(conn, query, sources, topK, budget, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return Array.Empty<RagSearchHit>();
+        }
+    }
+
+    /// <summary>グラフが無い・壊れている・失敗しても検索は止めない。</summary>
+    private IReadOnlyList<string> TryExpandWithGraph(SqliteConnection conn, string query)
+    {
+        try
+        {
+            return _graphLane.ExpandQueryTerms(conn, query);
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private IReadOnlyList<long> TrySameCommunityWithGraph(
+        SqliteConnection conn,
+        IReadOnlyList<long> seedChunkIds,
+        IReadOnlyList<string> sources,
+        int limit)
+    {
+        try
+        {
+            return _graphLane.SameCommunityChunkIds(conn, seedChunkIds, sources, limit);
+        }
+        catch
+        {
+            return Array.Empty<long>();
+        }
     }
 
     private async Task<IReadOnlyList<RagSearchHit>> MultiSourceHybridSearchAsync(
@@ -676,12 +832,13 @@ public sealed class RagService
 
     private static string BuildFtsMatchQuery(string query)
     {
-        var match = RagSqliteFts.BuildMatchQuery(query);
+        var match = RagSqliteFts.BuildSegmentedMatchQuery(query);
         if (!RagArticleQueryParser.TryGetArticleNumber(query, out var articleNumber))
             return match;
 
+        // 見出し句（第8条 等）も索引と同じ割り方でフレーズにする
         var articleTerms = RagArticleQueryParser.BuildHeaderPrefixes(articleNumber)
-            .Select(p => $"\"{p}\"");
+            .Select(p => $"\"{RagFtsSegmenter.Segment(p)}\"");
         if (string.IsNullOrWhiteSpace(match))
             return string.Join(" OR ", articleTerms);
 
@@ -707,7 +864,21 @@ public sealed class RagService
 
     private static IReadOnlyList<RagSearchHit> LoadHitsByIds(SqliteConnection conn, IReadOnlyList<long> ids)
     {
+        var byId = LoadHitsKeyedById(conn, ids);
         var hits = new List<RagSearchHit>(ids.Count);
+        foreach (var id in ids)
+        {
+            if (byId.TryGetValue(id, out var hit))
+                hits.Add(hit);
+        }
+
+        return hits;
+    }
+
+    /// <summary>id → ヒット（本文が空の行と無い id は含めない）。</summary>
+    internal static IReadOnlyDictionary<long, RagSearchHit> LoadHitsKeyedById(SqliteConnection conn, IReadOnlyList<long> ids)
+    {
+        var map = new Dictionary<long, RagSearchHit>(ids.Count);
         foreach (var id in ids)
         {
             var cmd = conn.CreateCommand();
@@ -724,9 +895,10 @@ public sealed class RagService
             if (string.IsNullOrWhiteSpace(text))
                 continue;
 
-            hits.Add(MapSearchHit(reader));
+            map[id] = MapSearchHit(reader);
         }
-        return hits;
+
+        return map;
     }
 
     private static RagSearchHit MapSearchHit(Microsoft.Data.Sqlite.SqliteDataReader reader)

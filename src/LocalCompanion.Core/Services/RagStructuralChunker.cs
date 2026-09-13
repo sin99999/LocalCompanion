@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 using LocalCompanion.Models;
 
@@ -324,7 +324,9 @@ internal static class RagStructuralChunker
             return true;
         }
 
-        var articleMatch = Regex.Match(trimmed, @"^第\s*(\d+)\s*条");
+        // 「第235条から」「第235条の罪」のような本文中の参照は見出しにしない。
+        // 見出しとして認めるのは、条番号（＋「の2」）の直後が行末・括弧・空白のときだけ。
+        var articleMatch = Regex.Match(trimmed, @"^第\s*(\d+)\s*条(?:\s*の\s*\d+)?(?=\s|（|\(|$)");
         if (articleMatch.Success)
         {
             header = new HeaderInfo(3, trimmed, "", articleMatch.Groups[1].Value, "");

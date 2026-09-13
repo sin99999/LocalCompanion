@@ -299,6 +299,7 @@ public partial class SettingsPageViewModel : ObservableObject
 
         RagDataDirectory = _ragDb.DataDirectory;
         RagChunkCount = _rag.GetChunkCount();
+        RefreshRagGraphStatus();
         RagSources.Clear();
         foreach (var s in _rag.ListSources())
         {

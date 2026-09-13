@@ -10,6 +10,7 @@ public sealed class RagDatabase
     private readonly string _dbPath;
     private readonly RagSqliteVec _vec = new();
     private readonly RagSqliteFts _fts = new();
+    private readonly RagSqliteGraph _graph = new();
 
     public RagDatabase(IOptions<LlamaOptions> opt)
     {
@@ -25,6 +26,9 @@ public sealed class RagDatabase
     public RagSqliteVec Vector => _vec;
 
     public RagSqliteFts Fts => _fts;
+
+    /// <summary>概念グラフ（表は Initialize で作る。中身の構築は RagService 側の RagGraphIndexer）。</summary>
+    public RagSqliteGraph Graph => _graph;
 
     public SqliteConnection Open()
     {
@@ -113,6 +117,7 @@ public sealed class RagDatabase
         EnsureRagFtsBackfill(conn);
         EnsureRagStructuredBackfill(conn);
         EnsureRagUniversalBackfill(conn);
+        _graph.EnsureTables(conn);
         EnsureUserMemories(conn);
         EnsureChatMessageSearch(conn);
     }
@@ -325,18 +330,20 @@ public sealed class RagDatabase
         if (!_fts.IsAvailable)
             return;
 
+        // 値は索引形式のバージョン。"1" は unicode61 生テキスト時代、"2" 以降はバイグラム割り。違えば全件再索引。
         var check = conn.CreateCommand();
         check.CommandText = "SELECT value FROM app_metadata WHERE key = 'rag_fts_backfilled' LIMIT 1";
-        if (check.ExecuteScalar()?.ToString() == "1")
+        if (check.ExecuteScalar()?.ToString() == RagSqliteFts.IndexFormatVersion)
             return;
 
         _fts.Backfill(conn);
 
         var flag = conn.CreateCommand();
         flag.CommandText = """
-            INSERT INTO app_metadata (key, value) VALUES ('rag_fts_backfilled', '1')
+            INSERT INTO app_metadata (key, value) VALUES ('rag_fts_backfilled', $v)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value
             """;
+        flag.Parameters.AddWithValue("$v", RagSqliteFts.IndexFormatVersion);
         flag.ExecuteNonQuery();
     }
 

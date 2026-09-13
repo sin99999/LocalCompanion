@@ -32,8 +32,9 @@ description: >-
   → 正規化 RagDocumentNormalizer
   → 種別 RagDocumentProfileDetector
   → 構造化 RagStructuralChunker (+ RagTextChunker overflow)
-  → DB rag_chunks + embedding
-  → 検索 RagService.HybridSearchAsync (FTS + vec0)
+  → DB rag_chunks + embedding + FTS(bigram) + 概念グラフ(RagGraphIndexer)
+  → 検索 RagService.HybridSearchAsync (FTS + vec0 + graph lane)
+     俯瞰(Overview) は RagGraphSearch（コミュニティ単位・LLM 予算内）
 ```
 
 主要ファイル:
@@ -42,10 +43,26 @@ description: >-
 |------|------|
 | 検索統合 | `src/LocalCompanion.Core/Services/RagService.cs` |
 | vec0 KNN | `src/LocalCompanion.Core/Data/RagSqliteVec.cs` |
-| FTS | `src/LocalCompanion.Core/Data/RagSqliteFts.cs` |
+| FTS（CJK bigram） | `src/LocalCompanion.Core/Data/RagSqliteFts.cs` + `RagFtsSegmenter` |
 | チャンク | `src/LocalCompanion.Core/Services/RagStructuralChunker.cs` |
+| 概念グラフ DB | `src/LocalCompanion.Core/Data/RagSqliteGraph.cs`（rag_concepts / rag_concept_edges / rag_communities） |
+| 概念グラフ構築 | `RagGraphIndexer` → `RagConceptExtractor` + `RagLegalReferenceExtractor` + `RagCooccurrenceGraphBuilder` + `RagCommunityDetector` |
+| 分かち書き | `IRagWordSegmenter`（Core: `HeuristicWordSegmenter` / シェル: `WinRtWordSegmenter` = Windows 同梱 WordsSegmenter） |
+| グラフ第 3 レーン | `RagGraphLane`（隣接語で FTS 拡張 + 同コミュニティを RRF に加点、重み `RagWeightGraph`） |
+| 俯瞰検索 | `RagGraphSearch` + `RagGraphPrompts` + `IRagGraphLlm`（テストは `FakeGraphLlm`） |
+| 根拠門番 | `RagEvidenceGate`（合図語なしの Probe。質問語が資料に実在するヒットだけ） |
+| 回答ルール | `ChatPromptAssembler` + `RagAnswerPolicy` + `RagPromptBudget` + `ChatSystemPromptTexts` |
 | SoftTopic 軽い床 | `RagConversationGate` + `RagSoftHitRanker` |
-| 設定 | ルート `appsettings.json`（ChunkSize, RagTopK 等） |
+| 設定 | ルート `appsettings.json`（ChunkSize, RagTopK, RagWeightGraph, RagGraph* 等） |
+
+## 概念グラフ（📅 2026-09-14）
+
+- **索引に LLM も埋め込みも使わない**（FastGraphRAG 寄り）。名詞句は分かち書き＋ストップワード、辺は「文 3 つの窓」の共起（見出し語との対は重み 2）と条文参照（第N条から第M条まで／前条／次条）。コミュニティは決定的ラベル伝播 2 階層
+- 構築は ingest 直後（source 差し替え）と初回起動（`RagSqliteGraph.BuildVersion` が古いとき `MainWindow.BuildRagGraphIfNeededAsync`）。設定 RAG の「概念グラフを再構築」でも作り直せる。失敗は `rag_graph_meta.graph_last_error` に残り、設定に表示される。**ingest は止めない**
+- 検索は 3 段: (1) 一般質問は第 3 レーン（`RagGraphLane`）で静かに効く、(2) 俯瞰（`RagQueryIntent.Overview`: 全体／テーマ／概要／比較／違い、条番号なし）は `RagGraphSearch`（Refine→FTS 候補→コミュニティ票数順→関連判定 0/1 を予算 `RagGraphRelevanceBudget`／`RagGraphTimeBudgetMs` 内→要点 3 行）、(3) LLM が死んでいれば代表チャンクだけ返す
+- 比較（違い／比較）は罰則・定義の機械引用より先に Overview へ。「罰則の概要」は罰則のまま（Overview の全体系 cue は罰則・定義・FAQ の後、資料一覧の前）
+- 1 文だけの条文チャンクは共起が 1 になり枝刈り（既定 2）で消える → 見出し語の対を 2 にして骨を残している。`minEdgeWeight` を上げるときはここを思い出す
+- 評価: `RagGraphIndexerTests`（ゴールデン資料で 第243条→第235条 の refers 辺）、`RagGraphLaneTests`、`RagGraphSearchTests`（Fake LLM で予算・退化・該当なし）、ゴールデン `overview-*` / `multihop-*`
 
 ## 測る（黄金セット）
 
