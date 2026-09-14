@@ -138,6 +138,17 @@ internal static class ChatSystemPromptTexts
               - Do not mention databases or settings. Do not force a topic change.
               """.Trim();
 
+    internal static string HistoryDigestBlock(string digest, bool japanese) =>
+        japanese
+            ? "【古い会話の要約】\n" + digest.Trim()
+            : "[Older conversation summary]\n" + digest.Trim();
+
+    /// <summary>履歴ダイジェストが載っているときだけ付ける。</summary>
+    internal static string HistoryDigestInstruction(bool japanese) =>
+        japanese
+            ? "【古い会話の要約の扱い】上の要約はコンテキストから落ちた古い発言の要約です。原文のように引用しないでください。直近の会話履歴を優先します。"
+            : "[Older conversation summary] The block above summarizes older turns that no longer fit. Do not quote it as verbatim. Prefer the recent chat history.";
+
     /// <summary>テキスト添付・URL・Web 検索結果があるターンだけ付ける。</summary>
     internal static string AttachmentInstruction(bool japanese) =>
         japanese

@@ -84,6 +84,30 @@ public sealed class AppSettingsStoreTests
     }
 
     [Fact]
+    public void Save_HistoryDigestEnabled_RoundTrips_DefaultTrue()
+    {
+        var relative = Path.Combine("obj", "lc-test-" + Guid.NewGuid().ToString("N"));
+        var db = new RagDatabase(Options.Create(new LlamaOptions
+        {
+            DataDirectory = relative,
+        }));
+        var dir = db.DataDirectory;
+        try
+        {
+            var store = new AppSettingsStore(db);
+            Assert.True(store.Load().HistoryDigestEnabled);
+
+            var saved = store.Save(new AppSettingsDto { HistoryDigestEnabled = false });
+            Assert.False(saved.HistoryDigestEnabled);
+            Assert.False(store.Load().HistoryDigestEnabled);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
     public void Save_TokenSpeedAndMtpFlags_RoundTrip()
     {
         var relative = Path.Combine("obj", "lc-test-" + Guid.NewGuid().ToString("N"));

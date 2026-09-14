@@ -57,6 +57,8 @@ public sealed class ChatService
     private readonly ChatSearchService _chatSearch;
     private readonly LlamaOptions _opt;
     private readonly ChatExportPendingStore _exportPending = new();
+    private readonly ChatHistoryDigestStore _digestStore;
+    private readonly ChatHistoryDigestWriter _digestWriter;
 
     public ChatService(
         LlamaServerClient llama,
@@ -80,6 +82,8 @@ public sealed class ChatService
         _memory = memory;
         _chatSearch = chatSearch;
         _opt = opt.Value;
+        _digestStore = new ChatHistoryDigestStore(db);
+        _digestWriter = new ChatHistoryDigestWriter(_digestStore, new LlamaChatHistoryDigestLlm(llama));
     }
 
     /// <summary>保存済み会話セッション一覧（左ペイン用）。</summary>
@@ -528,6 +532,7 @@ public sealed class ChatService
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var (systemParts, promptContext) = await BuildSystemPartsAsync(
             profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
+        _ = TryAppendHistoryDigest(systemParts, historyMode, japaneseReply);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -581,10 +586,11 @@ public sealed class ChatService
         string? reply = null;
         Exception? lastError = null;
         var usedHistory = false;
+        var lastPick = ChatHistoryBudgetPick.Empty;
 
         foreach (var attempt in attempts)
         {
-            var history = historyMode.Load
+            var pick = historyMode.Load
                 ? LoadSessionHistoryWithinBudget(
                     historyMode.SessionId!,
                     effectiveContext,
@@ -593,11 +599,12 @@ public sealed class ChatService
                     profile.MaxOutputTokens,
                     hasImage,
                     attempt.HistoryBudgetFraction)
-                : Array.Empty<ChatTurn>();
-            if (history.Count > 0)
+                : ChatHistoryBudgetPick.Empty;
+            lastPick = pick;
+            if (pick.Kept.Count > 0)
                 usedHistory = true;
             var messages = new List<ChatTurn> { new("system", systemText) };
-            messages.AddRange(history);
+            messages.AddRange(pick.Kept);
             messages.Add(new ChatTurn("user", userContent, req.ImagesBase64));
 
             var maxOut = ComputeSafeMaxTokens(
@@ -642,6 +649,8 @@ public sealed class ChatService
             TouchSession(historyMode.SessionId, req.Message);
         }
 
+        ScheduleHistoryDigestUpdate(historyMode, lastPick);
+
         return new ChatResponseDto(
             reply,
             ragSources is { Length: > 0 },
@@ -675,7 +684,8 @@ public sealed class ChatService
                 conflictRagSources is { Length: > 0 },
                 req.UseReasoning,
                 historyMode.Load,
-                !string.IsNullOrWhiteSpace(req.AttachedText),
+                usedHistoryDigest: false,
+                usedAttachment: !string.IsNullOrWhiteSpace(req.AttachedText),
                 conflictRuntime.ActiveModelFileName,
                 conflictRuntime);
             yield return new ChatStreamChunkDto(
@@ -707,6 +717,7 @@ public sealed class ChatService
         var isCharacter = !CharacterPresetService.IsNoneSelection(_presets.GetActivePresetFileName());
         var (systemParts, promptContext) = await BuildSystemPartsAsync(
             profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
+        var usedHistoryDigest = TryAppendHistoryDigest(systemParts, historyMode, japaneseReply);
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -746,7 +757,14 @@ public sealed class ChatService
             }
 
             yield return new ChatStreamChunkDto("content", finalVerbatim);
-            var verbatimMeta = formatMetaForStream(ragSources is { Length: > 0 }, req.UseReasoning, historyMode.Load, hasFile, modelFileName, runtime);
+            var verbatimMeta = formatMetaForStream(
+                ragSources is { Length: > 0 },
+                req.UseReasoning,
+                historyMode.Load,
+                usedHistoryDigest: false,
+                usedAttachment: hasFile,
+                modelFileName,
+                runtime);
             yield return new ChatStreamChunkDto(
                 "done",
                 finalVerbatim,
@@ -767,6 +785,7 @@ public sealed class ChatService
         var usedHistory = false;
         Exception? lastStreamError = null;
         var streamed = false;
+        var lastPick = ChatHistoryBudgetPick.Empty;
 
         foreach (var attempt in attempts)
         {
@@ -774,7 +793,7 @@ public sealed class ChatService
             reasoningBuilder.Clear();
             streamTruncated = false;
 
-            var history = historyMode.Load
+            var pick = historyMode.Load
                 ? LoadSessionHistoryWithinBudget(
                     historyMode.SessionId!,
                     effectiveContext,
@@ -783,10 +802,11 @@ public sealed class ChatService
                     profile.MaxOutputTokens,
                     hasImage,
                     attempt.HistoryBudgetFraction)
-                : Array.Empty<ChatTurn>();
-            usedHistory = history.Count > 0;
+                : ChatHistoryBudgetPick.Empty;
+            lastPick = pick;
+            usedHistory = pick.Kept.Count > 0;
             var messages = new List<ChatTurn> { new("system", systemText) };
-            messages.AddRange(history);
+            messages.AddRange(pick.Kept);
             messages.Add(new ChatTurn("user", userContent, req.ImagesBase64));
             var outputCap = req.UseReasoning
                 ? Math.Min(attempt.MaxOutputCap, 4096)
@@ -910,7 +930,16 @@ public sealed class ChatService
             TouchSession(historyMode.SessionId, req.Message);
         }
 
-        var meta = formatMetaForStream(ragSources is { Length: > 0 }, req.UseReasoning, usedHistory, hasFile, modelFileName, runtime);
+        ScheduleHistoryDigestUpdate(historyMode, lastPick);
+
+        var meta = formatMetaForStream(
+            ragSources is { Length: > 0 },
+            req.UseReasoning,
+            usedHistory,
+            usedHistoryDigest,
+            hasFile,
+            modelFileName,
+            runtime);
         yield return new ChatStreamChunkDto(
             "done",
             reply,
@@ -924,6 +953,7 @@ public sealed class ChatService
         bool usedRag,
         bool usedReasoning,
         bool usedHistory,
+        bool usedHistoryDigest,
         bool usedAttachment,
         string? modelFileName,
         ModelRuntimeStatus runtime)
@@ -935,6 +965,7 @@ public sealed class ChatService
         if (usedReasoning) parts.Add(loc.Get("Chat.Meta.ReasoningOn"));
         if (usedAttachment) parts.Add(loc.Get("Chat.Meta.Attachment"));
         if (usedHistory) parts.Add(loc.Get("Chat.Meta.History"));
+        if (usedHistoryDigest) parts.Add(loc.Get("Chat.Meta.HistoryDigest"));
         if (!string.IsNullOrWhiteSpace(modelFileName)) parts.Add(loc.Format("Chat.Meta.LoadingModel", modelFileName));
         if (runtime.ModelMismatch && !string.IsNullOrWhiteSpace(runtime.StatusMessage)) parts.Add(runtime.StatusMessage);
         return parts.Count > 0 ? string.Join(" · ", parts) : loc.Get("Chat.Meta.MessageOnly");
@@ -1142,12 +1173,12 @@ public sealed class ChatService
     {
         var rows = LoadRecentSessionRows(sessionId, maxRows);
         var users = new List<string>();
-        foreach (var (role, content) in rows)
+        foreach (var row in rows)
         {
-            if (string.Equals(role, "user", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(content))
+            if (string.Equals(row.Role, "user", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(row.Content))
             {
-                users.Add(content);
+                users.Add(row.Content);
             }
         }
 
@@ -1266,7 +1297,7 @@ public sealed class ChatService
         }
     }
 
-    private List<(string Role, string Content)> LoadRecentSessionRows(string sessionId, int maxRows)
+    private List<ChatHistoryRow> LoadRecentSessionRows(string sessionId, int maxRows)
     {
         if (maxRows <= 0 || string.IsNullOrWhiteSpace(sessionId))
             return [];
@@ -1275,22 +1306,22 @@ public sealed class ChatService
         conn.Open();
         var cmd = conn.CreateCommand();
         cmd.CommandText = """
-            SELECT role, content FROM chat_messages
+            SELECT id, role, content FROM chat_messages
             WHERE session_id = $s
             ORDER BY id DESC LIMIT $n
             """;
         cmd.Parameters.AddWithValue("$s", sessionId);
         cmd.Parameters.AddWithValue("$n", maxRows);
 
-        var rows = new List<(string, string)>();
+        var rows = new List<ChatHistoryRow>();
         using var r = cmd.ExecuteReader();
         while (r.Read())
-            rows.Add((r.GetString(0), r.GetString(1)));
+            rows.Add(new ChatHistoryRow(r.GetInt64(0), r.GetString(1), r.GetString(2)));
         return rows;
     }
 
     /// <summary>セッション内の直近メッセージを、コンテキスト余力の範囲で古い順に返します。</summary>
-    private IReadOnlyList<ChatTurn> LoadSessionHistoryWithinBudget(
+    private ChatHistoryBudgetPick LoadSessionHistoryWithinBudget(
         string sessionId,
         int contextLength,
         int systemCharCount,
@@ -1300,7 +1331,7 @@ public sealed class ChatService
         double budgetFraction)
     {
         if (budgetFraction <= 0 || string.IsNullOrWhiteSpace(sessionId))
-            return Array.Empty<ChatTurn>();
+            return ChatHistoryBudgetPick.Empty;
 
         var imageOverhead = currentMessageHasImage ? 7500 : 0;
         var fixedChars = systemCharCount + currentUserCharCount + imageOverhead;
@@ -1309,49 +1340,47 @@ public sealed class ChatService
         var totalBudget = contextLength - outputReserve - 128;
         var historyTokenBudget = (int)((totalBudget - fixedTokens) * budgetFraction);
         if (historyTokenBudget < 128)
-            return Array.Empty<ChatTurn>();
+            return ChatHistoryBudgetPick.Empty;
 
         var historyCharBudget = Math.Max(256, historyTokenBudget * 2);
         var rows = LoadRecentSessionRows(sessionId, MaxHistoryMessagesToScan);
-        if (rows.Count == 0)
-            return Array.Empty<ChatTurn>();
+        return ChatHistoryDigest.Pick(rows, historyCharBudget);
+    }
 
-        var selected = new List<ChatTurn>();
-        var usedChars = 0;
-        foreach (var (role, content) in rows)
+    private bool TryAppendHistoryDigest(List<string> systemParts, HistoryMode historyMode, bool japanese)
+    {
+        if (!historyMode.Load
+            || string.IsNullOrWhiteSpace(historyMode.SessionId)
+            || !ChatHistoryDigest.IsAllowedPreset(historyMode.PresetKey)
+            || !_appSettings.Load().HistoryDigestEnabled)
+            return false;
+
+        var (digest, _) = _digestStore.Read(historyMode.SessionId);
+        return ChatHistoryDigest.TryAppendPrompt(systemParts, digest, japanese);
+    }
+
+    private void ScheduleHistoryDigestUpdate(HistoryMode historyMode, ChatHistoryBudgetPick pick)
+    {
+        if (!historyMode.Load
+            || string.IsNullOrWhiteSpace(historyMode.SessionId)
+            || !ChatHistoryDigest.IsAllowedPreset(historyMode.PresetKey)
+            || !_appSettings.Load().HistoryDigestEnabled
+            || pick.Dropped.Count == 0)
+            return;
+
+        var sessionId = historyMode.SessionId;
+        var dropped = pick.Dropped;
+        _ = Task.Run(async () =>
         {
-            if (string.IsNullOrWhiteSpace(content))
-                continue;
-
-            var piece = content;
-            var pieceLen = piece.Length;
-            if (usedChars + pieceLen > historyCharBudget)
+            try
             {
-                if (selected.Count == 0)
-                {
-                    piece = TruncateContent(piece, historyCharBudget);
-                    pieceLen = piece.Length;
-                }
-                else
-                {
-                    break;
-                }
+                await _digestWriter.TryUpdateAsync(sessionId, dropped, CancellationToken.None).ConfigureAwait(false);
             }
-
-            selected.Add(new ChatTurn(role, piece));
-            usedChars += pieceLen;
-            if (usedChars >= historyCharBudget)
-                break;
-        }
-
-        selected.Reverse();
-        while (selected.Count > 0
-               && string.Equals(selected[0].Role, "assistant", StringComparison.OrdinalIgnoreCase))
-        {
-            selected.RemoveAt(0);
-        }
-
-        return selected;
+            catch (Exception ex)
+            {
+                StartupLog.Write(ex, "History digest update failed");
+            }
+        });
     }
 
     /// <summary>
@@ -1410,7 +1439,8 @@ public sealed class ChatService
         if (string.IsNullOrWhiteSpace(sessionId))
             return null;
 
-        return RagHistoryTopicPicker.PickPreviousUserTopic(LoadRecentSessionRows(sessionId, 24));
+        return RagHistoryTopicPicker.PickPreviousUserTopic(
+            LoadRecentSessionRows(sessionId, 24).Select(row => (row.Role, row.Content)));
     }
 
     private ChatRequestDto ExpandChoiceReply(ChatRequestDto req, HistoryMode historyMode)
@@ -1427,10 +1457,10 @@ public sealed class ChatService
         if (string.IsNullOrWhiteSpace(sessionId))
             return null;
 
-        foreach (var (role, content) in LoadRecentSessionRows(sessionId, 24))
+        foreach (var row in LoadRecentSessionRows(sessionId, 24))
         {
-            if (role == "assistant" && !string.IsNullOrWhiteSpace(content))
-                return content;
+            if (row.Role == "assistant" && !string.IsNullOrWhiteSpace(row.Content))
+                return row.Content;
         }
 
         return null;

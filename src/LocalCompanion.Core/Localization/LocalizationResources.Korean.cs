@@ -172,6 +172,7 @@ internal static partial class LocalizationResources
         ["Chat.Meta.ReasoningOn"] = "추론 켜짐",
         ["Chat.Meta.Attachment"] = "첨부",
         ["Chat.Meta.History"] = "채팅 기록",
+        ["Chat.Meta.HistoryDigest"] = "기록 요약 사용",
         ["Chat.Meta.LoadingModel"] = "실행 중: {0}",
         ["Chat.Meta.MessageOnly"] = "이 메시지만",
 
@@ -332,6 +333,8 @@ internal static partial class LocalizationResources
         ["Settings.Memory.Enabled.Hint"] = "캐릭터마다 짧은 사실을 저장하고, 해당 캐릭터와의 대화에서 자연스럽게 꺼낼 수 있습니다. 기본 AI에는 장기 기억이 없습니다. 화면상의 기억 목록은 없습니다.",
         ["Settings.Memory.AutoExtract"] = "대화가 끝날 때 기억을 자동 추출",
         ["Settings.Memory.AutoExtract.Hint"] = "이름이 있는 캐릭터와의 대화를 끝내거나 앱을 닫을 때, 로컬 AI가 해당 캐릭터용 짧은 사실을 최대 3개 저장할 수 있습니다. 기본 AI는 기억을 추출하지 않습니다. 같은 대화의 최근 발화는 기록 옵션이 담당합니다.",
+        ["Settings.Memory.HistoryDigest"] = "대화가 길어지면 요약을 남김",
+        ["Settings.Memory.HistoryDigest.Hint"] = "이름이 있는 캐릭터와의 대화에서, 컨텍스트에 들어가지 못한 이전 발화를 짧은 요약으로 남기고 다음 답변부터 사용합니다. ‘기록’이 꺼져 있거나 기본 AI에서는 사용하지 않습니다.",
         ["Settings.SpeechInput.Enabled"] = "음성 입력 사용",
         ["Settings.SpeechInput.Enabled.Hint"] = "Windows 음성 인식을 사용합니다. 마이크가 필요합니다. 영어 음성 팩이 없으면 일본어 인식이 대신 사용될 수 있습니다.",
         ["Settings.General.LlamaAutoUpdate"] = "시작할 때마다 llama.cpp 업데이트",

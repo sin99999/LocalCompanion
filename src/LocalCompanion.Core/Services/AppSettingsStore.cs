@@ -90,6 +90,7 @@ public sealed class AppSettingsStore
             RagUsePdfLayoutReader = dto.RagUsePdfLayoutReader,
             MemoryEnabled = dto.MemoryEnabled,
             MemoryAutoExtractOnClose = dto.MemoryAutoExtractOnClose,
+            HistoryDigestEnabled = dto.HistoryDigestEnabled,
             CharacterSelfImproveEnabled = dto.CharacterSelfImproveEnabled,
             ChatSearchEnabled = false,
             SpeechInputEnabled = dto.SpeechInputEnabled,

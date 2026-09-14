@@ -172,6 +172,7 @@ internal static partial class LocalizationResources
         ["Chat.Meta.ReasoningOn"] = "推理已开启",
         ["Chat.Meta.Attachment"] = "附件",
         ["Chat.Meta.History"] = "聊天记录",
+        ["Chat.Meta.HistoryDigest"] = "使用历史摘要",
         ["Chat.Meta.LoadingModel"] = "正在运行：{0}",
         ["Chat.Meta.MessageOnly"] = "仅此消息",
 
@@ -332,6 +333,8 @@ internal static partial class LocalizationResources
         ["Settings.Memory.Enabled.Hint"] = "按角色保存简短事实，并可能在该角色的对话中自然提起。默认 AI 没有长期记忆。画面上没有记忆列表。",
         ["Settings.Memory.AutoExtract"] = "对话结束时自动提取记忆",
         ["Settings.Memory.AutoExtract.Hint"] = "结束已命名角色的对话或关闭应用时，本地 AI 可能为该角色保存最多 3 条简短事实。默认 AI 不会提取记忆。同一对话中的近期发言由“历史”选项负责。",
+        ["Settings.Memory.HistoryDigest"] = "对话变长时保留摘要",
+        ["Settings.Memory.HistoryDigest.Hint"] = "与已命名角色对话时，放不进上下文的旧发言会保存为短摘要，并从下一轮回复开始使用。关闭“历史”时以及默认 AI 不使用。",
         ["Settings.SpeechInput.Enabled"] = "使用语音输入",
         ["Settings.SpeechInput.Enabled.Hint"] = "使用 Windows 语音识别。需要麦克风。若缺少英语语音包，可能会改用日语识别。",
         ["Settings.General.LlamaAutoUpdate"] = "每次启动时更新 llama.cpp",

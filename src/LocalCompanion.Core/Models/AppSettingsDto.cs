@@ -35,6 +35,9 @@ public sealed class AppSettingsDto
     /// <summary>会話終了時に LLM で記憶を自動抽出する。</summary>
     public bool MemoryAutoExtractOnClose { get; set; } = true;
 
+    /// <summary>名前付きキャラの会話で、履歴が溢れた分を短い要約として残す。</summary>
+    public bool HistoryDigestEnabled { get; set; } = true;
+
     /// <summary>
     /// 名前付きキャラが性格・指示（persona）の変更を提案することを許可する。
     /// 提案は毎回ユーザー確認後のみ JSON に保存する（デフォルト OFF）。
@@ -74,6 +77,7 @@ public sealed class AppSettingsDto
         RagUsePdfLayoutReader = RagUsePdfLayoutReader,
         MemoryEnabled = MemoryEnabled,
         MemoryAutoExtractOnClose = MemoryAutoExtractOnClose,
+        HistoryDigestEnabled = HistoryDigestEnabled,
         CharacterSelfImproveEnabled = CharacterSelfImproveEnabled,
         ChatSearchEnabled = ChatSearchEnabled,
         SpeechInputEnabled = SpeechInputEnabled,

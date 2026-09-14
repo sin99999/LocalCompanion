@@ -200,6 +200,11 @@
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMemoryAutoExtractHint, Mode=OneWay}" />
                             <ToggleSwitch IsOn="{x:Bind ViewModel.MemoryAutoExtractOnClose, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                         </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiHistoryDigest, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiHistoryDigestHint, Mode=OneWay}" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.HistoryDigestEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
+                        </StackPanel>
                 </StackPanel>
                 </ScrollViewer>
             </TabViewItem>

@@ -110,6 +110,18 @@ public sealed class ChatSystemPromptTextsTests
     }
 
     [Fact]
+    public void HistoryDigestInstruction_ForbidsQuotingAsVerbatim()
+    {
+        var ja = ChatSystemPromptTexts.HistoryDigestInstruction(japanese: true);
+        Assert.Contains("原文のように引用しない", ja);
+        Assert.Contains("直近の会話履歴を優先", ja);
+
+        var en = ChatSystemPromptTexts.HistoryDigestInstruction(japanese: false);
+        Assert.Contains("Do not quote it as verbatim", en);
+        Assert.Contains("Prefer the recent chat history", en);
+    }
+
+    [Fact]
     public void AttachmentInstruction_AsksToCiteReferenceUrls()
     {
         var ja = ChatSystemPromptTexts.AttachmentInstruction(japanese: true);
@@ -148,6 +160,7 @@ public sealed class ChatSystemPromptTextsTests
             ChatSystemPromptTexts.CharacterNameLine("花子", japanese: true),
             ChatSystemPromptTexts.UserAndCharacterNameDistinction("太郎", "花子", japanese: true),
             ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: true),
+            ChatSystemPromptTexts.HistoryDigestInstruction(japanese: true),
             ChatSystemPromptTexts.RagGroundingInstruction(japanese: true),
             ChatSystemPromptTexts.RagAdvisoryInstruction(japanese: true),
             ChatSystemPromptTexts.RagLegalAddendum(japanese: true, quotePenalty: true, singleArticle: true),

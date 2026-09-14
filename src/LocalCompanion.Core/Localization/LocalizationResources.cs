@@ -206,6 +206,7 @@ internal static partial class LocalizationResources
         ["Chat.Meta.ReasoningOn"] = "推論オン",
         ["Chat.Meta.Attachment"] = "添付",
         ["Chat.Meta.History"] = "会話履歴",
+        ["Chat.Meta.HistoryDigest"] = "履歴の要約を使用",
         ["Chat.Meta.LoadingModel"] = "起動中: {0}",
         ["Chat.Meta.MessageOnly"] = "このメッセージのみ",
 
@@ -366,6 +367,8 @@ internal static partial class LocalizationResources
         ["Settings.Memory.Enabled.Hint"] = "キャラクターごとに短い記憶をため、今の話題と関連するときだけ自然に思い出して返します（あいさつなど無関係な短文では差し込みません）。デフォルト AI には長期記憶はありません。画面上で一覧管理はしません。",
         ["Settings.Memory.AutoExtract"] = "会話終了時に自動で記憶を抽出",
         ["Settings.Memory.AutoExtract.Hint"] = "名前付きキャラクターとの会話を終えるときやアプリを閉じるとき、ローカル AI がそのキャラクター用に短い記憶を 0〜3 件内部保存します。デフォルト AI では抽出しません。同じ会話の直前の発言は「履歴」オプションが担当します。",
+        ["Settings.Memory.HistoryDigest"] = "会話が長いとき要約を残す",
+        ["Settings.Memory.HistoryDigest.Hint"] = "名前付きキャラクターとの会話で、履歴が入りきらないとき、落ちた古い発言を短い要約として次の返信から使います。チャットの「履歴」がオフのときと、デフォルト AI では使いません。",
         ["Settings.SpeechInput.Enabled"] = "音声入力を使う",
         ["Settings.SpeechInput.Enabled.Hint"] = "Windows の音声認識を使います。マイクが必要です。英語の音声パックが無い場合は日本語で聞き取ることがあります。",
         ["Settings.General.LlamaAutoUpdate"] = "llama.cpp を起動のたびに更新する",
@@ -700,6 +703,7 @@ internal static partial class LocalizationResources
         ["Chat.Meta.ReasoningOn"] = "Reasoning on",
         ["Chat.Meta.Attachment"] = "Attachment",
         ["Chat.Meta.History"] = "Chat history",
+        ["Chat.Meta.HistoryDigest"] = "History summary",
         ["Chat.Meta.LoadingModel"] = "Running: {0}",
         ["Chat.Meta.MessageOnly"] = "This message only",
 
@@ -860,6 +864,8 @@ internal static partial class LocalizationResources
         ["Settings.Memory.Enabled.Hint"] = "Stores short facts per character and may bring them up only when they relate to the current topic (not on unrelated short greetings). The default AI has no long-term memory. There is no on-screen memory list.",
         ["Settings.Memory.AutoExtract"] = "Auto-extract memories when a chat ends",
         ["Settings.Memory.AutoExtract.Hint"] = "When you end a named character's chat or close the app, the local AI may save up to 3 short facts for that character. The default AI does not extract memories. The History option covers recent turns in the same conversation.",
+        ["Settings.Memory.HistoryDigest"] = "Keep a summary when a chat grows long",
+        ["Settings.Memory.HistoryDigest.Hint"] = "For named characters, older turns that no longer fit are saved as a short summary and used from the next reply. This is unused when History is off, and the default AI does not use it.",
         ["Settings.SpeechInput.Enabled"] = "Use speech input",
         ["Settings.SpeechInput.Enabled.Hint"] = "Uses Windows speech recognition. A microphone is required. If the English speech pack is missing, Japanese recognition may be used instead.",
         ["Settings.General.LlamaAutoUpdate"] = "Update llama.cpp on every launch",

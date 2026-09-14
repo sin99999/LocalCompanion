@@ -110,6 +110,7 @@ public sealed class RagDatabase
         EnsureChatMessagesPresetKey(conn);
         EnsureChatMessagesSessionId(conn);
         EnsureConversationSessions(conn);
+        EnsureHistoryDigestColumns(conn);
         MigrateLegacyChatSessions(conn);
         EnsureCharacterProfileTopK(conn);
         EnsureRagChunkMetadata(conn);
@@ -449,6 +450,23 @@ public sealed class RagDatabase
             );
             """;
         cmd.ExecuteNonQuery();
+    }
+
+    private static void EnsureHistoryDigestColumns(SqliteConnection conn)
+    {
+        if (!ColumnExists(conn, "conversation_sessions", "history_digest"))
+        {
+            var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE conversation_sessions ADD COLUMN history_digest TEXT NOT NULL DEFAULT ''";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!ColumnExists(conn, "conversation_sessions", "history_digest_upto_id"))
+        {
+            var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE conversation_sessions ADD COLUMN history_digest_upto_id INTEGER NOT NULL DEFAULT 0";
+            alter.ExecuteNonQuery();
+        }
     }
 
     private static void MigrateLegacyChatSessions(SqliteConnection conn)
