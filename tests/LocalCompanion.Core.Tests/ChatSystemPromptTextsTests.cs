@@ -110,6 +110,19 @@ public sealed class ChatSystemPromptTextsTests
     }
 
     [Fact]
+    public void AppearanceReferenceInstruction_ForbidsInventingFeatures()
+    {
+        var ja = ChatSystemPromptTexts.AppearanceReferenceInstruction(japanese: true);
+        Assert.Contains("見た目情報を優先", ja);
+        Assert.Contains("載っていない特徴は作らない", ja);
+        Assert.Contains("キャラクター", ja);
+
+        var en = ChatSystemPromptTexts.AppearanceReferenceInstruction(japanese: false);
+        Assert.Contains("Do not invent features", en);
+        Assert.Contains("image-generation", en);
+    }
+
+    [Fact]
     public void HistoryDigestInstruction_ForbidsQuotingAsVerbatim()
     {
         var ja = ChatSystemPromptTexts.HistoryDigestInstruction(japanese: true);
@@ -161,6 +174,7 @@ public sealed class ChatSystemPromptTextsTests
             ChatSystemPromptTexts.UserAndCharacterNameDistinction("太郎", "花子", japanese: true),
             ChatSystemPromptTexts.SpontaneousMemoryInstruction(japanese: true),
             ChatSystemPromptTexts.HistoryDigestInstruction(japanese: true),
+            ChatSystemPromptTexts.AppearanceReferenceInstruction(japanese: true),
             ChatSystemPromptTexts.RagGroundingInstruction(japanese: true),
             ChatSystemPromptTexts.RagAdvisoryInstruction(japanese: true),
             ChatSystemPromptTexts.RagLegalAddendum(japanese: true, quotePenalty: true, singleArticle: true),

@@ -18,7 +18,9 @@ public sealed record ChatRequestDto(
     bool UseHistory = true,
     string? SessionId = null,
     bool ContinueSession = false,
-    IReadOnlyList<string>? WebSourceUrls = null);
+    IReadOnlyList<string>? WebSourceUrls = null,
+    bool UsedAppearanceLocal = false,
+    bool UsedAppearanceWeb = false);
 
 public sealed record ClearHistoryRequest(string? PresetKey = null);
 
@@ -533,6 +535,8 @@ public sealed class ChatService
         var (systemParts, promptContext) = await BuildSystemPartsAsync(
             profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
         _ = TryAppendHistoryDigest(systemParts, historyMode, japaneseReply);
+        if (ChatAppearanceLookup.LooksLikeAppearanceRequest(req.Message))
+            systemParts.Add(ChatSystemPromptTexts.AppearanceReferenceInstruction(japaneseReply));
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -718,6 +722,8 @@ public sealed class ChatService
         var (systemParts, promptContext) = await BuildSystemPartsAsync(
             profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
         var usedHistoryDigest = TryAppendHistoryDigest(systemParts, historyMode, japaneseReply);
+        if (ChatAppearanceLookup.LooksLikeAppearanceRequest(req.Message))
+            systemParts.Add(ChatSystemPromptTexts.AppearanceReferenceInstruction(japaneseReply));
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
 
@@ -764,7 +770,9 @@ public sealed class ChatService
                 usedHistoryDigest: false,
                 usedAttachment: hasFile,
                 modelFileName,
-                runtime);
+                runtime,
+                req.UsedAppearanceLocal,
+                req.UsedAppearanceWeb);
             yield return new ChatStreamChunkDto(
                 "done",
                 finalVerbatim,
@@ -939,7 +947,9 @@ public sealed class ChatService
             usedHistoryDigest,
             hasFile,
             modelFileName,
-            runtime);
+            runtime,
+            req.UsedAppearanceLocal,
+            req.UsedAppearanceWeb);
         yield return new ChatStreamChunkDto(
             "done",
             reply,
@@ -956,7 +966,9 @@ public sealed class ChatService
         bool usedHistoryDigest,
         bool usedAttachment,
         string? modelFileName,
-        ModelRuntimeStatus runtime)
+        ModelRuntimeStatus runtime,
+        bool usedAppearanceLocal = false,
+        bool usedAppearanceWeb = false)
     {
         var loc = LocalizationService.Instance;
         var parts = new List<string>();
@@ -966,6 +978,8 @@ public sealed class ChatService
         if (usedAttachment) parts.Add(loc.Get("Chat.Meta.Attachment"));
         if (usedHistory) parts.Add(loc.Get("Chat.Meta.History"));
         if (usedHistoryDigest) parts.Add(loc.Get("Chat.Meta.HistoryDigest"));
+        if (usedAppearanceLocal) parts.Add(loc.Get("Chat.Meta.AppearanceLocal"));
+        if (usedAppearanceWeb) parts.Add(loc.Get("Chat.Meta.AppearanceWeb"));
         if (!string.IsNullOrWhiteSpace(modelFileName)) parts.Add(loc.Format("Chat.Meta.LoadingModel", modelFileName));
         if (runtime.ModelMismatch && !string.IsNullOrWhiteSpace(runtime.StatusMessage)) parts.Add(runtime.StatusMessage);
         return parts.Count > 0 ? string.Join(" · ", parts) : loc.Get("Chat.Meta.MessageOnly");
@@ -1134,7 +1148,21 @@ public sealed class ChatService
             Math.Max(1000, _opt.MaxAttachTextChars),
             ct);
 
-        // 2) URL が無く調査意図があるときだけ Web 検索（追質問は前ターン込みで RAG と揃える）
+        req = await ChatAppearanceLookupEnricher.EnrichAsync(
+            req,
+            _presets.LoadAllNamedPresets(),
+            _opt.WebSearchEnabled,
+            _opt.WebSearchBaseUrl,
+            Math.Clamp(_opt.WebSearchTopK, 1, 8),
+            Math.Clamp(_opt.WebSearchFetchTopK, 0, 4),
+            Math.Max(1000, _opt.InlineUrlMaxChars),
+            Math.Max(1000, _opt.MaxAttachTextChars),
+            ct);
+
+        // 見た目参照のターンは、見つからなくても汎用 Web 調査に流さない。
+        if (ChatAppearanceLookup.LooksLikeAppearanceRequest(req.Message))
+            return req;
+
         var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
         req = await ChatAgentResearchEnricher.EnrichAsync(
             req,

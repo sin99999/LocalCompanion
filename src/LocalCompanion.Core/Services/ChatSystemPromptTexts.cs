@@ -149,6 +149,12 @@ internal static class ChatSystemPromptTexts
             ? "【古い会話の要約の扱い】上の要約はコンテキストから落ちた古い発言の要約です。原文のように引用しないでください。直近の会話履歴を優先します。"
             : "[Older conversation summary] The block above summarizes older turns that no longer fit. Do not quote it as verbatim. Prefer the recent chat history.";
 
+    /// <summary>見た目参照の添付があるターンだけ付ける。</summary>
+    internal static string AppearanceReferenceInstruction(bool japanese) =>
+        japanese
+            ? "【見た目参考の扱い】添付の見た目情報を優先し、画像生成用の短い描写やタグにまとめてください。載っていない特徴は作らないでください。キャラクターの口調は保ちます。"
+            : "[Appearance reference] Prefer the attached look notes. Summarize them as a short image-generation description or tags. Do not invent features that are not in the attachment. Keep the character voice.";
+
     /// <summary>テキスト添付・URL・Web 検索結果があるターンだけ付ける。</summary>
     internal static string AttachmentInstruction(bool japanese) =>
         japanese

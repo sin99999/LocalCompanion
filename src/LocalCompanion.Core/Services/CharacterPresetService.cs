@@ -92,6 +92,21 @@ public sealed class CharacterPresetService
         return new CharacterPresetsResponse(_charactersDir, active, presets, CharacterSamplingLimits.ToDto());
     }
 
+    /// <summary>見た目参照用。selection.json 以外の登録キャラクター。</summary>
+    internal IReadOnlyList<CharacterAppearancePreset> LoadAllNamedPresets()
+    {
+        var list = new List<CharacterAppearancePreset>();
+        foreach (var info in ScanPresetFiles())
+        {
+            var profile = TryLoadFile(info.FileName);
+            if (profile is null)
+                continue;
+            list.Add(new CharacterAppearancePreset(info.FileName, profile));
+        }
+
+        return list;
+    }
+
     /// <summary>チャットで選択中のキャラ json ファイル名。選択なし（デフォルト）時は <see cref="NoneSelection"/>。</summary>
     public string? GetActivePresetFileName() => LoadActiveFileName();
 
