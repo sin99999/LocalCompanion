@@ -33,6 +33,11 @@ internal static class MmprojSupport
                 return near;
         }
 
+        // Extra folder belongs to the running install, not an arbitrary sandbox root
+        // (unit tests pass a temp root; DataDirectory still falls back to LocalAppData).
+        if (!IsRunningAppRoot(root))
+            return null;
+
         var settings = LlamaInstallConfig.Load(root);
         var dataDir = AppPaths.ResolveUserDataDirectory(settings.DataDirectory);
         var extra = ModelLibrarySettings.LoadAdditionalFolder(dataDir);
@@ -313,6 +318,21 @@ internal static class MmprojSupport
         }
 
         return null;
+    }
+
+    private static bool IsRunningAppRoot(string root)
+    {
+        try
+        {
+            return string.Equals(
+                Path.GetFullPath(root),
+                Path.GetFullPath(AppPaths.Current.Root),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string InferRootFromModelsDir(string modelsDir) =>

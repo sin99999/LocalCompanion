@@ -44,6 +44,7 @@ public sealed class MmprojSupportTests
             const string name = "Huihui-Qwen3.8-27B-abliterated-UD-IQ4_XS.gguf";
             Assert.True(MmprojFamilyRegistry.LooksVisionCapable(name, root));
             Assert.NotNull(MmprojFamilyRegistry.TryMatchFamily(name, root));
+            // Temp root must not inherit mmproj from the machine additional-models folder.
             Assert.True(MmprojSupport.NeedsKnownMmprojDownload(root, name));
         }
         finally
