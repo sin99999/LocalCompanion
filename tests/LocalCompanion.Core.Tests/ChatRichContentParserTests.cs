@@ -119,6 +119,88 @@ public sealed class ChatRichContentParserTests
     }
 
     [Fact]
+    public void ParseBlocks_FencedMarkdownTable_IsTableNotCode()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks(
+            """
+            ```
+            | 名前 | 数 |
+            | --- | --- |
+            | a | 1 |
+            ```
+            """,
+            sentenceBreaks: false);
+
+        var table = Assert.Single(blocks);
+        Assert.Equal(ChatDisplayBlockKind.Table, table.Kind);
+        Assert.Equal(["名前", "数"], table.TableHeader);
+        Assert.Equal(["a", "1"], Assert.Single(table.TableRows));
+    }
+
+    [Fact]
+    public void ParseBlocks_FencedJammedTable_IsTableNotCode()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks(
+            """
+            ```
+            | 行 | 列 | 中身（例文） | ---------------- | 主体 | 1 | 服装／対象名 | 2 | 髪型・色 |
+            ```
+            """,
+            sentenceBreaks: false);
+
+        Assert.DoesNotContain(blocks, b => b.Kind == ChatDisplayBlockKind.Code);
+        var table = Assert.Single(blocks, b => b.Kind == ChatDisplayBlockKind.Table);
+        Assert.Contains("行", table.TableHeader);
+        Assert.Contains("列", table.TableHeader);
+        Assert.Contains("主体", table.TableHeader.Concat(table.TableRows.SelectMany(r => r)));
+    }
+
+    [Fact]
+    public void ParseBlocks_FencedList_IsListNotCode()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks(
+            """
+            ```
+            - りんご
+            - みかん
+            ```
+            """,
+            sentenceBreaks: false);
+
+        var list = Assert.Single(blocks);
+        Assert.Equal(ChatDisplayBlockKind.List, list.Kind);
+        Assert.Equal(["りんご", "みかん"], list.ListItems);
+    }
+
+    [Fact]
+    public void ParseBlocks_FencedPowerShell_StaysCode()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks(
+            """
+            ```powershell
+            dotnet build LocalCompanion.csproj -c Debug
+            ```
+            """,
+            sentenceBreaks: false);
+
+        var code = Assert.Single(blocks);
+        Assert.Equal(ChatDisplayBlockKind.Code, code.Kind);
+        Assert.Contains("dotnet build", code.CodeText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ParseBlocks_UnfencedCommand_IsCode()
+    {
+        var blocks = ChatRichContentParser.ParseBlocks(
+            "dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64",
+            sentenceBreaks: false);
+
+        var code = Assert.Single(blocks);
+        Assert.Equal(ChatDisplayBlockKind.Code, code.Kind);
+        Assert.StartsWith("dotnet build", code.CodeText);
+    }
+
+    [Fact]
     public void ParseBlocks_HeadingPrefix_IsStrippedToParagraph()
     {
         var blocks = ChatRichContentParser.ParseBlocks("# 見出し", sentenceBreaks: false);

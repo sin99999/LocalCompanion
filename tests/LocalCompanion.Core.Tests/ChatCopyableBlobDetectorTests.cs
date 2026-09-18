@@ -37,6 +37,33 @@ public sealed class ChatCopyableBlobDetectorTests
     }
 
     [Fact]
+    public void IsCopyableBlob_MarkdownTableRow_IsFalse()
+    {
+        Assert.False(ChatCopyableBlobDetector.IsCopyableBlob(
+            "| 行 | 列 | 中身（例文） | 主体 | 1 | 服装／対象名 | 2 | 髪型・色 | 3 | 表情 | 4 | 姿勢 | 5 | 背景環境 | 6 | 照明 |"));
+    }
+
+    [Fact]
+    public void IsCopyableBlob_DotnetCommand_IsTrue()
+    {
+        Assert.True(ChatCopyableBlobDetector.IsCopyableBlob(
+            "dotnet build LocalCompanion.csproj -c Debug -p:Platform=x64"));
+    }
+
+    [Fact]
+    public void IsCopyableBlob_PowerShellFileInvoke_IsTrue()
+    {
+        Assert.True(ChatCopyableBlobDetector.IsCopyableBlob(
+            "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-debug-winui.ps1"));
+    }
+
+    [Fact]
+    public void IsCopyableBlob_GitTalkProse_IsFalse()
+    {
+        Assert.False(ChatCopyableBlobDetector.IsCopyableBlob("git の話をしよう"));
+    }
+
+    [Fact]
     public void TextForDisplay_UnwrapsCornerQuotes()
     {
         var inner = ChatCopyableBlobDetector.TextForDisplay("「1girl, solo, smile, looking at viewer」");

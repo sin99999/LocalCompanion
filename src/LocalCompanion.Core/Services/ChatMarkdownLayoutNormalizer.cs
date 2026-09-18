@@ -58,6 +58,31 @@ public static partial class ChatMarkdownLayoutNormalizer
     internal static bool IsHorizontalRuleLine(string line) =>
         HorizontalRuleOnlyRegex().IsMatch(line.Trim());
 
+    internal static bool LooksLikeMarkdownTable(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        foreach (var raw in text.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length < 5 || !line.StartsWith('|') || !line.EndsWith('|'))
+                continue;
+
+            var pipes = 0;
+            foreach (var ch in line)
+            {
+                if (ch == '|')
+                    pipes++;
+            }
+
+            if (pipes >= 3)
+                return true;
+        }
+
+        return false;
+    }
+
     internal static bool IsTableNoiseLine(string line)
     {
         var trimmed = line.Trim();

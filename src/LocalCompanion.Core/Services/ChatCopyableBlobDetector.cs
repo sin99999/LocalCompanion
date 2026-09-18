@@ -1,8 +1,15 @@
 ﻿namespace LocalCompanion.Services;
 
-/// <summary>フェンス無しでもコピーボタンを付けたい塊（SD / Midjourney プロンプト等）。</summary>
+/// <summary>フェンス無しでもコピーボタンを付けたい塊（SD / Midjourney プロンプト、シェルコマンド等）。表は対象外。</summary>
 public static class ChatCopyableBlobDetector
 {
+    private static readonly string[] CommandPrefixes =
+    [
+        "dotnet ", "git ", "powershell ", "pwsh ", "cmd ", "pip ", "pip3 ",
+        "npm ", "npx ", "python ", "py ", "cargo ", "curl ", "adb ",
+        "ffmpeg ", "winget ", "choco ", "uv ",
+    ];
+
     public static bool IsCopyableBlob(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -12,13 +19,41 @@ public static class ChatCopyableBlobDetector
         if (t.Length < 8)
             return false;
 
-        if (HasCopyableLabel(t) || HasImagineFlags(t))
+        if (ChatMarkdownLayoutNormalizer.LooksLikeMarkdownTable(t))
+            return false;
+
+        if (HasCopyableLabel(t) || HasImagineFlags(t) || LooksLikeCommand(t))
             return true;
 
         return LooksLikeTagList(t);
     }
 
     public static string TextForDisplay(string text) => UnwrapQuotes(text.Trim());
+
+    private static bool LooksLikeCommand(string text)
+    {
+        var t = text.Trim();
+        if (t.StartsWith(".\\", StringComparison.Ordinal) || t.StartsWith("./", StringComparison.Ordinal))
+            return t.Length >= 8;
+
+        if (t.StartsWith("& '", StringComparison.Ordinal) || t.StartsWith("& \"", StringComparison.Ordinal))
+            return true;
+
+        foreach (var prefix in CommandPrefixes)
+        {
+            if (!t.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var rest = t[prefix.Length..];
+            if (rest.Length == 0)
+                return false;
+
+            var c = rest[0];
+            return c <= 0x7F && (char.IsLetterOrDigit(c) || c is '-' or '.' or '/' or '\\' or '"' or '\'');
+        }
+
+        return false;
+    }
 
     private static bool HasCopyableLabel(string text)
     {

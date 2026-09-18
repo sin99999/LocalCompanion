@@ -17,6 +17,12 @@ public static partial class ChatRichContentParser
         {
             if (segment.IsCode)
             {
+                if (ShouldParseFencedAsProse(segment.Language, segment.Text))
+                {
+                    blocks.AddRange(ParseProseBlocks(segment.Text, sentenceBreaks));
+                    continue;
+                }
+
                 blocks.Add(new ChatDisplayBlock
                 {
                     Kind = ChatDisplayBlockKind.Code,
@@ -29,6 +35,37 @@ public static partial class ChatRichContentParser
         }
 
         return blocks.Count > 0 ? blocks : Array.Empty<ChatDisplayBlock>();
+    }
+
+    private static readonly HashSet<string> KeepFencedLanguages = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "powershell", "ps1", "pwsh", "bash", "sh", "zsh", "cmd", "bat",
+        "csharp", "cs", "python", "py", "javascript", "js", "typescript", "ts",
+        "json", "xml", "html", "css", "yaml", "yml", "sql", "rust", "go",
+        "java", "c", "cpp", "h", "lua", "ruby", "php", "kotlin", "swift",
+        "dockerfile", "docker", "toml", "ini", "diff",
+    };
+
+    private static bool ShouldParseFencedAsProse(string? language, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+        if (!string.IsNullOrWhiteSpace(language) && KeepFencedLanguages.Contains(language))
+            return false;
+
+        return ChatMarkdownLayoutNormalizer.LooksLikeMarkdownTable(text)
+               || LooksLikeMarkdownListOnly(text);
+    }
+
+    private static bool LooksLikeMarkdownListOnly(string text)
+    {
+        var lines = text
+            .Replace("\r\n", "\n")
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToList();
+        return lines.Count >= 2 && lines.All(IsListLine);
     }
 
     private static IReadOnlyList<ChatDisplayBlock> ParseProseBlocks(string? text, bool sentenceBreaks)
