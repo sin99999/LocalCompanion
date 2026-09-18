@@ -74,11 +74,8 @@ public sealed class ChatRichContentParserTests
 
         var table = Assert.Single(blocks);
         Assert.Equal(ChatDisplayBlockKind.Table, table.Kind);
-        // いまの正規化は | セル | を縦並びにほぐすことがある。列のきれいさより「表になる／中身が残る」を契約にする
-        Assert.Contains("名前", table.TableHeader);
-        Assert.Contains("数", table.TableHeader);
-        Assert.True(table.TableRows.Count >= 1, "body row missing");
-        Assert.Contains("1", table.TableRows.SelectMany(r => r));
+        Assert.Equal(["名前", "数"], table.TableHeader);
+        Assert.Equal(["a", "1"], Assert.Single(table.TableRows));
     }
 
     [Fact]
@@ -152,5 +149,32 @@ public sealed class ChatRichContentParserTests
         Assert.Equal(["りんご", "みかん", "ばなな"], table.TableHeader);
         var row = Assert.Single(table.TableRows);
         Assert.Equal(["1", "2", "3"], row);
+    }
+
+    [Fact]
+    public void ParseBlocks_JammedOneLineMarkdownTable_BecomesFourColumnTable()
+    {
+        const string body =
+            "The layout forms a compact3x4 table where the viewer sees:| apple | banana | cherry | date ||-------|--------|--------|--------|| elephant | fox | grape | house || igloo | jellyfish | kiwi | lemon |";
+
+        var blocks = ChatRichContentParser.ParseBlocks(body, sentenceBreaks: true);
+        var table = Assert.Single(blocks, b => b.Kind == ChatDisplayBlockKind.Table);
+        Assert.Equal(["apple", "banana", "cherry", "date"], table.TableHeader);
+        Assert.Equal(2, table.TableRows.Count);
+        Assert.Equal(["elephant", "fox", "grape", "house"], table.TableRows[0]);
+        Assert.Equal(["igloo", "jellyfish", "kiwi", "lemon"], table.TableRows[1]);
+    }
+
+    [Fact]
+    public void ParseBlocks_TabSeparatedThreeByFourGrid_BecomesTable()
+    {
+        const string body = "apple\tbanana\tcherry\tdate\nelephant\tfox\tgrape\thouse\nigloo\tjellyfish\tkiwi\tlemon";
+
+        var blocks = ChatRichContentParser.ParseBlocks(body, sentenceBreaks: false);
+        var table = Assert.Single(blocks, b => b.Kind == ChatDisplayBlockKind.Table);
+        Assert.Equal(["apple", "banana", "cherry", "date"], table.TableHeader);
+        Assert.Equal(2, table.TableRows.Count);
+        Assert.Equal(["elephant", "fox", "grape", "house"], table.TableRows[0]);
+        Assert.Equal(["igloo", "jellyfish", "kiwi", "lemon"], table.TableRows[1]);
     }
 }

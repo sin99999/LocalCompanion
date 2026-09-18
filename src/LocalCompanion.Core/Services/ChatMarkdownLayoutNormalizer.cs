@@ -22,8 +22,8 @@ public static partial class ChatMarkdownLayoutNormalizer
         // ---### / ---####
         t = HorizontalRuleWithHeadingRegex().Replace(t, "\n---\n${heading}");
 
-        // 単独の ---
-        t = HorizontalRuleRegex().Replace(t, "\n---\n");
+        // 単独の ---（表の |---| は触らない）
+        t = BreakJammedHorizontalRules(t);
 
         // 見出し #〜######
         t = MarkdownHeadingRegex().Replace(t, "\n${heading}");
@@ -36,6 +36,9 @@ public static partial class ChatMarkdownLayoutNormalizer
 
         // 行頭|なしの A | B | C 形式を表行に
         t = PromotePipeDelimitedLines(t);
+
+        // タブ区切りの行列（モデルが | を使わないとき）
+        t = PromoteTabDelimitedTables(t);
 
         // 行頭の - リスト（テーブル行内の --- は触らない）
         t = ApplyDashBulletBreaks(t);
@@ -62,6 +65,73 @@ public static partial class ChatMarkdownLayoutNormalizer
             return true;
 
         return TableNoiseLineRegex().IsMatch(trimmed);
+    }
+
+    private static string BreakJammedHorizontalRules(string text)
+    {
+        var lines = text.Split('\n');
+        var sb = new StringBuilder(text.Length + 8);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (i > 0)
+                sb.Append('\n');
+
+            var line = lines[i];
+            if (line.Contains('|'))
+                sb.Append(line);
+            else
+                sb.Append(HorizontalRuleRegex().Replace(line, "\n---\n"));
+        }
+
+        return sb.ToString();
+    }
+
+    private static string PromoteTabDelimitedTables(string text)
+    {
+        var lines = text.Split('\n');
+        var result = new List<string>(lines.Length);
+        var i = 0;
+        while (i < lines.Length)
+        {
+            if (!TryTabRowColumnCount(lines[i], out var columns) || columns < 2)
+            {
+                result.Add(lines[i++]);
+                continue;
+            }
+
+            var start = i;
+            i++;
+            while (i < lines.Length && TryTabRowColumnCount(lines[i], out var next) && next == columns)
+                i++;
+
+            if (i - start < 2)
+            {
+                result.Add(lines[start]);
+                continue;
+            }
+
+            for (var r = start; r < i; r++)
+            {
+                var cells = lines[r].Trim().Split('\t').Select(c => c.Trim());
+                result.Add("| " + string.Join(" | ", cells) + " |");
+            }
+        }
+
+        return string.Join('\n', result);
+    }
+
+    private static bool TryTabRowColumnCount(string line, out int columns)
+    {
+        columns = 0;
+        if (line.Contains('|') || !line.Contains('\t'))
+            return false;
+
+        var cells = line.Trim().Split('\t');
+        if (cells.Length < 2)
+            return false;
+
+        columns = cells.Length;
+        return true;
     }
 
     private static string ApplyDashBulletBreaks(string text)
