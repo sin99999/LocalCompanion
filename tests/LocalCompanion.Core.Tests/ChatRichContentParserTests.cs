@@ -103,6 +103,25 @@ public sealed class ChatRichContentParserTests
     }
 
     [Fact]
+    public void ParseBlocks_JapaneseCommentBetweenPrompts_IsNotCopied()
+    {
+        const string body =
+            "beautiful Japanese woman, silk kimono, seiza pose, tea ceremony, masterpiece, best quality, highly detailed, 8k wallpaper "
+            + "しんや、これで試してみて！ "
+            + ", bad anatomy, text, error, extra digit, low quality, blurry, messy environment, distorted hands, weird fingers, westernized face";
+
+        var blocks = ChatRichContentParser.ParseBlocks(body, sentenceBreaks: true);
+        var codes = blocks.Where(b => b.Kind == ChatDisplayBlockKind.Code).ToList();
+        Assert.True(codes.Count >= 2, "positive and negative should stay copyable");
+        Assert.DoesNotContain(codes, c => c.CodeText.Contains("試してみて", StringComparison.Ordinal));
+        Assert.Contains(blocks, b => b.Kind == ChatDisplayBlockKind.Paragraph
+            && b.ParagraphLines.Any(l => l.Contains("試してみて", StringComparison.Ordinal)));
+        Assert.DoesNotContain(codes, c => c.CodeText.TrimStart().StartsWith(','));
+        Assert.Contains(codes, c => c.CodeText.Contains("bad anatomy", StringComparison.Ordinal));
+        Assert.Contains(codes, c => c.CodeText.Contains("8k wallpaper", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ParseBlocks_FencedCode_IsCodeBlock()
     {
         var blocks = ChatRichContentParser.ParseBlocks(

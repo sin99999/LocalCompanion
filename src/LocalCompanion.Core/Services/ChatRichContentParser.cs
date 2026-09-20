@@ -383,23 +383,26 @@ public static partial class ChatRichContentParser
         var pending = new List<string>();
         foreach (var line in lines)
         {
-            if (!ChatCopyableBlobDetector.IsCopyableBlob(line))
+            foreach (var part in ChatCopyableBlobDetector.Segment(line))
             {
-                pending.Add(line);
-                continue;
-            }
+                if (!part.IsBlob)
+                {
+                    pending.Add(part.Text);
+                    continue;
+                }
 
-            if (pending.Count > 0)
-            {
-                yield return Paragraph(pending);
-                pending = new List<string>();
-            }
+                if (pending.Count > 0)
+                {
+                    yield return Paragraph(pending);
+                    pending = new List<string>();
+                }
 
-            yield return new ChatDisplayBlock
-            {
-                Kind = ChatDisplayBlockKind.Code,
-                CodeText = ChatCopyableBlobDetector.TextForDisplay(line),
-            };
+                yield return new ChatDisplayBlock
+                {
+                    Kind = ChatDisplayBlockKind.Code,
+                    CodeText = part.Text,
+                };
+            }
         }
 
         if (pending.Count > 0)

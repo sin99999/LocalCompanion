@@ -69,4 +69,50 @@ public sealed class ChatCopyableBlobDetectorTests
         var inner = ChatCopyableBlobDetector.TextForDisplay("「1girl, solo, smile, looking at viewer」");
         Assert.Equal("1girl, solo, smile, looking at viewer", inner);
     }
+
+    [Fact]
+    public void TextForDisplay_StripsLeadingCommaOnTagList()
+    {
+        var text = ChatCopyableBlobDetector.TextForDisplay(
+            ", bad anatomy, text, error, extra digit, low quality, blurry, messy environment, distorted hands, weird fingers");
+        Assert.StartsWith("bad anatomy", text, StringComparison.Ordinal);
+        Assert.False(text.StartsWith(','));
+    }
+
+    [Fact]
+    public void TextForDisplay_StripsCommaAfterNegativeLabel()
+    {
+        var text = ChatCopyableBlobDetector.TextForDisplay(
+            "(Negative Prompt: , bad anatomy, extra digits, jpeg artifacts, lowres, blurry)");
+        Assert.Contains("Negative Prompt:", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Prompt: ,", text, StringComparison.Ordinal);
+        Assert.Contains("bad anatomy", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Segment_PeelsJapaneseCommentFromTagList()
+    {
+        const string line =
+            "beautiful Japanese woman, silk kimono, seiza, tea ceremony, masterpiece, best quality, highly detailed, 8k wallpaper "
+            + "しんや、これで試してみて！ , bad anatomy, text, error, extra digit, low quality, blurry, messy environment, distorted hands";
+
+        var parts = ChatCopyableBlobDetector.Segment(line);
+        Assert.Contains(parts, p => p.IsBlob && p.Text.Contains("8k wallpaper", StringComparison.Ordinal));
+        Assert.Contains(parts, p => !p.IsBlob && p.Text.Contains("試してみて", StringComparison.Ordinal));
+        Assert.Contains(parts, p => p.IsBlob && p.Text.Contains("bad anatomy", StringComparison.Ordinal));
+        Assert.DoesNotContain(parts, p => p.IsBlob && p.Text.Contains("試してみて", StringComparison.Ordinal));
+        Assert.DoesNotContain(parts, p => p.IsBlob && p.Text.StartsWith(','));
+    }
+
+    [Fact]
+    public void Segment_KeepsShortJapaneseTagsInBlob()
+    {
+        const string line =
+            "1girl, solo, 女の子, 着物, smile, looking at viewer, long hair, school uniform, sitting, outdoors, cherry blossoms";
+
+        var parts = ChatCopyableBlobDetector.Segment(line);
+        var blob = Assert.Single(parts);
+        Assert.True(blob.IsBlob);
+        Assert.Contains("着物", blob.Text, StringComparison.Ordinal);
+    }
 }
