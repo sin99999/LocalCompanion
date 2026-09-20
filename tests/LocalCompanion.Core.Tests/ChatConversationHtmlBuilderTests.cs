@@ -15,6 +15,31 @@ public sealed class ChatConversationHtmlBuilderTests
     }
 
     [Fact]
+    public void BuildShell_ProseUsesKinsokuFriendlyWrap()
+    {
+        var html = ChatConversationHtmlBuilder.BuildShell("Segoe UI", 14, "Copy", "Copied");
+        Assert.Contains("overflow-wrap: break-word;", html, StringComparison.Ordinal);
+        Assert.Contains("line-break: strict;", html, StringComparison.Ordinal);
+        var bodyCssStart = html.IndexOf("html, body {", StringComparison.Ordinal);
+        Assert.True(bodyCssStart >= 0);
+        var bodyCssEnd = html.IndexOf('}', bodyCssStart);
+        var bodyCss = html[bodyCssStart..bodyCssEnd];
+        Assert.DoesNotContain("overflow-wrap: anywhere;", bodyCss, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildBody_UserHalfWidthParenAside_StaysOneParagraph()
+    {
+        const string body =
+            "着物を着た女子高生(氷菓のエルたそみたいな？)と雪の積もる初詣に出かけるシチュをSDプロンプトで出力して？";
+        var html = ChatConversationHtmlBuilder.BuildBodyWithLinks(body, sentenceBreaks: false);
+        Assert.Contains(body, html, StringComparison.Ordinal);
+        Assert.Equal(1, CountTag(html, "<p>"));
+        Assert.DoesNotContain("生(<", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(">)と", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LinkifyEscaped_WrapsHttpUrl()
     {
         var html = ChatConversationHtmlBuilder.LinkifyEscaped("see https://example.com/a ok");
@@ -239,5 +264,13 @@ public sealed class ChatConversationHtmlBuilderTests
             new ChatConversationHtmlBuilder.Line("Assistant", null, "これは **大事** と `x` です", true));
         Assert.Contains("<strong>大事</strong>", html, StringComparison.Ordinal);
         Assert.Contains("<code>x</code>", html, StringComparison.Ordinal);
+    }
+
+    private static int CountTag(string html, string tag)
+    {
+        var n = 0;
+        for (var i = 0; (i = html.IndexOf(tag, i, StringComparison.Ordinal)) >= 0; i += tag.Length)
+            n++;
+        return n;
     }
 }

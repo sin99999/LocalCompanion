@@ -61,7 +61,8 @@ html, body {
   -webkit-user-select: text;
   user-select: text;
   word-wrap: break-word;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  line-break: strict;
 }
 #log { min-height: 100%; }
 .msg { margin: 0 0 14px 0; }

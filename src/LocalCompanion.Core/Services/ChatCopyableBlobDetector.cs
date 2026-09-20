@@ -57,7 +57,26 @@ public static class ChatCopyableBlobDetector
             parts.Add(ClassifyChunk(trimmed));
         }
 
+        CoalesceAdjacentProse(parts);
         return parts.Count > 0 ? parts : [ClassifyChunk(t)];
+    }
+
+    private static void CoalesceAdjacentProse(List<CopyablePart> parts)
+    {
+        if (parts.Count < 2)
+            return;
+
+        var merged = new List<CopyablePart>(parts.Count);
+        foreach (var part in parts)
+        {
+            if (!part.IsBlob && merged.Count > 0 && !merged[^1].IsBlob)
+                merged[^1] = new CopyablePart(false, merged[^1].Text + part.Text);
+            else
+                merged.Add(part);
+        }
+
+        parts.Clear();
+        parts.AddRange(merged);
     }
 
     private static CopyablePart ClassifyChunk(string text)
@@ -204,8 +223,12 @@ public static class ChatCopyableBlobDetector
         return (start, end);
     }
 
+    // 半角 ()[]{} は SD の強調にも日本語の補足にも使う。タグ区切りはカンマ。
     private static bool IsAsciiTagChar(char c) =>
-        c <= 0x7F && !char.IsWhiteSpace(c) && c is not ',' and not '!' and not '?' and not '.';
+        c <= 0x7F
+        && !char.IsWhiteSpace(c)
+        && c is not ',' and not '!' and not '?' and not '.'
+            and not '(' and not ')' and not '[' and not ']' and not '{' and not '}';
 
     private static bool IsHiragana(char c) => c is >= '\u3041' and <= '\u3096';
 

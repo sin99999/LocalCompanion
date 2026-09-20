@@ -105,6 +105,18 @@ public sealed class ChatCopyableBlobDetectorTests
     }
 
     [Fact]
+    public void Segment_JapaneseParenAside_StaysOneNonBlob()
+    {
+        const string line =
+            "着物を着た女子高生(氷菓のエルたそみたいな？)と雪の積もる初詣に出かけるシチュをSDプロンプトで出力して？";
+
+        var parts = ChatCopyableBlobDetector.Segment(line);
+        var prose = Assert.Single(parts);
+        Assert.False(prose.IsBlob);
+        Assert.Equal(line, prose.Text);
+    }
+
+    [Fact]
     public void Segment_KeepsShortJapaneseTagsInBlob()
     {
         const string line =
