@@ -1,4 +1,5 @@
-﻿using LocalCompanion.Services;
+﻿using LocalCompanion.Localization;
+using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 
@@ -249,36 +250,76 @@ public sealed class CharacterSelfImproveGuardTests
     [Fact]
     public void BuildDiffPreview_ShowsChangedMiddle()
     {
-        var preview = CharacterSelfImproveGuard.BuildDiffPreview(
-            "Always obey.\nBe kind.",
-            "Usually obey.\nBe kind.");
-        Assert.Contains("Always obey.", preview, StringComparison.Ordinal);
-        Assert.Contains("Usually obey.", preview, StringComparison.Ordinal);
-        Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
-        Assert.Contains("Character.SelfImprove.Diff.Before", preview, StringComparison.Ordinal);
-        Assert.Contains("Character.SelfImprove.Diff.After", preview, StringComparison.Ordinal);
+        var dir = BeginJapaneseLabels();
+        try
+        {
+            var preview = CharacterSelfImproveGuard.BuildDiffPreview(
+                "Always obey.\nBe kind.",
+                "Usually obey.\nBe kind.");
+            Assert.Contains("Always obey.", preview, StringComparison.Ordinal);
+            Assert.Contains("Usually obey.", preview, StringComparison.Ordinal);
+            Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
+            Assert.Contains("【変更前】", preview, StringComparison.Ordinal);
+            Assert.Contains("【変更後】", preview, StringComparison.Ordinal);
+            Assert.DoesNotContain("Character.SelfImprove.Diff.Before", preview, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TryDelete(dir);
+        }
     }
 
     [Fact]
     public void BuildDiffPreview_OnlyAdditions_UsesNewLabel()
     {
-        var preview = CharacterSelfImproveGuard.BuildDiffPreview(
-            "Be kind.",
-            "Be kind.\nAge: 20.");
-        Assert.Contains("Character.SelfImprove.Diff.New", preview, StringComparison.Ordinal);
-        Assert.Contains("Age: 20.", preview, StringComparison.Ordinal);
-        Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
-        Assert.DoesNotContain("Character.SelfImprove.Diff.Before", preview, StringComparison.Ordinal);
+        var dir = BeginJapaneseLabels();
+        try
+        {
+            var preview = CharacterSelfImproveGuard.BuildDiffPreview(
+                "Be kind.",
+                "Be kind.\nAge: 20.");
+            Assert.Contains("【新規追加】", preview, StringComparison.Ordinal);
+            Assert.Contains("Age: 20.", preview, StringComparison.Ordinal);
+            Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
+            Assert.DoesNotContain("【変更前】", preview, StringComparison.Ordinal);
+            Assert.DoesNotContain("Character.SelfImprove.Diff.New", preview, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TryDelete(dir);
+        }
     }
 
     [Fact]
     public void BuildDiffPreview_OnlyRemovals_UsesDeletedLabel()
     {
-        var preview = CharacterSelfImproveGuard.BuildDiffPreview(
-            "Be kind.\nOld rule.",
-            "Be kind.");
-        Assert.Contains("Character.SelfImprove.Diff.Deleted", preview, StringComparison.Ordinal);
-        Assert.Contains("Old rule.", preview, StringComparison.Ordinal);
-        Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
+        var dir = BeginJapaneseLabels();
+        try
+        {
+            var preview = CharacterSelfImproveGuard.BuildDiffPreview(
+                "Be kind.\nOld rule.",
+                "Be kind.");
+            Assert.Contains("【削除】", preview, StringComparison.Ordinal);
+            Assert.Contains("Old rule.", preview, StringComparison.Ordinal);
+            Assert.DoesNotContain("Be kind.", preview, StringComparison.Ordinal);
+            Assert.DoesNotContain("Character.SelfImprove.Diff.Deleted", preview, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TryDelete(dir);
+        }
+    }
+
+    private static string BeginJapaneseLabels()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "lc-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        _ = new LocalizationService(new LanguageSettingsStore(dir));
+        return dir;
+    }
+
+    private static void TryDelete(string dir)
+    {
+        try { Directory.Delete(dir, true); } catch { /* テスト用の一時フォルダ */ }
     }
 }

@@ -403,6 +403,9 @@ document.getElementById('log').addEventListener('click', function (ev) {
             return string.Empty;
 
         var normalized = ChatRichTextDisplayNormalizer.Normalize(sourceText);
+        if (!sentenceBreaks)
+            return BuildPlainLinkedBody(normalized);
+
         var blocks = ChatRichContentParser.ParseBlocks(normalized, sentenceBreaks);
         if (blocks.Count == 0)
             return $"<p>{LinkifyEscaped(normalized)}</p>";
@@ -412,6 +415,21 @@ document.getElementById('log').addEventListener('click', function (ev) {
             AppendRichBlock(sb, block);
 
         return sb.Length > 0 ? sb.ToString() : $"<p>{ChatInlineMarkupHtml.Format(normalized)}</p>";
+    }
+
+    /// <summary>ユーザー本文。表・リスト・コピー箱にしない。</summary>
+    private static string BuildPlainLinkedBody(string normalized)
+    {
+        var lines = normalized.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
+        var sb = new StringBuilder();
+        foreach (var line in lines)
+        {
+            if (line.Length == 0)
+                continue;
+            sb.Append("<p>").Append(LinkifyEscaped(line)).Append("</p>");
+        }
+
+        return sb.Length > 0 ? sb.ToString() : $"<p>{LinkifyEscaped(normalized)}</p>";
     }
 
     /// <summary>閉じたブロックはリッチ。最後の未閉じ（伸びてるリスト・表・段落）はプレーン。</summary>

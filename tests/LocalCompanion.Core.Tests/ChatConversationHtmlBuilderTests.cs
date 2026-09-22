@@ -207,8 +207,31 @@ public sealed class ChatConversationHtmlBuilderTests
         Assert.Equal("3. とにかく今の話を続けて盛り上がる！", expanded);
 
         var html = ChatConversationHtmlBuilder.BuildBodyWithLinks(expanded, sentenceBreaks: false);
-        Assert.Contains("class=\"list-mark\">3. ", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("class=\"list-mark\">1. ", html, StringComparison.Ordinal);
+        Assert.Contains("3. とにかく今の話を続けて盛り上がる！", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("chat-list", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("1. 他にも", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildBody_UserMarkdownAndTagList_StaysPlain()
+    {
+        const string body = """
+            - りんご
+
+            | 名前 | 数 |
+            | --- | --- |
+            | a | 1 |
+
+            (Masterpiece, Best quality, 1girl, solo, smile, looking at viewer, long hair, school uniform)
+            """;
+
+        var html = ChatConversationHtmlBuilder.BuildBodyWithLinks(body, sentenceBreaks: false);
+        Assert.Contains("りんご", html, StringComparison.Ordinal);
+        Assert.Contains("| 名前 | 数 |", html, StringComparison.Ordinal);
+        Assert.Contains("Masterpiece", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("chat-list", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("chat-table", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("chat-code", html, StringComparison.Ordinal);
     }
 
     [Fact]
