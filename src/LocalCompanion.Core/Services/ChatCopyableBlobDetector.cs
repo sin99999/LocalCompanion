@@ -26,6 +26,9 @@ public static class ChatCopyableBlobDetector
         if (ChatMarkdownLayoutNormalizer.LooksLikeMarkdownTable(t))
             return false;
 
+        if (IsLabelOnly(t))
+            return false;
+
         if (HasCopyableLabel(t) || HasImagineFlags(t) || LooksLikeCommand(t))
             return true;
 
@@ -42,6 +45,9 @@ public static class ChatCopyableBlobDetector
 
         var t = line.Trim();
         if (ChatMarkdownLayoutNormalizer.LooksLikeMarkdownTable(t))
+            return [new CopyablePart(false, t)];
+
+        if (IsLabelOnly(t))
             return [new CopyablePart(false, t)];
 
         if (HasCopyableLabel(t) || HasImagineFlags(t) || LooksLikeCommand(t))
@@ -252,6 +258,31 @@ public static class ChatCopyableBlobDetector
 
             var c = rest[0];
             return c <= 0x7F && (char.IsLetterOrDigit(c) || c is '-' or '.' or '/' or '\\' or '"' or '\'');
+        }
+
+        return false;
+    }
+
+    private static bool IsLabelOnly(string text)
+    {
+        var t = UnwrapQuotes(text.Trim()).Trim().TrimStart('(').TrimEnd(')').Trim();
+        string[] labels =
+        [
+            "Negative Prompt",
+            "Positive Prompt",
+            "Prompt",
+            "ネガティブプロンプト",
+            "ポジティブプロンプト",
+        ];
+        foreach (var label in labels)
+        {
+            var ignore = label[0] <= 0x7F ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (!t.StartsWith(label, ignore))
+                continue;
+
+            var rest = t[label.Length..].Trim().TrimStart(':', '：').Trim();
+            if (rest.Length == 0)
+                return true;
         }
 
         return false;

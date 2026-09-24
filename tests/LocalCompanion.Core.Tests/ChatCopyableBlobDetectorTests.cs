@@ -71,6 +71,17 @@ public sealed class ChatCopyableBlobDetectorTests
     }
 
     [Fact]
+    public void Segment_LabelOnly_IsNotACopyBox()
+    {
+        foreach (var label in new[] { "ポジティブプロンプト", "ネガティブプロンプト" })
+        {
+            var parts = ChatCopyableBlobDetector.Segment(label);
+            var part = Assert.Single(parts);
+            Assert.False(part.IsBlob);
+        }
+    }
+
+    [Fact]
     public void TextForDisplay_StripsLeadingCommaOnTagList()
     {
         var text = ChatCopyableBlobDetector.TextForDisplay(
