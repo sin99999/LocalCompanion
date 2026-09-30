@@ -89,6 +89,7 @@ public sealed partial class ChatPage : Page
         CacheInputAreaBorderDefaults();
         WireInputFlyouts();
         WireInputContextFlyout();
+        WirePasteAccelerator();
         LocalizationService.Instance.Changed += OnLocalizationChanged;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.Messages.CollectionChanged += OnMessagesCollectionChanged;
@@ -205,7 +206,7 @@ public sealed partial class ChatPage : Page
             KeyboardAcceleratorTextOverride = "Ctrl+V",
         };
         paste.Click += async (_, _) => await PasteIntoInputAsync();
-        paste.IsEnabled = Clipboard.GetContent().Contains(StandardDataFormats.Text);
+        paste.IsEnabled = ClipboardCanPaste();
         _inputContextFlyout.Items.Add(paste);
 
         var cut = new MenuFlyoutItem
@@ -238,17 +239,125 @@ public sealed partial class ChatPage : Page
         _inputContextFlyout.Items.Add(selectAll);
     }
 
+    private bool _pasteAcceleratorWired;
+    private int _pasteBusy;
+
+    private void WirePasteAccelerator()
+    {
+        if (_pasteAcceleratorWired)
+            return;
+
+        var accel = new KeyboardAccelerator
+        {
+            Key = VirtualKey.V,
+            Modifiers = VirtualKeyModifiers.Control,
+        };
+        accel.Invoked += OnPasteImageAccelerator;
+        InputBox.KeyboardAccelerators.Add(accel);
+        _pasteAcceleratorWired = true;
+    }
+
+    private void OnPasteImageAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (!ClipboardOffersImage())
+            return;
+
+        args.Handled = true;
+        _ = PasteIntoInputAsync();
+    }
+
+    private static bool ClipboardOffersImage()
+    {
+        try
+        {
+            var data = Clipboard.GetContent();
+            if (data.Contains(StandardDataFormats.Bitmap))
+                return true;
+
+            return data.Contains(StandardDataFormats.StorageItems)
+                && !data.Contains(StandardDataFormats.Text);
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "ClipboardOffersImage");
+            return false;
+        }
+    }
+
+    private static bool ClipboardCanPaste()
+    {
+        try
+        {
+            var data = Clipboard.GetContent();
+            return data.Contains(StandardDataFormats.Text)
+                || data.Contains(StandardDataFormats.Bitmap)
+                || data.Contains(StandardDataFormats.StorageItems);
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "ClipboardCanPaste");
+            return false;
+        }
+    }
+
     private async Task PasteIntoInputAsync()
     {
-        var data = Clipboard.GetContent();
-        if (!data.Contains(StandardDataFormats.Text))
+        if (Interlocked.Exchange(ref _pasteBusy, 1) == 1)
             return;
 
-        var text = await data.GetTextAsync();
-        if (string.IsNullOrEmpty(text))
-            return;
+        try
+        {
+            var data = Clipboard.GetContent();
+            if (await TryAttachClipboardImageAsync(data))
+                return;
 
-        ReplaceInputSelection(text);
+            if (!data.Contains(StandardDataFormats.Text))
+                return;
+
+            var text = await data.GetTextAsync();
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            ReplaceInputSelection(text);
+        }
+        catch (Exception ex)
+        {
+            ViewModel.ReportError(ex);
+            StartupLog.Write(ex, "PasteIntoInput");
+        }
+        finally
+        {
+            _pasteBusy = 0;
+        }
+    }
+
+    private async Task<bool> TryAttachClipboardImageAsync(DataPackageView data)
+    {
+        if (!ViewModel.IsInputEnabled)
+            return false;
+
+        if (data.Contains(StandardDataFormats.StorageItems))
+        {
+            var items = await data.GetStorageItemsAsync();
+            foreach (var item in items)
+            {
+                if (item is not StorageFile file)
+                    continue;
+                if (!ChatAttachmentFileRules.IsSupportedImagePath(file.Path))
+                    continue;
+
+                await ViewModel.AddImageAttachmentAsync(file);
+                return true;
+            }
+        }
+
+        if (!data.Contains(StandardDataFormats.Bitmap))
+            return false;
+
+        var reference = await data.GetBitmapAsync();
+        using var stream = await reference.OpenReadAsync();
+        await ViewModel.AddClipboardBitmapAsync(stream);
+        return true;
     }
 
     private void CutInputSelection()
@@ -648,6 +757,13 @@ public sealed partial class ChatPage : Page
             return;
         }
 
+        if (e.Key == VirtualKey.V && IsControlDown() && ClipboardOffersImage())
+        {
+            e.Handled = true;
+            _ = PasteIntoInputAsync();
+            return;
+        }
+
         if (e.Key != VirtualKey.Enter)
             return;
 
@@ -658,6 +774,12 @@ public sealed partial class ChatPage : Page
         e.Handled = true;
         if (ViewModel.SendCommand.CanExecute(null))
             ViewModel.SendCommand.Execute(null);
+    }
+
+    private static bool IsControlDown()
+    {
+        var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
+        return ctrl.HasFlag(CoreVirtualKeyStates.Down);
     }
 
     private void MoveInputCaretToEnd()
