@@ -200,6 +200,7 @@ public static class LlamaServerNativeHost
         var waitSec = Math.Clamp(context / 64, 180, 600);
         var gpuLayerAttempts = LlamaGpuLayerPolicy.BuildLayerAttempts(configuredGpuLayers, hasUsableGpu);
         var droppedDraftArgs = false;
+        var droppedMoeArgs = false;
         for (var attemptIndex = 0; attemptIndex < gpuLayerAttempts.Count; attemptIndex++)
         {
             // 終了要求後の GPU 再試行で llama-server を再スポーンしない
@@ -265,6 +266,15 @@ public static class LlamaServerNativeHost
                         break;
                     }
 
+                    if (!droppedMoeArgs && TryDropMoeAfterCliReject(args, errLog))
+                    {
+                        droppedMoeArgs = true;
+                        NativeLog.WriteKeyLogOnly("Startup.MoeDroppedBadArg");
+                        StopLlamaProcesses(toolsDir);
+                        attemptIndex--;
+                        break;
+                    }
+
                     if (attemptIndex + 1 < gpuLayerAttempts.Count)
                         break;
 
@@ -306,6 +316,13 @@ public static class LlamaServerNativeHost
         if (!LlamaDraftCli.LooksLikeCliArgRejected(text))
             return false;
         return LlamaDraftCli.RemoveDraftArgs(args);
+    }
+
+    private static bool TryDropMoeAfterCliReject(List<string> args, string errLog)
+    {
+        if (!LlamaDraftCli.LooksLikeCliArgRejected(ReadQuiet(errLog)))
+            return false;
+        return LlamaLaunchPolicy.RemoveCpuMoeArgs(args);
     }
 
     private static string ReadQuiet(string path)

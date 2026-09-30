@@ -78,7 +78,7 @@ public sealed class LlamaLaunchPolicyTests
     }
 
     [Fact]
-    public void Build_TightLargeMoe_UsesKvQ4WithoutMoeFlag()
+    public void Build_TightLargeMoe_KeepsExpertsOnCpu()
     {
         var decision = LlamaLaunchPolicy.Build(
             enabled: true,
@@ -89,11 +89,35 @@ public sealed class LlamaLaunchPolicyTests
             hasUsableGpu: true,
             []);
 
-        Assert.Equal("tight-kvq4", decision.ProfileName);
-        Assert.DoesNotContain("--n-cpu-moe", decision.ExtraArgs);
+        Assert.Equal("tight-moe-kvq4", decision.ProfileName);
         Assert.Equal(
-            ["--cache-type-k", "q4_0", "--cache-type-v", "q4_0"],
+            ["--cpu-moe", "--cache-type-k", "q4_0", "--cache-type-v", "q4_0"],
             decision.ExtraArgs);
+    }
+
+    [Fact]
+    public void Build_TightDense_DoesNotParkExperts()
+    {
+        var decision = LlamaLaunchPolicy.Build(
+            enabled: true,
+            Gpu(vramGb: 8),
+            DenseE2B,
+            modelSizeGb: 15,
+            modelSizeBytes: Gb(15),
+            hasUsableGpu: true,
+            []);
+
+        Assert.Equal("tight-kvq4", decision.ProfileName);
+        Assert.DoesNotContain("--cpu-moe", decision.ExtraArgs);
+    }
+
+    [Fact]
+    public void RemoveCpuMoeArgs_DropsBothFlags()
+    {
+        var args = new List<string> { "-ngl", "99", "--cpu-moe", "--n-cpu-moe", "8", "-c", "4096" };
+        Assert.True(LlamaLaunchPolicy.RemoveCpuMoeArgs(args));
+        Assert.Equal(["-ngl", "99", "-c", "4096"], args);
+        Assert.False(LlamaLaunchPolicy.RemoveCpuMoeArgs(args));
     }
 
     [Fact]
@@ -285,6 +309,9 @@ public sealed class LlamaLaunchPolicyTests
     [InlineData(Moe26B, true)]
     [InlineData("Mixtral-8x7B-Instruct-Q4_K_M.gguf", true)]
     [InlineData("some-MoE-model.gguf", true)]
+    [InlineData("Qwen3-30B-A3B-Q4_K_M.gguf", true)]
+    [InlineData("Qwen3-235B-A22B-Q4.gguf", true)]
+    [InlineData("gpt-oss-120b-Q4_K_M.gguf", false)]
     [InlineData(DenseE2B, false)]
     public void LooksLikeMoe_MatchesNameHints(string fileName, bool expected)
     {

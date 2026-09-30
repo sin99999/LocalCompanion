@@ -1,4 +1,6 @@
-﻿namespace LocalCompanion.Services.LlamaNative;
+﻿using System.Text.RegularExpressions;
+
+namespace LocalCompanion.Services.LlamaNative;
 
 internal readonly record struct LlamaDraftCandidate(string FullPath, string FileName, long SizeBytes);
 
@@ -40,7 +42,7 @@ internal static class LlamaLaunchPolicy
 
         var cli = draftCli ?? LlamaDraftCliSupport.AssumeCurrent;
         var band = ClassifyBand(hardware, modelSizeGb, hasUsableGpu);
-        var moe = LooksLikeMoe(modelFileName) && band == VramBand.Mid && hasUsableGpu;
+        var moe = LooksLikeMoe(modelFileName) && hasUsableGpu && band is VramBand.Mid or VramBand.Tight;
         var kv = ChooseKv(band, modelSizeGb);
         var draft = cli.CanAttachModel
             ? TryPickDraft(
@@ -53,7 +55,9 @@ internal static class LlamaLaunchPolicy
             : null;
 
         var args = new List<string>();
-        if (moe)
+        if (moe && band == VramBand.Tight)
+            args.Add("--cpu-moe");
+        else if (moe)
             args.AddRange(["--n-cpu-moe", MidCpuMoeLayers.ToString()]);
         if (kv is not null)
             args.AddRange(["--cache-type-k", kv, "--cache-type-v", kv]);
@@ -85,10 +89,40 @@ internal static class LlamaLaunchPolicy
         if (string.IsNullOrWhiteSpace(modelFileName))
             return false;
 
-        return modelFileName.Contains("A4B", StringComparison.OrdinalIgnoreCase)
-            || modelFileName.Contains("MoE", StringComparison.OrdinalIgnoreCase)
-            || modelFileName.Contains("mixtral", StringComparison.OrdinalIgnoreCase);
+        return modelFileName.Contains("MoE", StringComparison.OrdinalIgnoreCase)
+            || modelFileName.Contains("mixtral", StringComparison.OrdinalIgnoreCase)
+            || ActiveExpertMark.IsMatch(modelFileName);
     }
+
+    internal static bool RemoveCpuMoeArgs(List<string> args)
+    {
+        var removed = false;
+        var i = 0;
+        while (i < args.Count)
+        {
+            if (string.Equals(args[i], "--cpu-moe", StringComparison.OrdinalIgnoreCase))
+            {
+                args.RemoveAt(i);
+                removed = true;
+                continue;
+            }
+
+            if (string.Equals(args[i], "--n-cpu-moe", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Count)
+            {
+                args.RemoveRange(i, 2);
+                removed = true;
+                continue;
+            }
+
+            i++;
+        }
+
+        return removed;
+    }
+
+    private static readonly Regex ActiveExpertMark = new(
+        @"(?:^|[^a-z0-9])a\d+b(?:[^a-z0-9]|$)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     internal static string? ChooseKv(VramBand band, double modelSizeGb)
     {
