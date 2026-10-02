@@ -168,7 +168,7 @@
       <li>Conversation, RAG, and attachment text are processed on this PC.</li>
       <li>Optional update checks may contact GitHub; when VOICEVOX is installed, VOICEVOX update checks may also contact GitHub.</li>
       <li>First-time setup and mmproj download may access Hugging Face and similar hosts.</li>
-      <li>Loading a URL, URLs written in a message, or research-style web search may access those remote sites. The default web search uses DuckDuckGo (HTML) and sends the query to that service. Set <code>WebSearchEnabled</code> to <code>false</code> in <code>appsettings.json</code> to turn it off. For statute questions or “search materials” / registered documents, local RAG is preferred over the web.</li>
+      <li>When the app loads a URL, reads a URL in a message, or searches the web because you asked it to look something up, it accesses those remote sites. The default web search uses DuckDuckGo (HTML) and sends the query to that service. Set <code>WebSearchEnabled</code> to <code>false</code> in <code>appsettings.json</code> to turn it off. For statute questions or “search materials” / registered documents, local RAG is preferred over the web.</li>
       <li>Speech input uses Windows speech recognition, which may be online depending on your environment.</li>
     </ul>
 
