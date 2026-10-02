@@ -121,6 +121,7 @@ public sealed class RagDatabase
         _graph.EnsureTables(conn);
         EnsureUserMemories(conn);
         EnsureChatMessageSearch(conn);
+        RagSearchQuestionCache.EnsureTable(conn);
     }
 
     private static void EnsureUserMemories(SqliteConnection conn)
@@ -379,6 +380,7 @@ public sealed class RagDatabase
         EnsureRagColumn(conn, "definition_lead", "TEXT NOT NULL DEFAULT ''");
         EnsureRagColumn(conn, "section_path", "TEXT NOT NULL DEFAULT ''");
         EnsureRagColumn(conn, "doc_kind", "TEXT NOT NULL DEFAULT 'general'");
+        EnsureRagColumn(conn, "search_question", "TEXT NOT NULL DEFAULT ''");
         EnsureRagIndex(conn, "idx_rag_chunks_article", "article_sort_key", "source");
         EnsureRagIndex(conn, "idx_rag_chunks_entry_key", "entry_key", "source");
     }

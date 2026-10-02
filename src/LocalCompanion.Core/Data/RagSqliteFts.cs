@@ -46,7 +46,8 @@ public sealed class RagSqliteFts
         string headerText,
         string chapter,
         string section,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string searchQuestion = "")
     {
         if (!IsAvailable)
             return;
@@ -64,8 +65,11 @@ public sealed class RagSqliteFts
             INSERT INTO rag_fts(rowid, text, header_text, chapter, section)
             VALUES ($id, $t, $h, $ch, $sec)
             """;
+        var indexed = string.IsNullOrWhiteSpace(searchQuestion)
+            ? text
+            : text + "\n" + searchQuestion.Trim();
         insert.Parameters.AddWithValue("$id", chunkId);
-        insert.Parameters.AddWithValue("$t", RagFtsSegmenter.Segment(text));
+        insert.Parameters.AddWithValue("$t", RagFtsSegmenter.Segment(indexed));
         insert.Parameters.AddWithValue("$h", RagFtsSegmenter.Segment(headerText));
         insert.Parameters.AddWithValue("$ch", RagFtsSegmenter.Segment(chapter));
         insert.Parameters.AddWithValue("$sec", RagFtsSegmenter.Segment(section));
@@ -104,7 +108,7 @@ public sealed class RagSqliteFts
 
         var select = conn.CreateCommand();
         select.CommandText = """
-            SELECT id, text, header_text, chapter, section
+            SELECT id, text, header_text, chapter, section, search_question
             FROM rag_chunks
             """;
         using var reader = select.ExecuteReader();
@@ -116,7 +120,8 @@ public sealed class RagSqliteFts
                 reader.GetString(1),
                 reader.IsDBNull(2) ? "" : reader.GetString(2),
                 reader.IsDBNull(3) ? "" : reader.GetString(3),
-                reader.IsDBNull(4) ? "" : reader.GetString(4));
+                reader.IsDBNull(4) ? "" : reader.GetString(4),
+                searchQuestion: reader.IsDBNull(5) ? "" : reader.GetString(5));
         }
 
         Optimize(conn);

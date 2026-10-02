@@ -22,6 +22,7 @@ public sealed class RagService
     private readonly RagGraphIndexer _graphIndexer;
     private readonly RagGraphLane _graphLane;
     private readonly RagGraphSearch _graphSearch;
+    private readonly RagSearchQuestionWriter _questions;
     private readonly SemaphoreSlim _ingestLock = new(1, 1);
 
     private const int MaxLegacySearchChunks = 3000;
@@ -44,6 +45,7 @@ public sealed class RagService
         _graphIndexer = new RagGraphIndexer(db.Graph, words, _opt.RagGraphMinEdgeWeight, _opt.RagGraphTopTerms);
         _graphLane = new RagGraphLane(db.Graph, words);
         _graphSearch = new RagGraphSearch(db.Graph, db.Fts, graphLlm ?? new LlamaGraphLlmAdapter(llama));
+        _questions = new RagSearchQuestionWriter(_llama);
     }
 
     /// <summary>概念グラフが未構築・旧版なら作り直す（LLM・埋め込み不要。起動後に裏で呼ぶ）。</summary>
@@ -133,20 +135,24 @@ public sealed class RagService
         text = RagDocumentNormalizer.Normalize(text);
         var drafts = RagStructuralChunker.CreateChunks(text, source, _opt.ChunkSize, _opt.ChunkOverlap, docKind);
         var stats = BuildIngestStats(drafts, docKind, 0);
-        var prepared = new List<(RagChunkDraft Draft, float[]? Embedding)>();
+        var prepared = new List<(RagChunkDraft Draft, float[]? Embedding, string Question)>();
         var embedSkipped = 0;
+        var askQuestions = await _llama.PingAsync(ct);
+        using var questionConn = _db.Open();
+        RagSearchQuestionCache.EnsureTable(questionConn);
 
         foreach (var draft in drafts)
         {
-            var emb = await _llama.EmbedAsync(draft.EmbeddingText, ct);
+            var question = await ResolveSearchQuestionAsync(questionConn, QuestionPassage(draft), askQuestions, ct);
+            var emb = await _llama.EmbedAsync(RagSearchQuestion.WithQuestion(draft.EmbeddingText, question), ct);
             if (emb is null || emb.Length == 0)
             {
                 embedSkipped++;
-                prepared.Add((draft, null));
+                prepared.Add((draft, null, question));
                 continue;
             }
 
-            prepared.Add((draft, emb));
+            prepared.Add((draft, emb, question));
         }
 
         if (prepared.Count == 0)
@@ -173,7 +179,7 @@ public sealed class RagService
                 DeleteSourceChunks(conn, source, sqliteTx);
 
                 var count = 0;
-                foreach (var (draft, emb) in prepared)
+                foreach (var (draft, emb, question) in prepared)
                 {
                     var cmd = conn.CreateCommand();
                     cmd.Transaction = sqliteTx;
@@ -182,10 +188,10 @@ public sealed class RagService
                           source, text, embedding, created_at,
                           chunk_id, header_text, header_level, page, chapter, section, subsection, parent_text,
                           article_main, article_sub, article_sort_key, penalty_lead, chunk_kind,
-                          entry_key, definition_lead, section_path, doc_kind
+                          entry_key, definition_lead, section_path, doc_kind, search_question
                         )
                         VALUES ($s, $t, $e, $at, $cid, $ht, $hl, $pg, $ch, $sec, $sub, $parent,
-                          $am, $as, $ask, $pl, $ck, $ek, $dl, $sp, $dk)
+                          $am, $as, $ask, $pl, $ck, $ek, $dl, $sp, $dk, $sq)
                         RETURNING id
                         """;
                     cmd.Parameters.AddWithValue("$s", source);
@@ -209,6 +215,7 @@ public sealed class RagService
                     cmd.Parameters.AddWithValue("$dl", draft.DefinitionLead);
                     cmd.Parameters.AddWithValue("$sp", draft.SectionPath);
                     cmd.Parameters.AddWithValue("$dk", draft.DocKind);
+                    cmd.Parameters.AddWithValue("$sq", question);
 
                     var idObj = await cmd.ExecuteScalarAsync(ct);
                     if (idObj is null)
@@ -224,7 +231,8 @@ public sealed class RagService
                         draft.HeaderText,
                         draft.Chapter,
                         draft.Section,
-                        sqliteTx);
+                        sqliteTx,
+                        question);
                     count++;
                 }
 
@@ -248,6 +256,35 @@ public sealed class RagService
         {
             _ingestLock.Release();
         }
+    }
+
+    private async Task<string> ResolveSearchQuestionAsync(
+        SqliteConnection conn,
+        string passage,
+        bool ask,
+        CancellationToken ct)
+    {
+        if (!ask || passage.Trim().Length < RagSearchQuestionWriter.MinPassageChars)
+            return "";
+
+        var hash = RagSearchQuestionCache.Hash(passage);
+        var cached = RagSearchQuestionCache.TryLoad(conn, hash);
+        if (cached is not null)
+            return cached;
+
+        var written = await _questions.TryWriteAsync(passage, ct);
+        if (written is null)
+            return "";
+
+        RagSearchQuestionCache.Save(conn, hash, written);
+        return written;
+    }
+
+    private static string QuestionPassage(RagChunkDraft draft)
+    {
+        if (string.IsNullOrWhiteSpace(draft.HeaderText))
+            return draft.Text;
+        return draft.HeaderText + "\n" + draft.Text;
     }
 
     /// <returns>消した rag_chunks の行数。</returns>
