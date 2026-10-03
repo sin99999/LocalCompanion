@@ -127,7 +127,7 @@ public static class LlamaServerNativeHost
             {
                 SetManagedFlag(managedMarker);
                 NativeLog.WriteKey("Startup.LlamaAlreadyRunning", null, context);
-                return 0;
+                return ChatReady(paths);
             }
 
             // PID 紛失時: 管理マーカーあり＋llama-server が1つだけなら再キャプチャ
@@ -138,7 +138,7 @@ public static class LlamaServerNativeHost
             {
                 SetManagedFlag(managedMarker);
                 NativeLog.WriteKey("Startup.LlamaAlreadyRunning", null, context);
-                return 0;
+                return ChatReady(paths);
             }
 
             if (LlamaManagedMarker.IsActiveInToolsDir(toolsDir) || ManagedLlamaProcess.TryReadPid(toolsDir) is not null)
@@ -251,7 +251,7 @@ public static class LlamaServerNativeHost
                     WriteMarker(modelMarker, modelKey);
                     SetManagedFlag(managedMarker);
                     NativeLog.WriteKey("Startup.LlamaReady", 100);
-                    return 0;
+                    return ChatReady(paths);
                 }
 
                 if (!ManagedLlamaProcess.IsTrackedLlamaAlive(toolsDir))
@@ -417,6 +417,13 @@ public static class LlamaServerNativeHost
 
     private static string Quote(string arg) =>
         arg.Contains(' ') || arg.Contains('"') ? "\"" + arg.Replace("\"", "\\\"") + "\"" : arg;
+
+    /// <summary>会話役が起動できたときだけ、Laya の取得を裏で始める。</summary>
+    private static int ChatReady(AppPaths paths)
+    {
+        LayaSidecar.Kick(paths);
+        return 0;
+    }
 
     /// <param name="waitAfterKill">再起動前は true（ポート解放待ち）。アプリ終了時は false で UI をブロックしない。</param>
     /// <param name="requireMarker">false なら記録 PID のみでも停止する（アプリ終了時）。</param>

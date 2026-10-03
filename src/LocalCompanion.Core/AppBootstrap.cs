@@ -93,6 +93,7 @@ public static class AppBootstrap
     public static void StopManagedLlama(AppPaths paths, bool waitForLlamaExit = true)
     {
         // 終了時はマーカーが消えていても PID があれば止める（起動中のマーカー書き込み前／消込後の穴）。
+        LayaSidecar.Stop();
         LlamaServerNativeHost.StopLlamaProcesses(
             paths.ToolsDirectory,
             waitForLlamaExit,

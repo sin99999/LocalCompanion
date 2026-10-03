@@ -251,6 +251,9 @@ public sealed class MemoryService
         if (transcript.Length == 0)
             return 0;
 
+        if (await LayaSidecar.ShouldSkipMemoryAsync(transcript, ct))
+            return 0;
+
         var prompt = new List<ChatTurn>
         {
             new(

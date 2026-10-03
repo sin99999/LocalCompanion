@@ -22,6 +22,9 @@ internal sealed class RagSearchQuestionWriter
         if (clipped.Length > MaxPassageChars)
             clipped = clipped[..MaxPassageChars];
 
+        if (await LayaSidecar.ShouldSkipPassageAsync(clipped, ct))
+            return "";
+
         string reply;
         try
         {
@@ -53,6 +56,11 @@ internal sealed class RagSearchQuestionWriter
             return null;
         }
 
-        return RagSearchQuestion.TryAccept(clipped, reply) ?? "";
+        var accepted = RagSearchQuestion.TryAccept(clipped, reply) ?? "";
+        if (accepted.Length == 0)
+            return "";
+        if (await LayaSidecar.QuestionMissesPassageAsync(clipped, accepted, ct))
+            return "";
+        return accepted;
     }
 }

@@ -1556,6 +1556,8 @@ public sealed class ChatService
         var mode = RagConversationGate.Resolve(plan, currentMessage);
         if (mode == RagConversationMode.Skip)
             return (null, mode);
+        if (mode == RagConversationMode.Probe)
+            mode = await LayaSidecar.TryUpgradeProbeAsync(currentMessage, ct);
 
         var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, plan, mode, ct);
         if (result is null)
