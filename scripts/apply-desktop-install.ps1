@@ -55,13 +55,30 @@ function Stop-LcAtInstall {
             $_.Path -and $_.Path.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase)
         }
 
-    foreach ($proc in $procs) {
-        Write-Host "[..] 起動中の LC を止める: PID $($proc.Id)" -ForegroundColor Yellow
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    if (-not $procs) {
+        return
     }
 
-    if ($procs) {
-        Start-Sleep -Seconds 1
+    if (-not ("WinHide" -as [type])) {
+        Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class WinHide {
+  [DllImport("user32.dll")]
+  public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+}
+"@
+    }
+
+    foreach ($proc in $procs) {
+        Write-Host "[..] 起動中の LC を隠して止める: PID $($proc.Id)" -ForegroundColor Yellow
+        if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
+            [WinHide]::ShowWindow($proc.MainWindowHandle, 0) | Out-Null
+            Start-Sleep -Milliseconds 300
+        }
+
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $proc.WaitForExit(8000) | Out-Null
     }
 }
 

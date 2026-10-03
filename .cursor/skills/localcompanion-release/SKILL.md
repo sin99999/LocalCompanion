@@ -36,6 +36,8 @@ description: >-
 出力: `dist\LocalCompanion-{Version}.zip`  
 （`package-zip.ps1` が中で publish する。Version は csproj。上書きでよい）
 
+既存のデスクトップフォルダへ上書きするとき、exe がその場所で動いていたら、窓を隠してからそのプロセスだけ止めて、上書きして、1回起動する。手順は `ren-local-ship`。フォルダが無いのに新規作成はしない。
+
 ## コマンド（リポ root・PowerShell）
 
 ```powershell
@@ -83,6 +85,18 @@ Release を Publish しても **リポが Private のまま** ならログイン
 2. または **Releases に ZIP のみ**（ソースは載せない／空リポのまま）
 
 `git log` の Author も公開前に整理を検討（例: ローカル専用メールアドレス）。
+
+## 上げるときの Issue（📅 2026-09-17・メンテナ）
+
+GitHub にセーブするとき、**このセッションで確実に触ったリポ**で、**直っていないコードの問題**だけ Issue にする。`gh issue create`。先に `gh issue list` で重複を見る。本文はです・ます。秘密・個人情報・アカウントは書かない。
+
+| 入れる | 入れない |
+|--------|----------|
+| 触ったリポで、このターンの build／test が赤のまま残ったもの。再現がコードで言える | しんちゃんがまだ確認してない・実機未確認・「遊べたか」 |
+| 今いじったファイル経路の不具合 | 別リポ（ComfyUI 等）の話を LC に載せない |
+| | メンテナが「LC に入れなくていい」と言ったモデル家族・テスト（例: Huihui の mmproj 家族テスト） |
+
+手元 commit だけ（上げ言葉なし）では Issue を作らない。Issue は GitHub 側の箱。
 
 ## Release 説明文
 

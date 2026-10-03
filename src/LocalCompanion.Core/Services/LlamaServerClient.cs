@@ -521,9 +521,7 @@ public sealed class LlamaServerClient
         foreach (var b64 in m.ImagesBase64)
         {
             if (string.IsNullOrWhiteSpace(b64)) continue;
-            var data = b64.Trim();
-            if (!data.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-                data = "data:image/jpeg;base64," + data;
+            var data = ChatAttachmentFileRules.ToDataUrl(b64);
             parts.Add(new { type = "image_url", image_url = new { url = data } });
         }
 
