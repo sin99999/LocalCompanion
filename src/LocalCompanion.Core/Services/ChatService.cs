@@ -611,12 +611,13 @@ public sealed class ChatService
             messages.AddRange(pick.Kept);
             messages.Add(new ChatTurn("user", userContent, req.ImagesBase64));
 
+            var useReasoning = req.UseReasoning;
             var maxOut = ComputeSafeMaxTokens(
-                profile.MaxOutputTokens,
+                RequestedOutputTokens(useReasoning, profile.MaxOutputTokens),
                 effectiveContext,
                 messages,
                 hasImage,
-                attempt.MaxOutputCap);
+                RequestedOutputTokens(useReasoning, attempt.MaxOutputCap));
 
             try
             {
@@ -626,7 +627,25 @@ public sealed class ChatService
                     topP: profile.TopP,
                     topK: profile.TopK,
                     maxTokens: maxOut,
-                    useReasoning: req.UseReasoning,
+                    useReasoning: useReasoning,
+                    ct: ct);
+                break;
+            }
+            catch (InvalidOperationException ex) when (useReasoning && LlamaServerClient.IsUnparsedChatFormat(ex.Message))
+            {
+                StartupLog.Write("chat reasoning output was not readable, retrying without it");
+                reply = await _llama.ChatAsync(
+                    messages,
+                    temperature: profile.Temperature,
+                    topP: profile.TopP,
+                    topK: profile.TopK,
+                    maxTokens: ComputeSafeMaxTokens(
+                        profile.MaxOutputTokens,
+                        effectiveContext,
+                        messages,
+                        hasImage,
+                        attempt.MaxOutputCap),
+                    useReasoning: false,
                     ct: ct);
                 break;
             }
@@ -794,9 +813,12 @@ public sealed class ChatService
         Exception? lastStreamError = null;
         var streamed = false;
         var lastPick = ChatHistoryBudgetPick.Empty;
+        var forcePlainReply = false;
+        var attemptIndex = 0;
 
-        foreach (var attempt in attempts)
+        while (attemptIndex < attempts.Count)
         {
+            var attempt = attempts[attemptIndex];
             replyBuilder.Clear();
             reasoningBuilder.Clear();
             streamTruncated = false;
@@ -816,11 +838,10 @@ public sealed class ChatService
             var messages = new List<ChatTurn> { new("system", systemText) };
             messages.AddRange(pick.Kept);
             messages.Add(new ChatTurn("user", userContent, req.ImagesBase64));
-            var outputCap = req.UseReasoning
-                ? Math.Min(attempt.MaxOutputCap, 4096)
-                : attempt.MaxOutputCap;
+            var useReasoning = req.UseReasoning && !forcePlainReply;
+            var outputCap = RequestedOutputTokens(useReasoning, attempt.MaxOutputCap);
             var maxOut = ComputeSafeMaxTokens(
-                profile.MaxOutputTokens,
+                RequestedOutputTokens(useReasoning, profile.MaxOutputTokens),
                 effectiveContext,
                 messages,
                 hasImage,
@@ -832,7 +853,7 @@ public sealed class ChatService
                 topP: profile.TopP,
                 topK: profile.TopK,
                 maxTokens: maxOut,
-                useReasoning: req.UseReasoning,
+                useReasoning: useReasoning,
                 ct: ct);
             await using var streamEnumerator = stream.GetAsyncEnumerator(ct);
             var attemptOverflow = false;
@@ -848,6 +869,14 @@ public sealed class ChatService
                 {
                     lastStreamError = ex;
                     attemptOverflow = true;
+                    break;
+                }
+                catch (InvalidOperationException ex) when (useReasoning && LlamaServerClient.IsUnparsedChatFormat(ex.Message))
+                {
+                    StartupLog.Write("chat reasoning output was not readable, retrying without it");
+                    forcePlainReply = true;
+                    replyBuilder.Clear();
+                    reasoningBuilder.Clear();
                     break;
                 }
 
@@ -908,6 +937,8 @@ public sealed class ChatService
 
             if (streamed)
                 break;
+            if (!(forcePlainReply && useReasoning))
+                attemptIndex++;
             if (attemptOverflow)
                 continue;
         }
@@ -1025,6 +1056,13 @@ public sealed class ChatService
             (0.35, 2048),
             (0, 2048)
         ];
+    }
+
+    internal static int RequestedOutputTokens(bool useReasoning, int answerTokens)
+    {
+        if (!useReasoning || answerTokens <= 0)
+            return answerTokens;
+        return answerTokens + LlamaServerNativeHost.GemmaReasoningBudgetTokens;
     }
 
     private static int ComputeSafeMaxTokens(

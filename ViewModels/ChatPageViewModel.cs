@@ -707,7 +707,7 @@ public partial class ChatPageViewModel : ObservableObject
                 });
             }
 
-            if (replyAcc.Length == 0)
+            if (replyAcc.Length == 0 && reasoningAcc.Length == 0)
                 throw new InvalidOperationException(LocalizationService.Instance.Get("Chat.Status.EmptyReply"));
 
             replyText = replyAcc.ToString();

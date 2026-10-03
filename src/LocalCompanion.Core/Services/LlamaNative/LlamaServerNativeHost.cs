@@ -7,6 +7,8 @@ namespace LocalCompanion.Services.LlamaNative;
 /// <summary>PowerShell を使わず llama-server を起動する。</summary>
 public static class LlamaServerNativeHost
 {
+    /// <summary>Gemma の思考に使う上限。リクエストの生成枠は、この分のあとに返事が残るように足す。</summary>
+    internal const int GemmaReasoningBudgetTokens = 4096;
     public static int EnsureAndStart(AppPaths paths)
     {
         var root = paths.Root;
@@ -189,7 +191,7 @@ public static class LlamaServerNativeHost
             || modelBase.Contains("26B", StringComparison.OrdinalIgnoreCase)
             || modelBase.Contains("gemma-4", StringComparison.OrdinalIgnoreCase))
         {
-            args.AddRange(["--reasoning-budget", "4096"]);
+            args.AddRange(["--reasoning-budget", GemmaReasoningBudgetTokens.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
         }
         args.AddRange(extraArgs);
         if (hasMmproj && mmprojPath is not null)

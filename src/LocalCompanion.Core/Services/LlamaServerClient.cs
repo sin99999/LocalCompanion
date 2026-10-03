@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -320,6 +320,11 @@ public sealed class LlamaServerClient
                 var tok = LlamaChatTimings.TryReadPredictedPerSecond(root);
                 if (tok is not null)
                     yield return new LlamaStreamPiece("timings", LlamaChatTimings.FormatTokPerSec(tok.Value));
+                if (root.TryGetProperty("error", out var err))
+                {
+                    var message = err.TryGetProperty("message", out var errMsg) ? errMsg.GetString() : null;
+                    throw new InvalidOperationException(message ?? "llama-server error");
+                }
                 if (!root.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0) continue;
                 var delta = choices[0].TryGetProperty("delta", out var d) ? d : default;
                 if (delta.ValueKind == JsonValueKind.Undefined) continue;
@@ -479,6 +484,9 @@ public sealed class LlamaServerClient
 
     internal static bool IsContextOverflowException(InvalidOperationException ex) =>
         IsContextOverflowError(ex.Message) || ex.Message == ContextOverflowMessage;
+
+    internal static bool IsUnparsedChatFormat(string? message) =>
+        message is not null && message.Contains("peg-gemma4", StringComparison.Ordinal);
 
     internal static string ConnectionFailedMessage =>
         Localization.LocalizationService.Instance.Get("Error.LlamaConnectionFailed");
