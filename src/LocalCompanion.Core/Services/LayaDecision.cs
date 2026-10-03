@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 
 namespace LocalCompanion.Services;
 
@@ -10,6 +11,12 @@ internal static class LayaDecision
 {
     /// <summary>これより低い「はい」だけ、Gemma への生成を飛ばす。</summary>
     public const double SkipBelow = 0.35;
+
+    /// <summary>
+    /// はい／いいえで断片を飛ばすか。Julia は条文の「後で探す事実か」を 0.02 未満と答えた。
+    /// オンにすると、法律の質問文まで消えて保存される。会話の振り分けとは別。
+    /// </summary>
+    internal static readonly bool UseYesNoSkip = false;
 
     /// <summary>資料を探す、と言い切ったときだけ、安い語彙検索を埋め込み検索へ上げる。</summary>
     public const double SearchConfidence = 0.70;
@@ -51,11 +58,11 @@ internal static class LayaDecision
                 ["route"] = new
                 {
                     type = "choice",
-                    instructions = "Does this message need a search of the user's saved notes?",
+                    instructions = "Should the assistant look up the user's saved notes before answering?",
                     criteria = new Dictionary<string, string>
                     {
-                        ["search"] = "asks about a saved note, document, fact, law, or something to look up",
-                        ["chat"] = "greeting, feeling, small talk, or a request to write or draw",
+                        ["search"] = "the answer depends on the user's saved wording, numbers, file, note, law, or prompt recipe. A request to draw or write still counts when it asks to follow that saved material.",
+                        ["chat"] = "greeting, feeling, small talk, or a request to write or draw that can be done without the user's saved notes.",
                     },
                 },
             },
@@ -87,6 +94,14 @@ internal static class LayaDecision
             return null;
 
         return new LayaChoice(label, confidence);
+    }
+
+    public static string FormatRoute(LayaChoice? choice)
+    {
+        if (choice is not { } picked)
+            return "decision route unread";
+        return "decision route " + picked.Label + " "
+            + picked.Confidence.ToString("0.00", CultureInfo.InvariantCulture);
     }
 
     private static bool TryProbability(JsonElement answer, string label, out double probability)

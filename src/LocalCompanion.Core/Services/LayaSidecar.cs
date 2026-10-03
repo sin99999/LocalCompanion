@@ -6,7 +6,8 @@ using System.Text;
 namespace LocalCompanion.Services;
 
 /// <summary>
-/// 会話役とは別の、CPU の llama-server で Laya を置く。
+/// 会話役とは別の、CPU の llama-server で判断だけを置く。
+/// 重みは Julia-1。Laya は英語だけで、日本語の会話が半々だった。
 /// 会話役の GGUF フォルダには置かない。準備が終わるまでは、今までの動きのまま。
 /// </summary>
 internal static class LayaSidecar
@@ -15,11 +16,12 @@ internal static class LayaSidecar
     internal const string LlamaTag = "b11366";
 
     internal const int Port = 8091;
-    private const string ModelFileName = "Laya-Q8_0.gguf";
-    private const long MinModelBytes = 400L * 1024 * 1024;
-    private const long MinFreeBytes = 900L * 1024 * 1024;
+    private const string ModelFileName = "Julia-1-Q8_0.gguf";
+    private const string ModelId = "Julia-1-Q8_0";
+    private const long MinModelBytes = 150L * 1024 * 1024;
+    private const long MinFreeBytes = 400L * 1024 * 1024;
     private const string ModelUrl =
-        "https://huggingface.co/ggml-org/Laya-GGUF/resolve/main/Laya-Q8_0.gguf";
+        "https://huggingface.co/ggml-org/Julia-1-GGUF/resolve/main/Julia-1-Q8_0.gguf";
 
     private static readonly HttpClient DownloadHttp = CreateDownloadHttp();
     private static readonly HttpClient DecisionHttp = new() { Timeout = TimeSpan.FromSeconds(2) };
@@ -56,6 +58,8 @@ internal static class LayaSidecar
 
     public static async Task<bool> ShouldSkipPassageAsync(string passage, CancellationToken ct)
     {
+        if (!LayaDecision.UseYesNoSkip)
+            return false;
         var yes = await TryNoulAsync(
             passage,
             "Does this passage contain a fact a person would later search for? No for titles, menus, and boilerplate.",
@@ -65,6 +69,8 @@ internal static class LayaSidecar
 
     public static async Task<bool> QuestionMissesPassageAsync(string passage, string question, CancellationToken ct)
     {
+        if (!LayaDecision.UseYesNoSkip)
+            return false;
         var yes = await TryNoulAsync(
             passage + "\n\nQuestion: " + question,
             "Is this question answered by the passage above?",
@@ -74,6 +80,8 @@ internal static class LayaSidecar
 
     public static async Task<bool> ShouldSkipMemoryAsync(string transcript, CancellationToken ct)
     {
+        if (!LayaDecision.UseYesNoSkip)
+            return false;
         var yes = await TryNoulAsync(
             transcript,
             "Does this conversation contain a personal fact about the user worth remembering later? No for small talk.",
@@ -87,6 +95,7 @@ internal static class LayaSidecar
         if (json is null)
             return RagConversationMode.Probe;
         var choice = LayaDecision.ReadChoice(json, "route");
+        StartupLog.Write(LayaDecision.FormatRoute(choice));
         if (!LayaDecision.ShouldSearchNotes(choice))
             return RagConversationMode.Probe;
         return RagConversationMode.SoftTopic;
@@ -143,10 +152,10 @@ internal static class LayaSidecar
             if (model is null || _stop)
                 return;
 
-            if (HealthOk() && TrackedAlive(home))
+            if (HealthOk() && TrackedAlive(home) && ModelMarkerMatches(home))
             {
                 _ready = true;
-                StartupLog.Write("Laya already running.");
+                StartupLog.Write("decision server already running.");
                 return;
             }
 
@@ -158,7 +167,7 @@ internal static class LayaSidecar
                 if (HealthOk())
                 {
                     _ready = true;
-                    StartupLog.Write("Laya ready on port " + Port);
+                    StartupLog.Write("decision ready " + ModelId + " on port " + Port);
                     return;
                 }
 
@@ -208,7 +217,7 @@ internal static class LayaSidecar
         if (File.Exists(dest) && new FileInfo(dest).Length >= MinModelBytes)
             return dest;
 
-        StartupLog.Write("Laya downloading " + ModelFileName);
+        StartupLog.Write("decision downloading " + ModelFileName);
         if (!Download(ModelUrl, dest, MinModelBytes))
             return null;
         return dest;
@@ -279,6 +288,8 @@ internal static class LayaSidecar
             return false;
         ChildProcessJob.Assign(proc);
         File.WriteAllText(PidPath(home), proc.Id.ToString());
+        File.WriteAllText(ModelMarkerPath(home), ModelId);
+        TryDelete(Path.Combine(home, "Laya-Q8_0.gguf"));
         return true;
     }
 
@@ -357,6 +368,15 @@ internal static class LayaSidecar
     private static string Home(string root) => Path.Combine(root, "tools", "laya");
 
     private static string PidPath(string home) => Path.Combine(home, "server.pid");
+
+    private static string ModelMarkerPath(string home) => Path.Combine(home, ".decision-model");
+
+    private static bool ModelMarkerMatches(string home)
+    {
+        var path = ModelMarkerPath(home);
+        return File.Exists(path)
+            && File.ReadAllText(path).Trim().Equals(ModelId, StringComparison.Ordinal);
+    }
 
     private static string? RootOrNull()
     {
