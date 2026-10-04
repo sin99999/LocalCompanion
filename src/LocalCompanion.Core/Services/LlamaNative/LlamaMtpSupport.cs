@@ -18,6 +18,6 @@ internal static class LlamaMtpSupport
         return false;
     }
 
-    internal static bool ShouldEnable(bool userEnabled, string? modelFileName) =>
-        userEnabled && LooksCapable(modelFileName);
+    internal static bool ShouldEnable(string? modelFileName) =>
+        LooksCapable(modelFileName);
 }

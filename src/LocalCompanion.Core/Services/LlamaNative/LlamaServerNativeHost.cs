@@ -105,11 +105,7 @@ public static class LlamaServerNativeHost
                 NativeLog.WriteKeyLogOnly("Startup.DraftSkippedCli");
         }
 
-        var appFlags = AppSettingsStore.LoadOrDefault(
-            AppPaths.ResolveUserDataDirectory(settings.DataDirectory));
-        var useDraftMtp = LlamaMtpSupport.ShouldEnable(
-            appFlags.SpecDraftMtp,
-            Path.GetFileName(modelPath));
+        var useDraftMtp = LlamaMtpSupport.ShouldEnable(Path.GetFileName(modelPath));
         var modelKey = modelPath.ToLowerInvariant()
             + "|" + (mmprojPath ?? "").ToLowerInvariant()
             + "|ngl=" + configuredGpuLayers

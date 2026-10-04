@@ -18,20 +18,14 @@ public sealed class LlamaMtpSupportTests
     }
 
     [Fact]
-    public void ShouldEnable_UserOnButNotCapable_False()
+    public void ShouldEnable_NameWithoutMtp_False()
     {
-        Assert.False(LlamaMtpSupport.ShouldEnable(true, "gemma-4-E2B-it-Q4_0.gguf"));
+        Assert.False(LlamaMtpSupport.ShouldEnable("gemma-4-E2B-it-Q4_0.gguf"));
     }
 
     [Fact]
-    public void ShouldEnable_UserOnAndCapable_True()
+    public void ShouldEnable_NameWithMtp_True()
     {
-        Assert.True(LlamaMtpSupport.ShouldEnable(true, "Huihui-Qwen3.8-27B-ablitrated-UD-IQ2_S-MTP.gguf"));
-    }
-
-    [Fact]
-    public void ShouldEnable_UserOffAndCapable_False()
-    {
-        Assert.False(LlamaMtpSupport.ShouldEnable(false, "Huihui-Qwen3.8-27B-ablitrated-UD-IQ2_S-MTP.gguf"));
+        Assert.True(LlamaMtpSupport.ShouldEnable("Huihui-Qwen3.8-27B-ablitrated-UD-IQ2_S-MTP.gguf"));
     }
 }

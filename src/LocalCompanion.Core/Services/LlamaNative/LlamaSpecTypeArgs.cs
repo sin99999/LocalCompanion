@@ -1,6 +1,6 @@
 ﻿namespace LocalCompanion.Services.LlamaNative;
 
-/// <summary>ユーザーが選んだ投機デコード種別を llama-server 引数にする。</summary>
+/// <summary>ファイル名が MTP のとき、llama-server に投機デコードの引数を足す。</summary>
 internal static class LlamaSpecTypeArgs
 {
     internal const string DraftMtp = "draft-mtp";

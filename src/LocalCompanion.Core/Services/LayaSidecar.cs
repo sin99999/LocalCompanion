@@ -45,6 +45,7 @@ internal static class LayaSidecar
 
     public static void Kick(AppPaths paths)
     {
+        MigrateLegacyHome(paths.Root);
         if (!IsDecisionEnabled(paths))
             return;
         if (Interlocked.Exchange(ref _kicked, 1) == 1)
@@ -57,6 +58,7 @@ internal static class LayaSidecar
 
     public static void Apply(AppPaths paths, bool enabled)
     {
+        MigrateLegacyHome(paths.Root);
         if (!enabled)
         {
             Interlocked.Increment(ref _runId);
@@ -401,7 +403,53 @@ internal static class LayaSidecar
             .FirstOrDefault();
     }
 
-    private static string Home(string root) => Path.Combine(root, "tools", "laya");
+    private static string Home(string root)
+    {
+        MigrateLegacyHome(root);
+        return Path.Combine(root, "tools", "Julia");
+    }
+
+    internal static void MigrateLegacyHome(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+            return;
+
+        var legacy = Path.Combine(root, "tools", "laya");
+        var julia = Path.Combine(root, "tools", "Julia");
+        if (!Directory.Exists(legacy))
+            return;
+        if (string.Equals(Path.GetFullPath(legacy), Path.GetFullPath(julia), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        KillTracked(legacy);
+        TryDelete(PidPath(legacy));
+        try
+        {
+            if (!Directory.Exists(julia))
+            {
+                Directory.CreateDirectory(Path.Combine(root, "tools"));
+                Directory.Move(legacy, julia);
+                return;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(legacy, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(legacy, file);
+                var dest = Path.Combine(julia, relative);
+                var parent = Path.GetDirectoryName(dest);
+                if (!string.IsNullOrEmpty(parent))
+                    Directory.CreateDirectory(parent);
+                if (!File.Exists(dest))
+                    File.Move(file, dest);
+            }
+
+            Directory.Delete(legacy, recursive: true);
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "Julia folder rename failed");
+        }
+    }
 
     private static string PidPath(string home) => Path.Combine(home, "server.pid");
 

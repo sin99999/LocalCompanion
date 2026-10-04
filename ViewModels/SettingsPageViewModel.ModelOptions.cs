@@ -9,9 +9,6 @@ public partial class SettingsPageViewModel
     [ObservableProperty]
     public partial bool ShowChatTokenSpeed { get; set; }
 
-    [ObservableProperty]
-    public partial bool SpecDraftMtp { get; set; }
-
     public string UiModelShowTokenSpeed { get; private set; } = "";
     public string UiModelShowTokenSpeedHint { get; private set; } = "";
     public string UiModelSpecDraftMtp { get; private set; } = "";
@@ -20,9 +17,7 @@ public partial class SettingsPageViewModel
     private void LoadModelOptions()
     {
         _suppressModelOptionSave = true;
-        var s = _appearance.Current;
-        ShowChatTokenSpeed = s.ShowChatTokenSpeed;
-        SpecDraftMtp = s.SpecDraftMtp;
+        ShowChatTokenSpeed = _appearance.Current.ShowChatTokenSpeed;
         _suppressModelOptionSave = false;
     }
 
@@ -39,7 +34,6 @@ public partial class SettingsPageViewModel
     }
 
     partial void OnShowChatTokenSpeedChanged(bool value) => PersistModelOptions();
-    partial void OnSpecDraftMtpChanged(bool value) => PersistModelOptions();
 
     private void PersistModelOptions()
     {
@@ -48,7 +42,6 @@ public partial class SettingsPageViewModel
 
         var dto = _appearance.Current.Clone();
         dto.ShowChatTokenSpeed = ShowChatTokenSpeed;
-        dto.SpecDraftMtp = SpecDraftMtp;
         _appearance.Save(dto);
     }
 }

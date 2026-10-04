@@ -62,7 +62,7 @@ public sealed class AppSettingsDto
     /// <summary>チャット状態欄に直前の生成 tok/s を出す。</summary>
     public bool ShowChatTokenSpeed { get; set; }
 
-    /// <summary>llama-server に --spec-type draft-mtp を付ける。</summary>
+    /// <summary>以前の手動スイッチ。起動時は見ない。ファイル名に MTP があるときだけ投機デコードを使う。</summary>
     public bool SpecDraftMtp { get; set; }
 
     public static AppSettingsDto CreateDefault() => new();

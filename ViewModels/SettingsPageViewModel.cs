@@ -498,8 +498,8 @@ public partial class SettingsPageViewModel : ObservableObject
                 throw new InvalidOperationException(LocalizationService.Instance.Get("Startup.LlamaFailed"));
 
             SetModelStatus(
-                SpecDraftMtp && !LlamaMtpSupport.LooksCapable(SelectedChatModel.FileName)
-                    ? "Settings.Model.Saved.MtpSkipped"
+                LlamaMtpSupport.LooksCapable(SelectedChatModel.FileName)
+                    ? "Settings.Model.Saved.MtpUsed"
                     : "Settings.Model.Saved");
             Refresh();
             await RefreshRuntimeHealthAsync();
