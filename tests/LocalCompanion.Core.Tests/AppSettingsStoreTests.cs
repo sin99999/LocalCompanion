@@ -165,6 +165,14 @@ public sealed class AppSettingsStoreTests
 
             var junk = store.Save(new AppSettingsDto { GpuBackendPreference = "cuda" });
             Assert.Equal(LlamaGpuBackendPreferences.Auto, junk.GpuBackendPreference);
+
+            var juliaOff = store.Save(new AppSettingsDto { JuliaDecisionEnabled = false });
+            Assert.False(juliaOff.JuliaDecisionEnabled);
+            Assert.False(store.Load().JuliaDecisionEnabled);
+            File.WriteAllText(
+                Path.Combine(dir, "app-settings.json"),
+                "{ \"ConfirmHistoryDelete\": true }");
+            Assert.True(store.Load().JuliaDecisionEnabled);
         }
         finally
         {

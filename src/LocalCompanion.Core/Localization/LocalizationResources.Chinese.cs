@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Localization;
+namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -289,7 +289,7 @@ internal static partial class LocalizationResources
         ["Settings.Section.Memory"] = "长期记忆",
         ["Settings.Rag.Section.IngestOptions"] = "导入选项",
         ["Settings.Model.Section.Advanced"] = "高级",
-        ["Settings.General.SaveSemantics"] = "显示名称和字体在按下“保存”时保存。语音输入、记录确认、记忆、llama.cpp 更新和 GPU 会在更改时自动保存。",
+        ["Settings.General.SaveSemantics"] = "显示名称和字体在按下“保存”时保存。语音输入、记录确认、记忆、llama.cpp 更新、GPU 和 Julia-1 会在更改时自动保存。",
         ["Settings.Rag.Description"] = "导入 PDF、Word、文本等文件，切分为分块并向量化以供检索。即使聊天中已开启 RAG，闲聊也不会检索；法律、资料和风险相关话题可能会把相关段落送给 AI。",
         ["Settings.Rag.SourceUseHint"] = "关闭某资料的“用于检索”后，聊天 RAG 将不再使用该资料。可按用途切换集合（例如工作规章与角色笔记）。",
         ["Settings.Rag.Source.UseInSearch"] = "用于检索",
@@ -349,6 +349,8 @@ internal static partial class LocalizationResources
         ["Settings.SpeechInput.Enabled.Hint"] = "使用 Windows 语音识别。需要麦克风。若缺少英语语音包，可能会改用日语识别。",
         ["Settings.General.LlamaAutoUpdate"] = "每次启动时更新 llama.cpp",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "关闭后，会用已经放好的 llama.cpp 启动。还没有的时候，只在第一次取得。更换 GPU 后，下次启动时会取得适合该 GPU 的 llama.cpp。",
+        ["Settings.General.JuliaDecision"] = "使用 Julia-1 判断是否检索资料",
+        ["Settings.General.JuliaDecision.Hint"] = "开启时，Julia-1 会判断这条消息是不是要检索已登记的资料。关闭后，这个判断进程会停止。回复正文仍由对话用的模型来写。",
         ["Settings.General.GpuBackend"] = "GPU（非 NVIDIA）",
         ["Settings.General.GpuBackend.Hint"] = "NVIDIA 仍使用 CUDA。更改将在下次启动后生效。如果 AMD 上的 ROCm（HIP）有问题，请选择 Vulkan。",
         ["Settings.General.GpuBackend.Auto"] = "自动",

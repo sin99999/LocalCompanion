@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Localization;
+namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -289,7 +289,7 @@ internal static partial class LocalizationResources
         ["Settings.Section.Memory"] = "장기 기억",
         ["Settings.Rag.Section.IngestOptions"] = "가져오기 옵션",
         ["Settings.Model.Section.Advanced"] = "고급",
-        ["Settings.General.SaveSemantics"] = "표시 이름과 글꼴은 저장 단추를 눌렀을 때 저장합니다. 음성 입력, 기록 확인, 기억, llama.cpp 업데이트, GPU는 바꿀 때 자동으로 저장합니다.",
+        ["Settings.General.SaveSemantics"] = "표시 이름과 글꼴은 저장 단추를 눌렀을 때 저장합니다. 음성 입력, 기록 확인, 기억, llama.cpp 업데이트, GPU, Julia-1은 바꿀 때 자동으로 저장합니다.",
         ["Settings.Rag.Description"] = "PDF, Word, 텍스트 등을 가져와 청크로 나눈 뒤 검색용으로 벡터화합니다. 채팅에서 RAG가 켜져 있어도 잡담은 검색을 건너뛰며, 법률·문서·위험 주제에서는 관련 구절을 AI에 전달할 수 있습니다.",
         ["Settings.Rag.SourceUseHint"] = "자료의 \"검색에 사용\"을 끄면 채팅 RAG에서 제외됩니다. 용도별로 세트를 전환할 수 있습니다(예: 직장 규정과 캐릭터 메모).",
         ["Settings.Rag.Source.UseInSearch"] = "검색에 사용",
@@ -349,6 +349,8 @@ internal static partial class LocalizationResources
         ["Settings.SpeechInput.Enabled.Hint"] = "Windows 음성 인식을 사용합니다. 마이크가 필요합니다. 영어 음성 팩이 없으면 일본어 인식이 대신 사용될 수 있습니다.",
         ["Settings.General.LlamaAutoUpdate"] = "시작할 때마다 llama.cpp 업데이트",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "끄면 이미 들어 있는 llama.cpp 그대로 시작합니다. 아직 없으면 처음 한 번만 받습니다. GPU를 바꾸면 다음에 시작할 때 그 GPU용 llama.cpp를 받습니다.",
+        ["Settings.General.JuliaDecision"] = "Julia-1로 자료를 찾을지 판단",
+        ["Settings.General.JuliaDecision.Hint"] = "켜면, 보낸 글이 등록한 자료를 찾는 종류인지 Julia-1이 판단합니다. 끄면 그 판단용 프로세스는 멈춥니다. 대화 문장을 쓰는 것은 지금까지와 같이 대화용 모델입니다.",
         ["Settings.General.GpuBackend"] = "GPU(NVIDIA 제외)",
         ["Settings.General.GpuBackend.Hint"] = "NVIDIA는 CUDA를 그대로 사용합니다. 변경은 다음 시작부터 적용됩니다. AMD에서 ROCm(HIP)에 문제가 있으면 Vulkan을 선택하세요.",
         ["Settings.General.GpuBackend.Auto"] = "자동",

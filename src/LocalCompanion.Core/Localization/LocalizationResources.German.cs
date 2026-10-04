@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Localization;
+namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -283,7 +283,7 @@ internal static partial class LocalizationResources
         ["Settings.Section.Memory"] = "Langzeitgedächtnis",
         ["Settings.Rag.Section.IngestOptions"] = "Importoptionen",
         ["Settings.Model.Section.Advanced"] = "Erweitert",
-        ["Settings.General.SaveSemantics"] = "Anzeigename und Schriftart werden gespeichert, wenn Sie auf Speichern drücken. Spracheingabe, Verlaufsbestätigung, Gedächtnis, llama.cpp-Aktualisierungen und GPU werden automatisch gespeichert, wenn Sie sie ändern.",
+        ["Settings.General.SaveSemantics"] = "Anzeigename und Schriftart werden gespeichert, wenn Sie auf Speichern drücken. Spracheingabe, Verlaufsbestätigung, Gedächtnis, llama.cpp-Aktualisierungen, GPU und Julia-1 werden automatisch gespeichert, wenn Sie sie ändern.",
         ["Settings.Rag.Description"] = "Importieren Sie PDF-, Word-, Text- und andere Dateien, teilen Sie sie in Fragmente, und vektorisieren Sie sie für die Suche. Auch wenn RAG im Chat aktiviert ist, wird bei lockerem Chat die Suche übersprungen; bei rechtlichen, dokumentbezogenen und risikorelevanten Themen können passende Passagen an die KI gesendet werden.",
         ["Settings.Rag.SourceUseHint"] = "Deaktivieren Sie „In der Suche verwenden“ für eine Quelle, um sie aus dem Chat-RAG auszuschließen. Wechseln Sie die Quellengruppen je nach Zweck (z. B. Arbeitsrichtlinien gegenüber Charakter-Notizen).",
         ["Settings.Rag.Source.UseInSearch"] = "In der Suche verwenden",
@@ -343,6 +343,8 @@ internal static partial class LocalizationResources
         ["Settings.SpeechInput.Enabled.Hint"] = "Verwendet die Spracherkennung von Windows. Ein Mikrofon ist erforderlich. Wenn das englische Sprachpaket fehlt, wird möglicherweise die japanische Erkennung verwendet.",
         ["Settings.General.LlamaAutoUpdate"] = "llama.cpp bei jedem Start aktualisieren",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "Wenn ausgeschaltet, startet die Anwendung mit dem bereits vorhandenen llama.cpp. Fehlt es noch, erfolgt der Download nur einmal. Nach einem GPU-Wechsel lädt der nächste Start das llama.cpp für diese GPU.",
+        ["Settings.General.JuliaDecision"] = "Julia-1 verwenden, um zu entscheiden, ob Notizen durchsucht werden",
+        ["Settings.General.JuliaDecision.Hint"] = "Wenn diese Option eingeschaltet ist, entscheidet Julia-1, ob eine Nachricht die registrierten Notizen durchsuchen soll. Wenn sie ausgeschaltet ist, stoppt dieser Entscheidungsprozess. Die Antwort schreibt weiterhin das Gesprächsmodell.",
         ["Settings.General.GpuBackend"] = "GPU (außer NVIDIA)",
         ["Settings.General.GpuBackend.Hint"] = "NVIDIA bleibt bei CUDA. Änderungen gelten ab dem nächsten Start. Wenn ROCm (HIP) auf AMD Probleme macht, wählen Sie Vulkan.",
         ["Settings.General.GpuBackend.Auto"] = "Automatisch",

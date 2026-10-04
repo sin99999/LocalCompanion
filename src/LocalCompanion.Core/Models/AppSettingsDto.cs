@@ -53,6 +53,9 @@ public sealed class AppSettingsDto
     /// <summary>起動のたびに llama.cpp の latest を見て古ければ取り直す。オフでも初回導入と GPU 切替は行う。</summary>
     public bool LlamaCppAutoUpdate { get; set; } = true;
 
+    /// <summary>資料を探すかどうかの判断に Julia-1 を使う。会話の文章は書かない。</summary>
+    public bool JuliaDecisionEnabled { get; set; } = true;
+
     /// <summary>NVIDIA 以外: auto / hip-radeon / vulkan。NVIDIA は CUDA 固定。</summary>
     public string GpuBackendPreference { get; set; } = LlamaGpuBackendPreferences.Auto;
 
@@ -82,6 +85,7 @@ public sealed class AppSettingsDto
         ChatSearchEnabled = ChatSearchEnabled,
         SpeechInputEnabled = SpeechInputEnabled,
         LlamaCppAutoUpdate = LlamaCppAutoUpdate,
+        JuliaDecisionEnabled = JuliaDecisionEnabled,
         GpuBackendPreference = GpuBackendPreference,
         ShowChatTokenSpeed = ShowChatTokenSpeed,
         SpecDraftMtp = SpecDraftMtp,

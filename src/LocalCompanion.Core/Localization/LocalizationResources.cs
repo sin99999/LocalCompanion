@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Localization;
+namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -323,7 +323,7 @@ internal static partial class LocalizationResources
         ["Settings.Section.Memory"] = "長期記憶",
         ["Settings.Rag.Section.IngestOptions"] = "取込オプション",
         ["Settings.Model.Section.Advanced"] = "詳細",
-        ["Settings.General.SaveSemantics"] = "表示名とフォントは、保存ボタンを押したときに保存します。音声入力、履歴の確認、記憶、llama.cpp の更新、GPU は、変えたときに自動で保存します。",
+        ["Settings.General.SaveSemantics"] = "表示名とフォントは、保存ボタンを押したときに保存します。音声入力、履歴の確認、記憶、llama.cpp の更新、GPU、Julia-1 は、変えたときに自動で保存します。",
         ["Settings.Rag.Description"] = "PDF・Word・テキストなどを取り込み、チャンク単位でベクトル化して検索します。チャットの RAG がオンでも、雑談では検索せず、法律・資料・危険話題のときだけ関連断片を AI に渡します。",
         ["Settings.Rag.SourceUseHint"] = "各資料の「検索に使用」をオフにすると、その資料はチャットの RAG から除外されます。用途別（例: 社内規定 / キャラクター設定）に切り替えできます。",
         ["Settings.Rag.Source.UseInSearch"] = "検索に使用",
@@ -383,6 +383,8 @@ internal static partial class LocalizationResources
         ["Settings.SpeechInput.Enabled.Hint"] = "Windows の音声認識を使います。マイクが必要です。英語の音声パックが無い場合は日本語で聞き取ることがあります。",
         ["Settings.General.LlamaAutoUpdate"] = "llama.cpp を、起動するたびに更新する",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "オフにすると、今入っている llama.cpp のまま起動します。まだ無いときは、最初の 1 回だけ取得します。GPU を切り替えたときは、次に起動したとき、その GPU 用の llama.cpp を取得します。",
+        ["Settings.General.JuliaDecision"] = "Julia-1 で、資料を探すかどうかを判断する",
+        ["Settings.General.JuliaDecision.Hint"] = "オンのとき、送った文章が資料を探す種類かどうかを Julia-1 が判断します。オフにすると、その判断用のプロセスは止まります。会話の文章を書くのは、今までどおり会話用のモデルです。",
         ["Settings.General.GpuBackend"] = "GPU（NVIDIA 以外）",
         ["Settings.General.GpuBackend.Hint"] = "NVIDIA は CUDA のままです。変更は次回起動から使います。AMD で ROCm（HIP）に問題があるときは Vulkan を選んでください。",
         ["Settings.General.GpuBackend.Auto"] = "おまかせ",
@@ -831,7 +833,7 @@ internal static partial class LocalizationResources
         ["Settings.Section.Memory"] = "Long-term memory",
         ["Settings.Rag.Section.IngestOptions"] = "Ingest options",
         ["Settings.Model.Section.Advanced"] = "Advanced",
-        ["Settings.General.SaveSemantics"] = "Display name and font are saved when you press Save. Speech input, history confirmation, memory, llama.cpp updates, and GPU are saved automatically when you change them.",
+        ["Settings.General.SaveSemantics"] = "Display name and font are saved when you press Save. Speech input, history confirmation, memory, llama.cpp updates, GPU, and Julia-1 are saved automatically when you change them.",
         ["Settings.Rag.Description"] = "Import PDF, Word, text, and other files, split them into chunks, and vectorize them for search. Even when RAG is on in chat, casual chat skips retrieval; legal, document, and risk topics may send relevant passages to the AI.",
         ["Settings.Rag.SourceUseHint"] = "Turn off \"Use in search\" for a source to exclude it from chat RAG. Switch sets by purpose (for example, workplace policies vs. character notes).",
         ["Settings.Rag.Source.UseInSearch"] = "Use in search",
@@ -891,6 +893,8 @@ internal static partial class LocalizationResources
         ["Settings.SpeechInput.Enabled.Hint"] = "Uses Windows speech recognition. A microphone is required. If the English speech pack is missing, Japanese recognition may be used instead.",
         ["Settings.General.LlamaAutoUpdate"] = "Update llama.cpp every time the app starts",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "When this is off, the app starts with the llama.cpp it already has. If llama.cpp is not there yet, the app downloads it once. When you change the GPU, the next start downloads the llama.cpp for that GPU.",
+        ["Settings.General.JuliaDecision"] = "Use Julia-1 to decide whether to search notes",
+        ["Settings.General.JuliaDecision.Hint"] = "When this is on, Julia-1 decides whether a message should search your notes. When this is off, that decision process stops. The chat model still writes the reply.",
         ["Settings.General.GpuBackend"] = "GPU (non-NVIDIA)",
         ["Settings.General.GpuBackend.Hint"] = "NVIDIA stays on CUDA. Changes apply on the next launch. If ROCm (HIP) has problems on AMD, choose Vulkan.",
         ["Settings.General.GpuBackend.Auto"] = "Auto",

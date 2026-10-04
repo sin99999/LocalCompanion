@@ -166,6 +166,11 @@
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiLlamaCppAutoUpdateHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiJuliaDecision, Mode=OneWay}" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.JuliaDecisionEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiJuliaDecisionHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiGpuBackend, Mode=OneWay}" />
                             <Border Style="{StaticResource SettingsInputBorderStyle}">
                                 <ComboBox

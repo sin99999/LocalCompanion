@@ -1,4 +1,4 @@
-﻿<div id="top"></div>
+<div id="top"></div>
 
 <h1>
   <img src="Assets/StoreLogo.png" alt="LocalCompanion" width="40" height="40" style="vertical-align: middle; margin-right: 10px;">
@@ -27,7 +27,10 @@
   <img src="https://img.shields.io/badge/-WinUI_3-0078D4.svg?logo=windows&style=for-the-badge" alt="WinUI 3">
   <img src="https://img.shields.io/badge/-SQLite-003B57.svg?logo=sqlite&style=for-the-badge&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/-llama.cpp-000000.svg?style=for-the-badge" alt="llama.cpp">
+  <img src="https://img.shields.io/badge/-Julia--1-9558B2.svg?style=for-the-badge" alt="Julia-1">
 </p>
+
+<p>Julia-1 は、会話の文章を書くモデルとは別に、お使いの PC の中で動きます。利用者が送った文章が、登録した資料を探す種類かどうかを判断します。設定の基本タブで、使うか使わないかを選べます。会話の返事そのものは書きません。ライセンスは Apache License 2.0 です。</p>
 
 ## 目次
 
@@ -134,6 +137,7 @@ vision 用の mmproj が必要な場合は、**アプリ側の `models\` フォ�
 | 機能 | 説明 |
 |------|------|
 | チャット | この PC の AI と会話します。キャラクター設定と会話履歴を使えます。**デフォルト AI** の会話は、左の履歴一覧に表示されません |
+| 画像の生成プロンプト | 画像ファイルを添付すると、PNG に保存されている生成時のプロンプトを読み、Stable Diffusion 用のプロンプトを作り直す手がかりにします。JPEG に同じ文章が文字として残っている場合も読みます。クリップボードから貼った画像や、画素の中だけに隠した情報は読めません |
 | 資料検索（RAG） | 登録したテキスト資料を検索して、回答に反映します。アプリは、語どうしの関係を概念グラフとして索引します。全体を見渡す質問では、まとまりごとに探します。設定の RAG から、索引を作り直せます。文字の無いスキャン画像だけの PDF は、文字認識に対応していません |
 | 会話の要約 | 名前付きキャラクターとの会話で、入りきらない古い発言を短い要約として残します（設定の記憶。既定ではオンです。デフォルト AI では使いません） |
 | Web 参照 | メッセージに書いた URL を、アプリが自動で取得します。「調べて」「ネットから探して」と頼むと、Web 検索もします。API キーは不要です。設定でオフにできます |

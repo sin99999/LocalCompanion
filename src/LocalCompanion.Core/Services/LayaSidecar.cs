@@ -2,6 +2,7 @@
 using System.IO.Compression;
 using System.Net.Http;
 using System.Text;
+using LocalCompanion.Services.LlamaNative;
 
 namespace LocalCompanion.Services;
 
@@ -28,6 +29,7 @@ internal static class LayaSidecar
 
     private static readonly object Gate = new();
     private static int _kicked;
+    private static int _runId;
     private static volatile bool _stop;
     private static volatile bool _ready;
     private static string? _root;
@@ -43,10 +45,27 @@ internal static class LayaSidecar
 
     public static void Kick(AppPaths paths)
     {
+        if (!IsDecisionEnabled(paths))
+            return;
         if (Interlocked.Exchange(ref _kicked, 1) == 1)
             return;
+        _stop = false;
         _root = paths.Root;
-        _ = Task.Run(() => Run(paths.Root));
+        var runId = Interlocked.Increment(ref _runId);
+        _ = Task.Run(() => Run(paths.Root, runId));
+    }
+
+    public static void Apply(AppPaths paths, bool enabled)
+    {
+        if (!enabled)
+        {
+            Interlocked.Increment(ref _runId);
+            Stop();
+            Interlocked.Exchange(ref _kicked, 0);
+            return;
+        }
+
+        Kick(paths);
     }
 
     public static void Stop()
@@ -54,6 +73,21 @@ internal static class LayaSidecar
         _stop = true;
         _ready = false;
         KillTracked(RootOrNull());
+    }
+
+    private static bool IsDecisionEnabled(AppPaths paths)
+    {
+        try
+        {
+            var configured = LlamaInstallConfig.Load(paths.Root).DataDirectory;
+            var dir = AppPaths.ResolveUserDataDirectory(configured);
+            return AppSettingsStore.LoadOrDefault(dir).JuliaDecisionEnabled;
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "Julia decision setting unreadable; leaving it on");
+            return true;
+        }
     }
 
     public static async Task<bool> ShouldSkipPassageAsync(string passage, CancellationToken ct)
@@ -131,11 +165,11 @@ internal static class LayaSidecar
         }
     }
 
-    private static void Run(string root)
+    private static void Run(string root, int runId)
     {
         try
         {
-            if (_stop)
+            if (Stale(runId))
                 return;
             var home = Home(root);
             Directory.CreateDirectory(home);
@@ -146,10 +180,10 @@ internal static class LayaSidecar
             }
 
             var exe = EnsureCpuServer(home);
-            if (exe is null || _stop)
+            if (exe is null || Stale(runId))
                 return;
             var model = EnsureModel(home);
-            if (model is null || _stop)
+            if (model is null || Stale(runId))
                 return;
 
             if (HealthOk() && TrackedAlive(home) && ModelMarkerMatches(home))
@@ -162,7 +196,7 @@ internal static class LayaSidecar
             if (!StartServer(home, exe, model))
                 return;
 
-            for (var i = 0; i < 40 && !_stop; i++)
+            for (var i = 0; i < 40 && !Stale(runId); i++)
             {
                 if (HealthOk())
                 {
@@ -184,6 +218,8 @@ internal static class LayaSidecar
             StartupLog.Write(ex, "Laya sidecar failed");
         }
     }
+
+    private static bool Stale(int runId) => _stop || runId != Volatile.Read(ref _runId);
 
     private static string? EnsureCpuServer(string home)
     {

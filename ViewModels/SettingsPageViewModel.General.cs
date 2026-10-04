@@ -31,6 +31,9 @@ public partial class SettingsPageViewModel
     [ObservableProperty]
     public partial bool LlamaCppAutoUpdate { get; set; } = true;
 
+    [ObservableProperty]
+    public partial bool JuliaDecisionEnabled { get; set; } = true;
+
     public ObservableCollection<GpuBackendChoiceViewModel> GpuBackendChoices { get; } = new();
 
     [ObservableProperty]
@@ -40,6 +43,8 @@ public partial class SettingsPageViewModel
     public string UiSpeechInputEnabledHint { get; private set; } = "";
     public string UiLlamaCppAutoUpdate { get; private set; } = "";
     public string UiLlamaCppAutoUpdateHint { get; private set; } = "";
+    public string UiJuliaDecision { get; private set; } = "";
+    public string UiJuliaDecisionHint { get; private set; } = "";
     public string UiGpuBackend { get; private set; } = "";
     public string UiGpuBackendHint { get; private set; } = "";
 
@@ -73,6 +78,7 @@ public partial class SettingsPageViewModel
     partial void OnConfirmHistoryDeleteChanged(bool value) => PersistGeneralToggles();
     partial void OnSpeechInputEnabledChanged(bool value) => PersistGeneralToggles();
     partial void OnLlamaCppAutoUpdateChanged(bool value) => PersistGeneralToggles();
+    partial void OnJuliaDecisionEnabledChanged(bool value) => PersistGeneralToggles();
     partial void OnSelectedGpuBackendChanged(GpuBackendChoiceViewModel? value) => PersistGeneralToggles();
 
     private void LoadGeneralSettings()
@@ -99,6 +105,7 @@ public partial class SettingsPageViewModel
         UserDisplayName = settings.UserDisplayName;
         SpeechInputEnabled = settings.SpeechInputEnabled;
         LlamaCppAutoUpdate = settings.LlamaCppAutoUpdate;
+        JuliaDecisionEnabled = settings.JuliaDecisionEnabled;
         RefreshGpuBackendChoices(settings.GpuBackendPreference);
         GeneralChatFontSize = settings.ChatFontSize;
         SelectedChatFontFamily = ChatFontChoices.FirstOrDefault(f =>
@@ -121,10 +128,14 @@ public partial class SettingsPageViewModel
     {
         UiLlamaCppAutoUpdate = _loc.Get("Settings.General.LlamaAutoUpdate");
         UiLlamaCppAutoUpdateHint = _loc.Get("Settings.General.LlamaAutoUpdate.Hint");
+        UiJuliaDecision = _loc.Get("Settings.General.JuliaDecision");
+        UiJuliaDecisionHint = _loc.Get("Settings.General.JuliaDecision.Hint");
         UiGpuBackend = _loc.Get("Settings.General.GpuBackend");
         UiGpuBackendHint = _loc.Get("Settings.General.GpuBackend.Hint");
         OnPropertyChanged(nameof(UiLlamaCppAutoUpdate));
         OnPropertyChanged(nameof(UiLlamaCppAutoUpdateHint));
+        OnPropertyChanged(nameof(UiJuliaDecision));
+        OnPropertyChanged(nameof(UiJuliaDecisionHint));
         OnPropertyChanged(nameof(UiGpuBackend));
         OnPropertyChanged(nameof(UiGpuBackendHint));
         RefreshGpuBackendChoices();
@@ -168,8 +179,10 @@ public partial class SettingsPageViewModel
         dto.ThemeMode = AppThemeModes.Dark;
         dto.SpeechInputEnabled = SpeechInputEnabled;
         dto.LlamaCppAutoUpdate = LlamaCppAutoUpdate;
+        dto.JuliaDecisionEnabled = JuliaDecisionEnabled;
         dto.GpuBackendPreference = SelectedGpuBackend?.Id ?? LlamaGpuBackendPreferences.Auto;
         _appearance.Save(dto);
+        LayaSidecar.Apply(AppPaths.Current, JuliaDecisionEnabled);
     }
 
     [RelayCommand]
@@ -195,9 +208,11 @@ public partial class SettingsPageViewModel
         dto.UserDisplayName = defaults.UserDisplayName;
         dto.SpeechInputEnabled = defaults.SpeechInputEnabled;
         dto.LlamaCppAutoUpdate = defaults.LlamaCppAutoUpdate;
+        dto.JuliaDecisionEnabled = defaults.JuliaDecisionEnabled;
         dto.GpuBackendPreference = defaults.GpuBackendPreference;
         var saved = _appearance.Save(dto);
         ApplyGeneralForm(saved);
+        LayaSidecar.Apply(AppPaths.Current, saved.JuliaDecisionEnabled);
         SetGeneralStatus("Settings.General.ResetDone");
     }
 
@@ -211,6 +226,7 @@ public partial class SettingsPageViewModel
         dto.UserDisplayName = UserDisplayName;
         dto.SpeechInputEnabled = SpeechInputEnabled;
         dto.LlamaCppAutoUpdate = LlamaCppAutoUpdate;
+        dto.JuliaDecisionEnabled = JuliaDecisionEnabled;
         dto.GpuBackendPreference = SelectedGpuBackend?.Id ?? LlamaGpuBackendPreferences.Auto;
         return dto;
     }

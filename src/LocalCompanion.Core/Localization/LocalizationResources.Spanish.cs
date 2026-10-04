@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Localization;
+namespace LocalCompanion.Localization;
 
 internal static partial class LocalizationResources
 {
@@ -283,7 +283,7 @@ internal static partial class LocalizationResources
         ["Settings.Section.Memory"] = "Memoria a largo plazo",
         ["Settings.Rag.Section.IngestOptions"] = "Opciones de importación",
         ["Settings.Model.Section.Advanced"] = "Avanzado",
-        ["Settings.General.SaveSemantics"] = "El nombre para mostrar y la fuente se guardan al pulsar Guardar. La entrada por voz, la confirmación del historial, la memoria, las actualizaciones de llama.cpp y la GPU se guardan automáticamente al cambiarlas.",
+        ["Settings.General.SaveSemantics"] = "El nombre para mostrar y la fuente se guardan al pulsar Guardar. La entrada por voz, la confirmación del historial, la memoria, las actualizaciones de llama.cpp, la GPU y Julia-1 se guardan automáticamente al cambiarlos.",
         ["Settings.Rag.Description"] = "Importe archivos PDF, Word, de texto y otros, divídalos en fragmentos y vectorícelos para la búsqueda. Aunque RAG esté activado en el chat, el chat informal omite la recuperación; los temas legales, documentales y de riesgo pueden enviar pasajes pertinentes a la IA.",
         ["Settings.Rag.SourceUseHint"] = "Desactive \"Usar en la búsqueda\" en una fuente para excluirla del RAG del chat. Cambie conjuntos según el propósito (por ejemplo, políticas laborales frente a notas del personaje).",
         ["Settings.Rag.Source.UseInSearch"] = "Usar en la búsqueda",
@@ -343,6 +343,8 @@ internal static partial class LocalizationResources
         ["Settings.SpeechInput.Enabled.Hint"] = "Usa el reconocimiento de voz de Windows. Se requiere un micrófono. Si falta el paquete de voz en inglés, es posible que se use el reconocimiento en japonés.",
         ["Settings.General.LlamaAutoUpdate"] = "Actualizar llama.cpp en cada inicio",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "Si está desactivado, la aplicación arranca con el llama.cpp que ya tiene. Si aún no está, se descarga solo una vez. Al cambiar la GPU, el siguiente inicio descarga el llama.cpp para esa GPU.",
+        ["Settings.General.JuliaDecision"] = "Usar Julia-1 para decidir si el mensaje busca en las notas",
+        ["Settings.General.JuliaDecision.Hint"] = "Cuando está activado, Julia-1 decide si el mensaje debe buscar en las notas registradas. Cuando está desactivado, ese proceso de decisión se detiene. Quien escribe la respuesta sigue siendo el modelo de conversación.",
         ["Settings.General.GpuBackend"] = "GPU (excepto NVIDIA)",
         ["Settings.General.GpuBackend.Hint"] = "NVIDIA sigue usando CUDA. El cambio se aplica en el siguiente inicio. Si ROCm (HIP) falla en AMD, elija Vulkan.",
         ["Settings.General.GpuBackend.Auto"] = "Automático",

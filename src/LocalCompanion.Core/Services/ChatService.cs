@@ -1168,7 +1168,12 @@ public sealed class ChatService
             parts.Add($"【添付: {name}】\n{body}");
         }
         if (req.ImagesBase64 is { Length: > 0 })
+        {
             parts.Add("（画像が添付されています。描写と、写っている文字の読み取り（OCR）の両方を答えてください）");
+            var embedded = EmbeddedGenerationPrompt.FormatForChat(req.ImagesBase64);
+            if (embedded is not null)
+                parts.Add(embedded);
+        }
         parts.Add(messageOverride ?? req.Message);
         return string.Join("\n\n", parts);
     }
