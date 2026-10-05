@@ -227,6 +227,38 @@ internal static class LlamaHardwareProfile
         };
     }
 
+    /// <summary>先頭の NVIDIA GPU の空きメモリ。読めないときは null。</summary>
+    internal static long? TryReadNvidiaFreeVramBytes()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(
+                "nvidia-smi",
+                "--query-gpu=memory.free --format=csv,noheader,nounits")
+            {
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var proc = Process.Start(psi);
+            if (proc is null)
+                return null;
+            var line = proc.StandardOutput.ReadLine()?.Trim();
+            proc.WaitForExit(3000);
+            if (proc.ExitCode != 0 || string.IsNullOrWhiteSpace(line))
+                return null;
+            var token = line.Split(' ', ',')[0];
+            if (int.TryParse(token, out var mib) && mib >= 0)
+                return (long)mib * 1024 * 1024;
+        }
+        catch
+        {
+            /* ignore */
+        }
+
+        return null;
+    }
+
     private static long ReadNvidiaVramBytes()
     {
         try

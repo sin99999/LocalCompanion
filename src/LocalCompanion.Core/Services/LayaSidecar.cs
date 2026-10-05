@@ -2,6 +2,7 @@
 using System.IO.Compression;
 using System.Net.Http;
 using System.Text;
+using LocalCompanion.Models;
 using LocalCompanion.Services.LlamaNative;
 
 namespace LocalCompanion.Services;
@@ -33,6 +34,7 @@ internal static class LayaSidecar
     private static volatile bool _stop;
     private static volatile bool _ready;
     private static string? _root;
+    private static string _signature = "";
 
     public static bool IsReady => _ready && !_stop;
 
@@ -46,14 +48,7 @@ internal static class LayaSidecar
     public static void Kick(AppPaths paths)
     {
         MigrateLegacyHome(paths.Root);
-        if (!IsDecisionEnabled(paths))
-            return;
-        if (Interlocked.Exchange(ref _kicked, 1) == 1)
-            return;
-        _stop = false;
-        _root = paths.Root;
-        var runId = Interlocked.Increment(ref _runId);
-        _ = Task.Run(() => Run(paths.Root, runId));
+        StartIfEnabled(paths);
     }
 
     public static void Apply(AppPaths paths, bool enabled)
@@ -61,13 +56,36 @@ internal static class LayaSidecar
         MigrateLegacyHome(paths.Root);
         if (!enabled)
         {
+            _signature = "off";
+            Interlocked.Exchange(ref _kicked, 0);
             Interlocked.Increment(ref _runId);
             Stop();
-            Interlocked.Exchange(ref _kicked, 0);
             return;
         }
 
-        Kick(paths);
+        StartIfEnabled(paths);
+    }
+
+    private static void StartIfEnabled(AppPaths paths)
+    {
+        var settings = LoadSettings(paths.Root);
+        if (!settings.JuliaDecisionEnabled)
+            return;
+
+        var signature = JuliaDevicePreferences.Normalize(settings.JuliaDevice)
+            + "|" + (settings.JuliaAutoUpdate ? "1" : "0");
+        if (signature == _signature && Volatile.Read(ref _kicked) == 1)
+            return;
+
+        _signature = signature;
+        Interlocked.Exchange(ref _kicked, 1);
+        Interlocked.Increment(ref _runId);
+        _stop = false;
+        _ready = false;
+        _root = paths.Root;
+        KillTracked(Home(paths.Root));
+        var runId = Volatile.Read(ref _runId);
+        _ = Task.Run(() => Run(paths.Root, runId));
     }
 
     public static void Stop()
@@ -77,18 +95,18 @@ internal static class LayaSidecar
         KillTracked(RootOrNull());
     }
 
-    private static bool IsDecisionEnabled(AppPaths paths)
+    private static AppSettingsDto LoadSettings(string root)
     {
         try
         {
-            var configured = LlamaInstallConfig.Load(paths.Root).DataDirectory;
+            var configured = LlamaInstallConfig.Load(root).DataDirectory;
             var dir = AppPaths.ResolveUserDataDirectory(configured);
-            return AppSettingsStore.LoadOrDefault(dir).JuliaDecisionEnabled;
+            return AppSettingsStore.LoadOrDefault(dir);
         }
         catch (Exception ex)
         {
-            StartupLog.Write(ex, "Julia decision setting unreadable; leaving it on");
-            return true;
+            StartupLog.Write(ex, "Julia settings unreadable; using defaults");
+            return new AppSettingsDto();
         }
     }
 
@@ -181,39 +199,62 @@ internal static class LayaSidecar
                 return;
             }
 
-            var exe = EnsureCpuServer(home);
-            if (exe is null || Stale(runId))
-                return;
-            var model = EnsureModel(home);
+            var settings = LoadSettings(root);
+            var model = EnsureModel(home, settings.JuliaAutoUpdate, out var replaced);
             if (model is null || Stale(runId))
                 return;
 
-            if (HealthOk() && TrackedAlive(home) && ModelMarkerMatches(home))
+            var preference = JuliaDevicePreferences.Normalize(settings.JuliaDevice);
+            string? gpuExe = null;
+            var gpuReady = false;
+            if (preference != JuliaDevicePreferences.Cpu)
+            {
+                gpuExe = FindGpuServer(root);
+                gpuReady = gpuExe is not null;
+            }
+
+            long? freeVram = preference == JuliaDevicePreferences.Auto
+                ? LlamaHardwareProfile.TryReadNvidiaFreeVramBytes()
+                : null;
+            var decision = JuliaPlacement.Decide(
+                preference,
+                new FileInfo(model).Length,
+                freeVram,
+                gpuReady);
+            StartupLog.Write("Julia placement " + (decision.UseGpu ? "gpu" : "cpu") + " " + decision.Reason);
+
+            var exe = decision.UseGpu ? gpuExe : EnsureCpuServer(home);
+            var place = decision.UseGpu ? "gpu" : "cpu";
+            if (exe is null || Stale(runId))
+                return;
+
+            if (!replaced
+                && HealthOk()
+                && TrackedAlive(home)
+                && ModelMarkerMatches(home)
+                && PlaceMatches(home, place))
             {
                 _ready = true;
                 StartupLog.Write("decision server already running.");
                 return;
             }
 
-            if (!StartServer(home, exe, model))
+            var layers = decision.UseGpu ? JuliaPlacement.GpuLayers : 0;
+            if (!StartServer(home, exe, model, layers, place))
+                return;
+            if (WaitReady(home, runId))
                 return;
 
-            for (var i = 0; i < 40 && !Stale(runId); i++)
-            {
-                if (HealthOk())
-                {
-                    _ready = true;
-                    StartupLog.Write("decision ready " + ModelId + " on port " + Port);
-                    return;
-                }
+            if (!decision.UseGpu || Stale(runId))
+                return;
 
-                Thread.Sleep(500);
-                if (!TrackedAlive(home))
-                {
-                    StartupLog.Write("Laya server exited before ready.");
-                    return;
-                }
-            }
+            StartupLog.Write("Julia GPU did not become ready; starting on CPU.");
+            var cpuExe = EnsureCpuServer(home);
+            if (cpuExe is null || Stale(runId))
+                return;
+            if (!StartServer(home, cpuExe, model, 0, "cpu"))
+                return;
+            WaitReady(home, runId);
         }
         catch (Exception ex)
         {
@@ -249,16 +290,101 @@ internal static class LayaSidecar
         return exe;
     }
 
-    private static string? EnsureModel(string home)
+    private static string? EnsureModel(string home, bool autoUpdate, out bool replaced)
     {
+        replaced = false;
         var dest = Path.Combine(home, ModelFileName);
-        if (File.Exists(dest) && new FileInfo(dest).Length >= MinModelBytes)
+        var ready = File.Exists(dest) && new FileInfo(dest).Length >= MinModelBytes;
+        var tokenPath = Path.Combine(home, ".julia-source");
+        var saved = File.Exists(tokenPath) ? File.ReadAllText(tokenPath).Trim() : null;
+        var remote = ready && !autoUpdate ? null : TryReadRemoteToken(ModelUrl);
+        var action = JuliaPlacement.DecideUpdate(autoUpdate, ready, saved, remote);
+        if (action == JuliaModelAction.Remember && remote is not null)
+        {
+            File.WriteAllText(tokenPath, remote);
+            return dest;
+        }
+
+        if (action == JuliaModelAction.Keep && ready)
             return dest;
 
         StartupLog.Write("decision downloading " + ModelFileName);
         if (!Download(ModelUrl, dest, MinModelBytes))
-            return null;
+            return ready ? dest : null;
+
+        replaced = true;
+        remote ??= TryReadRemoteToken(ModelUrl);
+        if (remote is not null)
+            File.WriteAllText(tokenPath, remote);
         return dest;
+    }
+
+    private static string? TryReadRemoteToken(string url)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = DownloadHttp.Send(request, cts.Token);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var etag = response.Headers.ETag?.Tag;
+            if (string.IsNullOrWhiteSpace(etag)
+                && response.Headers.TryGetValues("X-Linked-Etag", out var linked))
+            {
+                etag = linked.FirstOrDefault();
+            }
+
+            if (!string.IsNullOrWhiteSpace(etag))
+                return etag.Trim().Trim('"');
+
+            var length = response.Content.Headers.ContentLength;
+            return length is > 0 ? "len:" + length.Value : null;
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "Julia update check failed");
+            return null;
+        }
+    }
+
+    private static string? FindGpuServer(string root)
+    {
+        var exe = LlamaCppInstaller.FindLlamaServerExe(root);
+        if (exe is null || IsJuliaCpuCopy(root, exe))
+            return null;
+
+        var marker = Path.Combine(root, "tools", "llama-cpp", ".installed.json");
+        if (!File.Exists(marker))
+            return null;
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(marker));
+            var variant = doc.RootElement.TryGetProperty("variant", out var value)
+                ? value.GetString()
+                : null;
+            if (string.IsNullOrWhiteSpace(variant)
+                || variant.Equals("cpu", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+        }
+        catch
+        {
+            return null;
+        }
+
+        return LlamaCppInstaller.HasUsableGpuDevice(root) ? exe : null;
+    }
+
+    private static bool IsJuliaCpuCopy(string root, string exe)
+    {
+        var juliaBin = Path.GetFullPath(Path.Combine(root, "tools", "Julia"));
+        var full = Path.GetFullPath(exe);
+        return full.StartsWith(juliaBin + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            || full.StartsWith(juliaBin + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool Download(string url, string dest, long minBytes)
@@ -297,7 +423,29 @@ internal static class LayaSidecar
         }
     }
 
-    private static bool StartServer(string home, string exe, string model)
+    private static bool WaitReady(string home, int runId)
+    {
+        for (var i = 0; i < 40 && !Stale(runId); i++)
+        {
+            if (HealthOk())
+            {
+                _ready = true;
+                StartupLog.Write("decision ready " + ModelId + " on port " + Port);
+                return true;
+            }
+
+            Thread.Sleep(500);
+            if (!TrackedAlive(home))
+            {
+                StartupLog.Write("Laya server exited before ready.");
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool StartServer(string home, string exe, string model, int gpuLayers, string place)
     {
         KillTracked(home);
         var threads = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
@@ -317,7 +465,7 @@ internal static class LayaSidecar
         psi.ArgumentList.Add("-c");
         psi.ArgumentList.Add("512");
         psi.ArgumentList.Add("-ngl");
-        psi.ArgumentList.Add("0");
+        psi.ArgumentList.Add(gpuLayers.ToString());
         psi.ArgumentList.Add("-t");
         psi.ArgumentList.Add(threads.ToString());
 
@@ -327,6 +475,7 @@ internal static class LayaSidecar
         ChildProcessJob.Assign(proc);
         File.WriteAllText(PidPath(home), proc.Id.ToString());
         File.WriteAllText(ModelMarkerPath(home), ModelId);
+        File.WriteAllText(PlacePath(home), place);
         TryDelete(Path.Combine(home, "Laya-Q8_0.gguf"));
         return true;
     }
@@ -454,6 +603,15 @@ internal static class LayaSidecar
     private static string PidPath(string home) => Path.Combine(home, "server.pid");
 
     private static string ModelMarkerPath(string home) => Path.Combine(home, ".decision-model");
+
+    private static string PlacePath(string home) => Path.Combine(home, ".julia-place");
+
+    private static bool PlaceMatches(string home, string place)
+    {
+        var path = PlacePath(home);
+        return File.Exists(path)
+            && File.ReadAllText(path).Trim().Equals(place, StringComparison.Ordinal);
+    }
 
     private static bool ModelMarkerMatches(string home)
     {

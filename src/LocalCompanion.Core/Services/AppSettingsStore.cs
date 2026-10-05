@@ -96,6 +96,8 @@ public sealed class AppSettingsStore
             SpeechInputEnabled = dto.SpeechInputEnabled,
             LlamaCppAutoUpdate = dto.LlamaCppAutoUpdate,
             JuliaDecisionEnabled = dto.JuliaDecisionEnabled,
+            JuliaDevice = JuliaDevicePreferences.Normalize(dto.JuliaDevice),
+            JuliaAutoUpdate = dto.JuliaAutoUpdate,
             GpuBackendPreference = LlamaGpuBackendPreferences.Normalize(dto.GpuBackendPreference),
             ShowChatTokenSpeed = dto.ShowChatTokenSpeed,
             SpecDraftMtp = dto.SpecDraftMtp,

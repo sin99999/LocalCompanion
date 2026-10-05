@@ -171,6 +171,22 @@
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiJuliaDecisionHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiJuliaDevice, Mode=OneWay}" />
+                            <Border Style="{StaticResource SettingsInputBorderStyle}">
+                                <ComboBox
+                                    DisplayMemberPath="Label"
+                                    ItemsSource="{x:Bind ViewModel.JuliaDeviceChoices, Mode=OneWay}"
+                                    SelectedItem="{x:Bind ViewModel.SelectedJuliaDevice, Mode=TwoWay}"
+                                    Style="{StaticResource SettingsInBorderComboBoxStyle}" />
+                            </Border>
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiJuliaDeviceHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiJuliaAutoUpdate, Mode=OneWay}" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.JuliaAutoUpdate, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiJuliaAutoUpdateHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiGpuBackend, Mode=OneWay}" />
                             <Border Style="{StaticResource SettingsInputBorderStyle}">
                                 <ComboBox

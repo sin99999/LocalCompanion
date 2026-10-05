@@ -56,6 +56,12 @@ public sealed class AppSettingsDto
     /// <summary>資料を探すかどうかの判断に Julia-1 を使う。会話の文章は書かない。</summary>
     public bool JuliaDecisionEnabled { get; set; } = true;
 
+    /// <summary>auto / gpu / cpu。auto は重みが空き VRAM に全部入るときだけ GPU。</summary>
+    public string JuliaDevice { get; set; } = "auto";
+
+    /// <summary>起動のたびに Julia-1 の配布元を見て、変わっていれば取り直す。オフでも未導入時は 1 回取得する。</summary>
+    public bool JuliaAutoUpdate { get; set; } = true;
+
     /// <summary>NVIDIA 以外: auto / hip-radeon / vulkan。NVIDIA は CUDA 固定。</summary>
     public string GpuBackendPreference { get; set; } = LlamaGpuBackendPreferences.Auto;
 
@@ -86,6 +92,8 @@ public sealed class AppSettingsDto
         SpeechInputEnabled = SpeechInputEnabled,
         LlamaCppAutoUpdate = LlamaCppAutoUpdate,
         JuliaDecisionEnabled = JuliaDecisionEnabled,
+        JuliaDevice = JuliaDevice,
+        JuliaAutoUpdate = JuliaAutoUpdate,
         GpuBackendPreference = GpuBackendPreference,
         ShowChatTokenSpeed = ShowChatTokenSpeed,
         SpecDraftMtp = SpecDraftMtp,
