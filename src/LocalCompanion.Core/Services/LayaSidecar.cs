@@ -159,11 +159,14 @@ internal static class LayaSidecar
 
     public static async Task<RagConversationMode> TryUpgradeProbeAsync(string message, CancellationToken ct)
     {
-        var answer = await TryRouteAsync(message, ct);
-        var choice = JuliaRoutePolicy.ChoiceFromLabel(answer.Label, answer.Confidence);
-        if (choice == JuliaRouteChoice.Notes)
-            return RagConversationMode.SoftTopic;
-        return RagConversationMode.Probe;
+        var json = await PostAsync(LayaDecision.BuildSearchChoice(message), ct);
+        if (json is null)
+            return RagConversationMode.Probe;
+        var choice = LayaDecision.ReadChoice(json, "route");
+        StartupLog.Write(LayaDecision.FormatRoute(choice));
+        if (!LayaDecision.ShouldSearchNotes(choice))
+            return RagConversationMode.Probe;
+        return RagConversationMode.SoftTopic;
     }
 
     private static async Task<double?> TryNoulAsync(string state, string instructions, CancellationToken ct)

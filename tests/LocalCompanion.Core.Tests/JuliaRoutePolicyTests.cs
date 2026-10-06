@@ -13,6 +13,13 @@ public sealed class JuliaRoutePolicyTests
     [InlineData("それを調べて", "今日の東京の天気は？", true)]
     [InlineData("https://example.com を見て", null, false)]
     [InlineData("残業代はどうなる", null, false)]
+    [InlineData("インターネット回線が遅い", null, false)]
+    [InlineData("ネットワークが切れた", null, false)]
+    [InlineData("最新情報の刑法4条を調べて", null, false)]
+    [InlineData("登録資料を検索して第11条を出して", null, false)]
+    [InlineData("就業規則を調べて", null, false)]
+    [InlineData("ウェブで刑法235条を調べて", null, false)]
+    [InlineData("万引きは違法？", null, false)]
     public void ShouldAsk_LeavesExplicitWebAndLocalNotesAlone(
         string message,
         string? previous,

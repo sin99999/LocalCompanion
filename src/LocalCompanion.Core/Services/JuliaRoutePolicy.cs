@@ -30,12 +30,10 @@ internal static class JuliaRoutePolicy
             return false;
         if (ChatAgentResearchEnricher.LooksLikeLocalCorpusResearch(message, previousUserMessage))
             return false;
+        if (!ChatAgentResearchEnricher.LooksLikeResearchIntent(message, previousUserMessage))
+            return false;
 
-        if (mode == RagConversationMode.Probe)
-            return true;
-
-        return mode == RagConversationMode.SoftTopic
-            && ChatAgentResearchEnricher.LooksLikeResearchIntent(message, previousUserMessage);
+        return mode is RagConversationMode.Probe or RagConversationMode.SoftTopic;
     }
 
     public static JuliaRouteChoice ChoiceFromLabel(string? label, double confidence)

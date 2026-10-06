@@ -49,7 +49,24 @@ internal static class LayaDecision
             },
         });
 
-    public static string BuildSearchChoice(string state) => BuildRouteChoice(state);
+    public static string BuildSearchChoice(string state)
+        => JsonSerializer.Serialize(new
+        {
+            state = Clip(state),
+            questions = new Dictionary<string, object>
+            {
+                ["route"] = new
+                {
+                    type = "choice",
+                    instructions = "Should the assistant look up the user's saved notes before answering?",
+                    criteria = new Dictionary<string, string>
+                    {
+                        ["search"] = "the answer depends on the user's saved wording, numbers, file, note, law, or prompt recipe. A request to draw or write still counts when it asks to follow that saved material.",
+                        ["chat"] = "greeting, feeling, small talk, or a request to write or draw that can be done without the user's saved notes.",
+                    },
+                },
+            },
+        });
 
     public static string BuildRouteChoice(string state)
         => JsonSerializer.Serialize(new

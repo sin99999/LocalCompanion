@@ -1624,6 +1624,8 @@ public sealed class ChatService
         if (mode == RagConversationMode.Skip)
             return (null, mode);
         mode = JuliaRoutePolicy.ApplyToNotes(mode, juliaChoice, askedJulia);
+        if (!askedJulia && mode == RagConversationMode.Probe)
+            mode = await LayaSidecar.TryUpgradeProbeAsync(currentMessage, ct);
 
         var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, plan, mode, ct);
         if (result is null)
