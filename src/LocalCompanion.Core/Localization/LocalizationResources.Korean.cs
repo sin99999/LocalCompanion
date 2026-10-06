@@ -350,7 +350,7 @@ internal static partial class LocalizationResources
         ["Settings.General.LlamaAutoUpdate"] = "시작할 때마다 llama.cpp 업데이트",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "끄면 이미 들어 있는 llama.cpp 그대로 시작합니다. 아직 없으면 처음 한 번만 받습니다. GPU를 바꾸면 다음에 시작할 때 그 GPU용 llama.cpp를 받습니다.",
         ["Settings.General.JuliaDecision"] = "Julia-1(판단 담당) 사용",
-        ["Settings.General.JuliaDecision.Hint"] = "Julia-1은 대화 답변을 쓰는 모델과는 다른, 작은 판단 담당입니다. 보낸 글을 읽습니다. 웹을 쓰라고 적었을 때, 법령을 명시했을 때, 등록 자료를 명시했을 때는 그 명시 그대로 둡니다. 등록 자료를 찾을지, 공개 웹을 볼지, 그냥 대화로 둘지 헷갈릴 때만 이 셋 중 하나를 고릅니다. 답변 문장 자체는 쓰지 않습니다. 켜면 이 판단 담당이 움직입니다. 끄면 판단 담당은 멈춥니다.",
+        ["Settings.General.JuliaDecision.Hint"] = "Julia-1은 답변을 쓰는 모델과 따로 움직입니다. 보낸 글을 읽고, 답변 문장은 쓰지 않습니다. 웹을 쓰라고 적었을 때, 법령 이름을 적었을 때, 등록 자료 이름을 적었을 때는 앱이 그 적힌 대로 찾습니다. 글에서 어디를 찾을지 정해지지 않을 때만, Julia-1이 등록 자료, 공개 웹, 일반 대화 중 하나를 고릅니다. 켜면 움직이고, 끄면 멈춥니다.",
         ["Settings.General.JuliaDevice"] = "Julia-1 을 실행할 곳",
         ["Settings.General.JuliaDevice.Hint"] = "자동에서는 Julia-1 의 가중치가 그래픽 카드의 남은 메모리에 전부 들어갈 때만 카드로 계산합니다. 들어가지 않거나, 남은 메모리를 읽지 못하거나, 카드용 llama.cpp 가 없으면 CPU 를 그대로 씁니다. GPU 를 고르면 카드로 시도하고, 카드가 준비되지 않으면 CPU 로 돌아갑니다. CPU 를 고르면 카드를 쓰지 않습니다.",
         ["Settings.General.JuliaDevice.Auto"] = "자동(전부 들어갈 때만 GPU)",
