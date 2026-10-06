@@ -344,7 +344,7 @@ internal static partial class LocalizationResources
         ["Settings.General.LlamaAutoUpdate"] = "每次啟動時更新 llama.cpp",
         ["Settings.General.LlamaAutoUpdate.Hint"] = "關閉後，會用已經放好的 llama.cpp 啟動。還沒有的時候，只在第一次取得。變更 GPU 後，下次啟動時會取得適合該 GPU 的 llama.cpp。",
         ["Settings.General.JuliaDecision"] = "使用 Julia-1（判斷助手）",
-        ["Settings.General.JuliaDecision.Hint"] = "Julia-1 是撰寫聊天回覆的模型之外的一個小判斷助手。它只看線索不清楚的文字，並從三個裡選一個：尋找已登記的資料、查看公開的網頁，或當作一般聊天。寫了「在網頁上」的請求，以及法令或已登記資料的請求，會由原有的檢查先處理。它不寫回覆正文。開啟時，這個判斷助手會運作。關閉後，判斷助手會停止。",
+        ["Settings.General.JuliaDecision.Hint"] = "Julia-1 是撰寫聊天回覆的模型之外的一個小判斷助手。它閱讀你送出的文字。你寫明要用網頁時、寫明法令時、寫明已登記資料時，就保持你寫的那樣。只有在尋找已登記資料、查看公開網頁、或當作一般聊天之間猶豫時，才從這三個裡選一個。它不寫回覆正文。開啟時，這個判斷助手會運作。關閉後，判斷助手會停止。",
         ["Settings.General.JuliaDevice"] = "Julia-1 在哪裡執行",
         ["Settings.General.JuliaDevice.Hint"] = "自動時，只有 Julia-1 的全部權重能放進顯示卡的可用記憶體，才會用顯示卡計算。放不下、讀不到可用記憶體、或是沒有顯示卡用的 llama.cpp 時，維持使用 CPU。選擇 GPU 會嘗試使用顯示卡，顯示卡沒有準備好時回到 CPU。選擇 CPU 則不用顯示卡。",
         ["Settings.General.JuliaDevice.Auto"] = "自動（全部放得下時才用 GPU）",
