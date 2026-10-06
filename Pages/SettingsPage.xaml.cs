@@ -1,10 +1,12 @@
 ﻿using LocalCompanion;
+using LocalCompanion.Controls;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using System.ComponentModel;
 using SelectionChangedEventArgs = Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs;
@@ -21,6 +23,7 @@ public sealed partial class SettingsPage : Page
     {
         ViewModel = AppServices.Get<SettingsPageViewModel>();
         InitializeComponent();
+        PreviewKeyDown += OnArrowKeyScroll;
         ViewModel.BindUiDispatcher(DispatcherQueue);
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Unloaded += OnUnloaded;
@@ -205,4 +208,20 @@ public sealed partial class SettingsPage : Page
 
     private void OnClearModelsFolderClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) =>
         ViewModel.SetAdditionalModelsFolder(null);
+
+    private void OnArrowKeyScroll(object sender, KeyRoutedEventArgs e)
+    {
+        if (XamlRoot is null)
+            return;
+
+        var focused = FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        SettingsTabArrowScroll.Handle(e, SelectedTabScrollViewer(), focused);
+    }
+
+    private ScrollViewer? SelectedTabScrollViewer()
+    {
+        if (SettingsTabs.SelectedItem is TabViewItem { Content: ScrollViewer scroll })
+            return scroll;
+        return null;
+    }
 }
