@@ -60,6 +60,10 @@ internal static class ChatAgentResearchEnricher
         if (LocalRagSearchCue.IsMatch(message) || LooksLikeLocalCorpusResearch(message, previousUserMessage))
             return false;
 
+        // 条の無い直前（「刑法の時効」）は、続きの検索語に貼り付いたまま外へ出さない
+        if (ComposedQueryLooksLocal(message, previousUserMessage))
+            return false;
+
         // 代名詞だけ＋前ターンなしは Web しても空振りなので止める
         var probeQuery = BuildSearchQuery(message, previousUserMessage);
         if (probeQuery.Length < 2 || WeakWebQuery.IsMatch(probeQuery))
@@ -102,6 +106,19 @@ internal static class ChatAgentResearchEnricher
         if (RagArticleQueryParser.TryGetArticleNumber(message, out _))
             return true;
         return RagLegalQueryContext.LooksLikeLegalArticleQuery(message, sourceHint: null);
+    }
+
+    /// <summary>外に出す検索語へ、法令・登録資料が混ざっている。</summary>
+    private static bool ComposedQueryLooksLocal(string message, string? previousUserMessage)
+    {
+        var query = BuildSearchQuery(message, previousUserMessage);
+        if (query.Length < 2)
+            return false;
+        if (HasHardLocalCue(query) || LocalRagSearchCue.IsMatch(query))
+            return true;
+        if (RagConversationGate.LooksLikeCrimeRisk(query))
+            return true;
+        return RagConversationGate.LooksLikeSoftTopic(query);
     }
 
     public static string BuildSearchQuery(string message, string? previousUserMessage = null)
@@ -203,6 +220,11 @@ internal static class ChatAgentResearchEnricher
 
         // メッセージに URL がある場合はインライン取得側に任せる
         if (ChatMessageUrlExtractor.Extract(req.Message, 1).Count > 0)
+            return req;
+
+        // 明示のウェブは今の係。それ以外で検索語に法令・登録資料が混ざったら、Julia の web でも出さない
+        if (!IsExplicitWebRequest(req.Message)
+            && ComposedQueryLooksLocal(req.Message, previousUserMessage))
             return req;
 
         if (juliaWeb != true && !LooksLikeResearchIntent(req.Message, previousUserMessage))

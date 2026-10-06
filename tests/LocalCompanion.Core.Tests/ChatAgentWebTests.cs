@@ -216,6 +216,12 @@ public sealed class ChatAgentResearchEnricherTests
     [InlineData("最新情報を調べて", "刑法235条は？", false)]
     [InlineData("それを調べて", "今日の東京の天気は？", true)]
     [InlineData("最新情報を調べて", "今日の東京の天気は？", true)]
+    [InlineData("もっと詳しく調べて", "刑法の窃盗について", false)]
+    [InlineData("続きを調べて", "登録資料のレシピを見せて", false)]
+    [InlineData("続きを調べて", "刑法の時効について", false)]
+    [InlineData("それを調べて", "刑法の時効について", false)]
+    [InlineData("詳細を教えて", "刑法の時効について", false)]
+    [InlineData("ウェブで刑法の時効を調べて", "今日の東京の天気は？", true)]
     public void LooksLikeResearchIntent_UsesPreviousTurnForLocalVsWeb(
         string message,
         string previous,
@@ -224,6 +230,25 @@ public sealed class ChatAgentResearchEnricherTests
         Assert.Equal(
             expectedWeb,
             ChatAgentResearchEnricher.LooksLikeResearchIntent(message, previous));
+    }
+
+    [Fact]
+    public async Task EnrichAsync_JuliaWeb_DoesNotSendStatuteFollowUp()
+    {
+        var req = new ChatRequestDto("それを調べて");
+        var enriched = await ChatAgentResearchEnricher.EnrichAsync(
+            req,
+            webSearchEnabled: true,
+            webSearchBaseUrl: "http://127.0.0.1:9",
+            searchTopK: 1,
+            fetchTopK: 0,
+            maxCharsPerUrl: 1000,
+            maxAttachChars: 4000,
+            previousUserMessage: "刑法の時効について",
+            juliaWeb: true);
+
+        Assert.Null(enriched.AttachedText);
+        Assert.Equal("それを調べて", enriched.Message);
     }
 
     [Fact]
