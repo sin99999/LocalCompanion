@@ -143,16 +143,27 @@ internal static class LayaSidecar
         return LayaDecision.ShouldSkip(yes);
     }
 
-    public static async Task<RagConversationMode> TryUpgradeProbeAsync(string message, CancellationToken ct)
+    public readonly record struct JuliaRouteAnswer(string? Label, double Confidence);
+
+    public static async Task<JuliaRouteAnswer> TryRouteAsync(string message, CancellationToken ct)
     {
-        var json = await PostAsync(LayaDecision.BuildSearchChoice(message), ct);
+        var json = await PostAsync(LayaDecision.BuildRouteChoice(message), ct);
         if (json is null)
-            return RagConversationMode.Probe;
+            return new(null, 0);
         var choice = LayaDecision.ReadChoice(json, "route");
         StartupLog.Write(LayaDecision.FormatRoute(choice));
-        if (!LayaDecision.ShouldSearchNotes(choice))
-            return RagConversationMode.Probe;
-        return RagConversationMode.SoftTopic;
+        if (choice is not { } picked)
+            return new(null, 0);
+        return new(picked.Label, picked.Confidence);
+    }
+
+    public static async Task<RagConversationMode> TryUpgradeProbeAsync(string message, CancellationToken ct)
+    {
+        var answer = await TryRouteAsync(message, ct);
+        var choice = JuliaRoutePolicy.ChoiceFromLabel(answer.Label, answer.Confidence);
+        if (choice == JuliaRouteChoice.Notes)
+            return RagConversationMode.SoftTopic;
+        return RagConversationMode.Probe;
     }
 
     private static async Task<double?> TryNoulAsync(string state, string instructions, CancellationToken ct)

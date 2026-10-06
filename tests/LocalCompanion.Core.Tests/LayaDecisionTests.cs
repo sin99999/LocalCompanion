@@ -70,8 +70,9 @@ public sealed class LayaDecisionTests
         var body = LayaDecision.BuildSearchChoice("絵が欲しい");
         using var doc = JsonDocument.Parse(body);
         var criteria = doc.RootElement.GetProperty("questions").GetProperty("route").GetProperty("criteria");
-        Assert.Contains("still counts", criteria.GetProperty("search").GetString(), StringComparison.Ordinal);
-        Assert.Contains("without the user's saved notes", criteria.GetProperty("chat").GetString(), StringComparison.Ordinal);
+        Assert.Contains("still counts", criteria.GetProperty("notes").GetString(), StringComparison.Ordinal);
+        Assert.Contains("without saved notes", criteria.GetProperty("chat").GetString(), StringComparison.Ordinal);
+        Assert.Contains("statute", criteria.GetProperty("web").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]

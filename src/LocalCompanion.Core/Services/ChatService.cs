@@ -514,7 +514,10 @@ public sealed class ChatService
                 conflictRuntime.StatusMessage);
         }
 
-        req = await EnrichRequestWithWebContextAsync(req, historyMode, ct);
+        var previousForRoute = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
+        var (askedJulia, juliaChoice) = await AskJuliaRouteAsync(req.Message, previousForRoute, ct);
+        req = await EnrichRequestWithWebContextAsync(
+            req, historyMode, JuliaRoutePolicy.WebOverride(juliaChoice, askedJulia), ct);
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -544,7 +547,8 @@ public sealed class ChatService
         if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-            var (ragResult, ragMode) = await TrySearchRagForChatAsync(effectiveMessage, previousUser, ct);
+            var (ragResult, ragMode) = await TrySearchRagForChatAsync(
+                effectiveMessage, previousUser, juliaChoice, askedJulia, ct);
             if (ragMode != RagConversationMode.Skip
                 && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, ragMode, out var verbatimReply, out ragSources))
             {
@@ -720,7 +724,10 @@ public sealed class ChatService
             yield break;
         }
 
-        req = await EnrichRequestWithWebContextAsync(req, historyMode, ct);
+        var previousForRoute = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
+        var (askedJulia, juliaChoice) = await AskJuliaRouteAsync(req.Message, previousForRoute, ct);
+        req = await EnrichRequestWithWebContextAsync(
+            req, historyMode, JuliaRoutePolicy.WebOverride(juliaChoice, askedJulia), ct);
         var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
@@ -751,7 +758,8 @@ public sealed class ChatService
         if (allowRagWithAttach)
         {
             var previousUser = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-            var (ragResult, ragMode) = await TrySearchRagForChatAsync(effectiveMessage, previousUser, ct);
+            var (ragResult, ragMode) = await TrySearchRagForChatAsync(
+                effectiveMessage, previousUser, juliaChoice, askedJulia, ct);
             if (ragMode != RagConversationMode.Skip
                 && TryResolveVerbatimReply(ragResult, isCharacter, effectiveMessage, japaneseReply, ragMode, out verbatimReply, out ragSources))
             {
@@ -1178,9 +1186,22 @@ public sealed class ChatService
         return string.Join("\n\n", parts);
     }
 
+    private async Task<(bool Asked, JuliaRouteChoice Choice)> AskJuliaRouteAsync(
+        string message,
+        string? previousUserMessage,
+        CancellationToken ct)
+    {
+        if (!JuliaRoutePolicy.ShouldAsk(message, previousUserMessage))
+            return (false, JuliaRouteChoice.Keep);
+
+        var answer = await LayaSidecar.TryRouteAsync(message, ct);
+        return (true, JuliaRoutePolicy.ChoiceFromLabel(answer.Label, answer.Confidence));
+    }
+
     private async Task<ChatRequestDto> EnrichRequestWithWebContextAsync(
         ChatRequestDto req,
         HistoryMode historyMode,
+        bool? juliaWeb,
         CancellationToken ct)
     {
         // 1) メッセージ内 URL を自動取得
@@ -1216,6 +1237,7 @@ public sealed class ChatService
             Math.Max(1000, _opt.InlineUrlMaxChars),
             Math.Max(1000, _opt.MaxAttachTextChars),
             previousUser,
+            juliaWeb,
             ct);
 
         return req;
@@ -1593,14 +1615,15 @@ public sealed class ChatService
     private async Task<(RagSearchResult? Result, RagConversationMode Mode)> TrySearchRagForChatAsync(
         string currentMessage,
         string? previousUserMessage,
+        JuliaRouteChoice juliaChoice,
+        bool askedJulia,
         CancellationToken ct)
     {
         var plan = RagQueryPlanner.Plan(currentMessage, previousUserMessage);
         var mode = RagConversationGate.Resolve(plan, currentMessage);
         if (mode == RagConversationMode.Skip)
             return (null, mode);
-        if (mode == RagConversationMode.Probe)
-            mode = await LayaSidecar.TryUpgradeProbeAsync(currentMessage, ct);
+        mode = JuliaRoutePolicy.ApplyToNotes(mode, juliaChoice, askedJulia);
 
         var result = await TrySearchRagWithPlanAsync(currentMessage, previousUserMessage, plan, mode, ct);
         if (result is null)

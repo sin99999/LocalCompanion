@@ -41,6 +41,9 @@ internal static class ChatAgentResearchEnricher
         @"(?:刑法|刑事訴訟法|労働基準法|労基法|民法|会社法|著作権法|特許法|国外犯|条文|第\s*\d+\s*条|\d+\s*条)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    internal static bool IsExplicitWebRequest(string? message) =>
+        !string.IsNullOrWhiteSpace(message) && HardExplicitWebCue.IsMatch(message);
+
     public static bool LooksLikeResearchIntent(string? message, string? previousUserMessage = null)
     {
         if (string.IsNullOrWhiteSpace(message) || message.Length < 4)
@@ -189,16 +192,20 @@ internal static class ChatAgentResearchEnricher
         int maxCharsPerUrl,
         int maxAttachChars,
         string? previousUserMessage = null,
+        bool? juliaWeb = null,
         CancellationToken ct = default)
     {
         if (!webSearchEnabled)
+            return req;
+
+        if (juliaWeb == false)
             return req;
 
         // メッセージに URL がある場合はインライン取得側に任せる
         if (ChatMessageUrlExtractor.Extract(req.Message, 1).Count > 0)
             return req;
 
-        if (!LooksLikeResearchIntent(req.Message, previousUserMessage))
+        if (juliaWeb != true && !LooksLikeResearchIntent(req.Message, previousUserMessage))
             return req;
 
         var query = BuildSearchQuery(req.Message, previousUserMessage);
