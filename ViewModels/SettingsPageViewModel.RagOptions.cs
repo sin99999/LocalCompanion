@@ -74,6 +74,19 @@ public partial class SettingsPageViewModel
 
     internal void ApplyIngestResult(RagService.RagIngestResult result)
     {
+        if (result.Chunks <= 0)
+        {
+            var detail = result.Skipped.Count > 0
+                ? string.Join("\n", result.Skipped)
+                : _loc.Get("Settings.Rag.IngestFailed");
+            _ragErrorException = null;
+            RagHasError = true;
+            RagErrorText = detail;
+            SetRagStatus("Settings.Rag.IngestFailed");
+            RagIngestReportText = detail;
+            return;
+        }
+
         SetRagStatus("Settings.Rag.IngestDone", result.Files, result.Chunks);
         if (result.Stats is { } stats)
         {

@@ -398,6 +398,8 @@ public sealed class RagService
             throw new LocalizedServiceException("Settings.Rag.Error.FileNotFound");
 
         var (chunks, _, skipped, stats) = await IngestFileDetailedAsync(path, ct);
+        if (chunks <= 0)
+            skipped = [.. skipped, FormatSkipped("Settings.Rag.Error.SkippedEmpty", Path.GetFileName(path))];
         return new RagIngestResult(path, chunks > 0 ? 1 : 0, chunks, skipped, stats);
     }
 
