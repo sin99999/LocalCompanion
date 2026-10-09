@@ -238,15 +238,15 @@ public sealed class ChatConversationHtmlBuilderTests
     public void BuildBody_JammedNumberedChoices_ShowsBulletLines()
     {
         const string body =
-            "選んでみて！✨*【選択肢】1.**ギャルトーク全開！\n"
-            + "（最近の流行りとか、うちの話をたっぷり！）2.甘えん坊タイム♡（ちょっと二人きりで、じっくりイチャイチャ？）3.日常の雑談♪（今日あったこととか、ゆるく話そ！）【レンのおすすめ】やっぱり……「甘えん坊タイム」**かな！";
+            "選んでみて！【選択肢】1.**明るい話題\n"
+            + "（最近の話を聞く）2.静かな時間（少し長く話す）3.日常の雑談（今日あったことを話す）【おすすめ】やっぱり……「静かな時間」**かな！";
 
         var html = ChatConversationHtmlBuilder.BuildBodyWithLinks(body, sentenceBreaks: true);
         Assert.Contains("class=\"list-mark\">・", html, StringComparison.Ordinal);
-        Assert.Contains("ギャルトーク全開", html, StringComparison.Ordinal);
-        Assert.Contains("甘えん坊タイム", html, StringComparison.Ordinal);
+        Assert.Contains("明るい話題", html, StringComparison.Ordinal);
+        Assert.Contains("静かな時間", html, StringComparison.Ordinal);
         Assert.Contains("日常の雑談", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("）2.甘えん坊", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("）2.静かな", html, StringComparison.Ordinal);
     }
 
     [Fact]

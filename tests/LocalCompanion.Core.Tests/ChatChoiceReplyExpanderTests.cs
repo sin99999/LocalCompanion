@@ -128,7 +128,7 @@ public sealed class ChatChoiceReplyExpanderTests
     public void Expand_JammedNumberedChoices_UsesMatchingItem()
     {
         const string assistant =
-            "選んでみて！✨*【選択肢】1.**ギャルトーク全開！\n"
+            "選んでみて！【選択肢】1.**明るい話題\n"
             + "（最近の流行りとか、うちの話をたっぷり！）2.甘えん坊タイム♡（ちょっと二人きり）3.日常の雑談♪（ゆるく話そ！）";
 
         var expanded = ChatChoiceReplyExpander.Expand("2", assistant);

@@ -32,10 +32,10 @@ dotnet test tests/LocalCompanion.Core.Tests/LocalCompanion.Core.Tests.csproj
 | ビルド・run-debug | `winui-dev-workflow` |
 | RAG・ingest・vec 検索 | `.cursor/skills/localcompanion-rag/` |
 | テスト追加・修正 | `.cursor/skills/localcompanion-core-tests/` |
-| 公開前監査・妹作戦・横断レビュー | `.cursor/skills/localcompanion-agent-audit/` |
+| 公開前の監査・横断レビュー | `.cursor/skills/localcompanion-agent-audit/` |
 | レガシーソフト診断・互換フラグ・窓が消えた | 個人 skill `host-safe-ops`（PCを壊さない） |
 
-## 妹作戦（ユーザーが依頼したとき）
+## 複数人の監査（ユーザーが依頼したとき）
 
 Task を並列で起動（explore）。親 Agent が統合して **最小修正 + テスト** まで持っていく。詳細は `localcompanion-agent-audit` スキル。
 
@@ -55,4 +55,4 @@ Task を並列で起動（explore）。親 Agent が統合して **最小修正 
 
 ## 製品文案
 
-GitHub／README／配布／docs にギャル口調と AI っぽい合図の語を置かない。製品文案はです・ます。チャット用の口語・絵文字は製品文案に入れない。公開前の複数 Agent 監査は `localcompanion-agent-audit`（「妹作戦」は Agent 向けの呼び名。製品 README には書かない）。
+GitHub／README／配布／docs に、チャット専用の口語と、AI っぽい合図の語を置かない。製品文案はです・ます。チャット用の口語・絵文字は製品文案に入れない。公開前の複数 Agent の監査は `localcompanion-agent-audit`。
