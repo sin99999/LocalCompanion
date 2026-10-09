@@ -1634,6 +1634,9 @@ public sealed class ChatService
             return (new RagSearchResult(Array.Empty<RagSearchHit>(), plan, SearchFailed: true), mode);
         }
 
+        if (mode is RagConversationMode.SoftTopic or RagConversationMode.RiskCaution)
+            result = await RagJuliaHitFilter.ApplyAsync(result, ct);
+
         return (RagConversationGate.ApplyHitPolicy(result, currentMessage, mode), mode);
     }
 

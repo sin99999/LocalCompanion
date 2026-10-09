@@ -132,6 +132,20 @@ internal static class LayaSidecar
         return LayaDecision.ShouldSkip(yes);
     }
 
+    /// <summary>
+    /// 断片が質問に答えている「はい」。読めない・止まっているときは null。
+    /// 断片を消すスイッチとは別。質問やヒットを外す側だけが使う。
+    /// </summary>
+    public static Task<double?> TryPassageAnswersYesAsync(string passage, string question, CancellationToken ct)
+    {
+        if (!IsReady || string.IsNullOrWhiteSpace(passage) || string.IsNullOrWhiteSpace(question))
+            return Task.FromResult<double?>(null);
+        return TryNoulAsync(
+            RagJuliaAnswerCheck.BuildState(passage, question),
+            "Is this question answered by the passage above?",
+            ct);
+    }
+
     public static async Task<bool> ShouldSkipMemoryAsync(string transcript, CancellationToken ct)
     {
         if (!LayaDecision.UseYesNoSkip)

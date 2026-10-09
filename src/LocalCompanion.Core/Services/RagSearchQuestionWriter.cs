@@ -61,6 +61,9 @@ internal sealed class RagSearchQuestionWriter
             return "";
         if (await LayaSidecar.QuestionMissesPassageAsync(clipped, accepted, ct))
             return "";
+        var yes = await LayaSidecar.TryPassageAnswersYesAsync(clipped, accepted, ct);
+        if (!RagJuliaAnswerCheck.Keep(yes))
+            return "";
         return accepted;
     }
 }
