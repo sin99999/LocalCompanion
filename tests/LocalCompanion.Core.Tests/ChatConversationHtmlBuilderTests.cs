@@ -28,6 +28,17 @@ public sealed class ChatConversationHtmlBuilderTests
     }
 
     [Fact]
+    public void BuildShell_PaperIsDarkText_AppKeepsLightText()
+    {
+        var html = ChatConversationHtmlBuilder.BuildShell("Segoe UI", 14, "Copy", "Copied");
+        Assert.Contains("--chat-fg: #1a1a1a;", html, StringComparison.Ordinal);
+        Assert.Contains("html.lc-app", html, StringComparison.Ordinal);
+        Assert.Contains("--chat-fg: #f3f3f3;", html, StringComparison.Ordinal);
+        Assert.Contains("@media print", html, StringComparison.Ordinal);
+        Assert.Contains("lcApplyHostChrome", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BuildBody_UserHalfWidthParenAside_StaysOneParagraph()
     {
         const string body =

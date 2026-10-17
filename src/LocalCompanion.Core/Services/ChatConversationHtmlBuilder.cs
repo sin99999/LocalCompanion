@@ -44,17 +44,70 @@ public static class ChatConversationHtmlBuilder
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
 :root {
+  --chat-fg: #1a1a1a;
+  --chat-fg-secondary: rgba(26, 26, 26, 0.78);
+  --chat-link: #0b5cab;
+  --chat-font: "{{familyCss}}", "Yu Gothic UI", sans-serif;
+  --chat-size: {{size.ToString(System.Globalization.CultureInfo.InvariantCulture)}}px;
+  --chat-bg: #ffffff;
+  --chat-reasoning-border: rgba(11, 92, 171, 0.55);
+  --chat-reasoning-bg: rgba(0, 0, 0, 0.04);
+  --chat-reasoning-live-border: rgba(11, 92, 171, 0.95);
+  --chat-reasoning-live-bg: rgba(11, 92, 171, 0.08);
+  --chat-msg-bg: transparent;
+  --chat-line: rgba(0, 0, 0, 0.18);
+  --chat-th-bg: rgba(0, 0, 0, 0.06);
+  --chat-code-bg: rgba(0, 0, 0, 0.05);
+  --chat-code-line: rgba(0, 0, 0, 0.12);
+  --chat-copy-bg: rgba(0, 0, 0, 0.06);
+  --chat-copy-line: rgba(0, 0, 0, 0.22);
+  --chat-copy-hover: rgba(11, 92, 171, 0.16);
+}
+html.lc-app {
   --chat-fg: #f3f3f3;
   --chat-fg-secondary: rgba(243, 243, 243, 0.78);
   --chat-link: #60cdff;
-  --chat-font: "{{familyCss}}", "Yu Gothic UI", sans-serif;
-  --chat-size: {{size.ToString(System.Globalization.CultureInfo.InvariantCulture)}}px;
+  --chat-bg: transparent;
+  --chat-reasoning-border: rgba(96, 205, 255, 0.55);
+  --chat-reasoning-bg: rgba(255, 255, 255, 0.06);
+  --chat-reasoning-live-border: rgba(96, 205, 255, 0.95);
+  --chat-reasoning-live-bg: rgba(96, 205, 255, 0.08);
+  --chat-msg-bg: rgba(255, 255, 255, 0.02);
+  --chat-line: rgba(255, 255, 255, 0.18);
+  --chat-th-bg: rgba(255, 255, 255, 0.08);
+  --chat-code-bg: rgba(0, 0, 0, 0.28);
+  --chat-code-line: rgba(255, 255, 255, 0.12);
+  --chat-copy-bg: rgba(0, 0, 0, 0.45);
+  --chat-copy-line: rgba(255, 255, 255, 0.22);
+  --chat-copy-hover: rgba(96, 205, 255, 0.22);
+}
+@media print {
+  html, html.lc-app {
+    --chat-fg: #1a1a1a;
+    --chat-fg-secondary: rgba(26, 26, 26, 0.78);
+    --chat-link: #0b5cab;
+    --chat-bg: #ffffff;
+    --chat-reasoning-border: rgba(11, 92, 171, 0.55);
+    --chat-reasoning-bg: rgba(0, 0, 0, 0.04);
+    --chat-reasoning-live-border: rgba(11, 92, 171, 0.95);
+    --chat-reasoning-live-bg: rgba(11, 92, 171, 0.08);
+    --chat-msg-bg: transparent;
+    --chat-line: rgba(0, 0, 0, 0.18);
+    --chat-th-bg: rgba(0, 0, 0, 0.06);
+    --chat-code-bg: rgba(0, 0, 0, 0.05);
+    --chat-code-line: rgba(0, 0, 0, 0.12);
+    --chat-copy-bg: rgba(0, 0, 0, 0.06);
+    --chat-copy-line: rgba(0, 0, 0, 0.22);
+    --chat-copy-hover: rgba(11, 92, 171, 0.16);
+  }
 }
 html, body {
   margin: 0;
   padding: 8px 4px 16px 0;
-  background: transparent;
+  background: var(--chat-bg);
   color: var(--chat-fg);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
   font-family: var(--chat-font);
   font-size: var(--chat-size);
   line-height: 1.55;
@@ -76,13 +129,13 @@ html, body {
   font-size: 0.92em;
   margin: 0 0 10px 0;
   padding: 8px 10px;
-  border-left: 3px solid rgba(96, 205, 255, 0.55);
-  background: rgba(255, 255, 255, 0.06);
+  border-left: 3px solid var(--chat-reasoning-border);
+  background: var(--chat-reasoning-bg);
   border-radius: 0 6px 6px 0;
 }
 .msg .reasoning.live {
-  border-left-color: rgba(96, 205, 255, 0.95);
-  background: rgba(96, 205, 255, 0.08);
+  border-left-color: var(--chat-reasoning-live-border);
+  background: var(--chat-reasoning-live-bg);
 }
 .msg .reasoning-label {
   font-weight: 600;
@@ -112,7 +165,7 @@ html, body {
 }
 p { margin: 0.45em 0; }
 .msg {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--chat-msg-bg);
 }
 ul.chat-list, ol.chat-list {
   list-style: none;
@@ -137,14 +190,14 @@ table.chat-table {
 }
 table.chat-table th,
 table.chat-table td {
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--chat-line);
   padding: 6px 8px;
   vertical-align: top;
   word-wrap: break-word;
   overflow-wrap: anywhere;
 }
 table.chat-table th {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--chat-th-bg);
   font-weight: 600;
   font-size: 0.93em;
 }
@@ -155,8 +208,8 @@ table.chat-table th {
 pre.chat-code {
   margin: 0.6em 0;
   padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--chat-code-bg);
+  border: 1px solid var(--chat-code-line);
   border-radius: 6px;
   font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
   font-size: 0.93em;
@@ -179,8 +232,8 @@ button.chat-copy {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--chat-copy-line);
+  background: var(--chat-copy-bg);
   color: var(--chat-fg);
   border-radius: 4px;
   cursor: pointer;
@@ -188,10 +241,10 @@ button.chat-copy {
   user-select: none;
 }
 button.chat-copy:hover {
-  background: rgba(96, 205, 255, 0.22);
+  background: var(--chat-copy-hover);
 }
 button.chat-copy.copied {
-  border-color: rgba(96, 205, 255, 0.55);
+  border-color: var(--chat-link);
 }
 .chat-copy-icon {
   width: 14px;
@@ -202,13 +255,21 @@ button.chat-copy.copied {
 code {
   font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
   font-size: 0.93em;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--chat-code-bg);
+  border: 1px solid var(--chat-code-line);
   border-radius: 4px;
   padding: 0.1em 0.35em;
 }
 strong { font-weight: 700; }
 </style>
+<script>
+function lcApplyHostChrome() {
+  var href = String(location.href || "");
+  var embedded = location.protocol === "about:" || href.indexOf("about:blank") === 0;
+  document.documentElement.classList.toggle("lc-app", embedded);
+}
+lcApplyHostChrome();
+</script>
 </head>
 <body>
 <div id="log"></div>
