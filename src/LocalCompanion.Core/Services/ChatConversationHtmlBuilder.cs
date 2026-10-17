@@ -44,29 +44,11 @@ public static class ChatConversationHtmlBuilder
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
 :root {
-  --chat-fg: #1a1a1a;
-  --chat-fg-secondary: rgba(26, 26, 26, 0.78);
-  --chat-link: #0b5cab;
-  --chat-font: "{{familyCss}}", "Yu Gothic UI", sans-serif;
-  --chat-size: {{size.ToString(System.Globalization.CultureInfo.InvariantCulture)}}px;
-  --chat-bg: #ffffff;
-  --chat-reasoning-border: rgba(11, 92, 171, 0.55);
-  --chat-reasoning-bg: rgba(0, 0, 0, 0.04);
-  --chat-reasoning-live-border: rgba(11, 92, 171, 0.95);
-  --chat-reasoning-live-bg: rgba(11, 92, 171, 0.08);
-  --chat-msg-bg: transparent;
-  --chat-line: rgba(0, 0, 0, 0.18);
-  --chat-th-bg: rgba(0, 0, 0, 0.06);
-  --chat-code-bg: rgba(0, 0, 0, 0.05);
-  --chat-code-line: rgba(0, 0, 0, 0.12);
-  --chat-copy-bg: rgba(0, 0, 0, 0.06);
-  --chat-copy-line: rgba(0, 0, 0, 0.22);
-  --chat-copy-hover: rgba(11, 92, 171, 0.16);
-}
-html.lc-app {
   --chat-fg: #f3f3f3;
   --chat-fg-secondary: rgba(243, 243, 243, 0.78);
   --chat-link: #60cdff;
+  --chat-font: "{{familyCss}}", "Yu Gothic UI", sans-serif;
+  --chat-size: {{size.ToString(System.Globalization.CultureInfo.InvariantCulture)}}px;
   --chat-bg: transparent;
   --chat-reasoning-border: rgba(96, 205, 255, 0.55);
   --chat-reasoning-bg: rgba(255, 255, 255, 0.06);
@@ -81,8 +63,26 @@ html.lc-app {
   --chat-copy-line: rgba(255, 255, 255, 0.22);
   --chat-copy-hover: rgba(96, 205, 255, 0.22);
 }
+html.lc-paper {
+  --chat-fg: #1a1a1a;
+  --chat-fg-secondary: rgba(26, 26, 26, 0.78);
+  --chat-link: #0b5cab;
+  --chat-bg: #ffffff;
+  --chat-reasoning-border: rgba(11, 92, 171, 0.55);
+  --chat-reasoning-bg: rgba(0, 0, 0, 0.04);
+  --chat-reasoning-live-border: rgba(11, 92, 171, 0.95);
+  --chat-reasoning-live-bg: rgba(11, 92, 171, 0.08);
+  --chat-msg-bg: transparent;
+  --chat-line: rgba(0, 0, 0, 0.18);
+  --chat-th-bg: rgba(0, 0, 0, 0.06);
+  --chat-code-bg: rgba(0, 0, 0, 0.05);
+  --chat-code-line: rgba(0, 0, 0, 0.12);
+  --chat-copy-bg: rgba(0, 0, 0, 0.06);
+  --chat-copy-line: rgba(0, 0, 0, 0.22);
+  --chat-copy-hover: rgba(11, 92, 171, 0.16);
+}
 @media print {
-  html, html.lc-app {
+  html, html.lc-paper {
     --chat-fg: #1a1a1a;
     --chat-fg-secondary: rgba(26, 26, 26, 0.78);
     --chat-link: #0b5cab;
@@ -264,9 +264,10 @@ strong { font-weight: 700; }
 </style>
 <script>
 function lcApplyHostChrome() {
+  var protocol = String(location.protocol || "");
   var href = String(location.href || "");
-  var embedded = location.protocol === "about:" || href.indexOf("about:blank") === 0;
-  document.documentElement.classList.toggle("lc-app", embedded);
+  var paper = protocol === "file:" || href.indexOf("file:") === 0;
+  document.documentElement.classList.toggle("lc-paper", paper);
 }
 lcApplyHostChrome();
 </script>

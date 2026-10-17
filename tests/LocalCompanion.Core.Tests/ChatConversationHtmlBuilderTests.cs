@@ -28,14 +28,27 @@ public sealed class ChatConversationHtmlBuilderTests
     }
 
     [Fact]
-    public void BuildShell_PaperIsDarkText_AppKeepsLightText()
+    public void BuildShell_AppDefaultsToLightText_PaperIsOptIn()
     {
         var html = ChatConversationHtmlBuilder.BuildShell("Segoe UI", 14, "Copy", "Copied");
-        Assert.Contains("--chat-fg: #1a1a1a;", html, StringComparison.Ordinal);
-        Assert.Contains("html.lc-app", html, StringComparison.Ordinal);
-        Assert.Contains("--chat-fg: #f3f3f3;", html, StringComparison.Ordinal);
-        Assert.Contains("@media print", html, StringComparison.Ordinal);
+        var rootEnd = html.IndexOf("html.lc-paper", StringComparison.Ordinal);
+        Assert.True(rootEnd > 0);
+        var root = html[..rootEnd];
+        Assert.Contains("--chat-fg: #f3f3f3;", root, StringComparison.Ordinal);
+        Assert.Contains("--chat-bg: transparent;", root, StringComparison.Ordinal);
+        Assert.DoesNotContain("--chat-fg: #1a1a1a;", root, StringComparison.Ordinal);
+
+        var paperStart = html.IndexOf("html.lc-paper {", StringComparison.Ordinal);
+        var printAt = html.IndexOf("@media print", paperStart, StringComparison.Ordinal);
+        Assert.True(paperStart > 0 && printAt > paperStart);
+        var paper = html[paperStart..printAt];
+        Assert.Contains("--chat-fg: #1a1a1a;", paper, StringComparison.Ordinal);
+        Assert.Contains("--chat-bg: #ffffff;", paper, StringComparison.Ordinal);
+
         Assert.Contains("lcApplyHostChrome", html, StringComparison.Ordinal);
+        Assert.Contains("lc-paper", html, StringComparison.Ordinal);
+        Assert.Contains("file:", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("lc-app", html, StringComparison.Ordinal);
     }
 
     [Fact]

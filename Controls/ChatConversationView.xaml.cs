@@ -169,6 +169,7 @@ public sealed partial class ChatConversationView : UserControl
             _conversationWeb.CoreWebView2.NavigationStarting -= OnNavigationStarting;
             _conversationWeb.CoreWebView2.NewWindowRequested -= OnNewWindowRequested;
             _conversationWeb.CoreWebView2.WebMessageReceived -= OnWebMessageReceived;
+            _conversationWeb.CoreWebView2.ContextMenuRequested -= OnContextMenuRequested;
         }
 
         if (_conversationWeb is not null)
@@ -217,6 +218,7 @@ public sealed partial class ChatConversationView : UserControl
         _conversationWeb.CoreWebView2.NavigationStarting += OnNavigationStarting;
         _conversationWeb.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
         _conversationWeb.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+        _conversationWeb.CoreWebView2.ContextMenuRequested += OnContextMenuRequested;
 
         var shell = BuildConversationShell();
         _conversationWeb.NavigateToString(shell);
@@ -224,6 +226,48 @@ public sealed partial class ChatConversationView : UserControl
         _webReady = true;
         await Task.Delay(30);
         await PushLogAsync(scroll: true);
+    }
+
+    private void OnContextMenuRequested(CoreWebView2 sender, CoreWebView2ContextMenuRequestedEventArgs args)
+    {
+        RemoveNamedMenu(args.MenuItems, "moreTools");
+        CollapseEdgeSeparators(args.MenuItems);
+    }
+
+    private static void RemoveNamedMenu(IList<CoreWebView2ContextMenuItem> items, string name)
+    {
+        for (var i = items.Count - 1; i >= 0; i--)
+        {
+            var item = items[i];
+            if (string.Equals(item.Name, name, StringComparison.Ordinal))
+            {
+                items.RemoveAt(i);
+                continue;
+            }
+
+            if (item.Kind == CoreWebView2ContextMenuItemKind.Submenu && item.Children.Count > 0)
+                RemoveNamedMenu(item.Children, name);
+        }
+    }
+
+    private static void CollapseEdgeSeparators(IList<CoreWebView2ContextMenuItem> items)
+    {
+        var previousWasSeparator = true;
+        for (var i = 0; i < items.Count;)
+        {
+            var isSeparator = items[i].Kind == CoreWebView2ContextMenuItemKind.Separator;
+            if (isSeparator && previousWasSeparator)
+            {
+                items.RemoveAt(i);
+                continue;
+            }
+
+            previousWasSeparator = isSeparator;
+            i++;
+        }
+
+        if (items.Count > 0 && items[^1].Kind == CoreWebView2ContextMenuItemKind.Separator)
+            items.RemoveAt(items.Count - 1);
     }
 
     private void OnNavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
