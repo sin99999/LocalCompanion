@@ -25,6 +25,7 @@ public sealed class LlamaDraftCliTests
         Assert.True(support.CanAttachModel);
         Assert.Equal(LlamaDraftMaxFlag.SpecNMax, support.MaxFlag);
         Assert.Equal("--spec-draft-n-max", support.MaxTokensArg);
+        Assert.False(support.MoeCacheMib);
     }
 
     [Fact]
@@ -42,6 +43,17 @@ public sealed class LlamaDraftCliTests
     {
         Assert.Equal(LlamaDraftCliSupport.None, LlamaDraftCli.ParseHelp(""));
         Assert.Equal(LlamaDraftCliSupport.None, LlamaDraftCli.ParseHelp("no options here"));
+    }
+
+    [Fact]
+    public void ParseHelp_MoeCache_DoesNotRequireDraft()
+    {
+        var support = LlamaDraftCli.ParseHelp("""
+            --moe-cache-mib N                       GPU cache size in MiB for the MoE experts kept in the CPU
+            """);
+
+        Assert.False(support.CanAttachModel);
+        Assert.True(support.MoeCacheMib);
     }
 
     [Fact]

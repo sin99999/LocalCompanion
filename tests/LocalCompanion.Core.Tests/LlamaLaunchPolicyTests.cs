@@ -55,10 +55,27 @@ public sealed class LlamaLaunchPolicyTests
             hasUsableGpu: true,
             []);
 
-        Assert.Equal("mid-moe-kvq8", decision.ProfileName);
+        Assert.Equal("mid-moe-kvq8-mcache1536", decision.ProfileName);
         Assert.Equal(
-            ["--n-cpu-moe", "8", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0"],
+            ["--n-cpu-moe", "8", "--moe-cache-mib", "1536", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0"],
             decision.ExtraArgs);
+    }
+
+    [Fact]
+    public void Build_MidVramMoe_SkipsCacheWhenServerHelpLacksIt()
+    {
+        var decision = LlamaLaunchPolicy.Build(
+            enabled: true,
+            Gpu(vramGb: 16),
+            Moe26B,
+            modelSizeGb: 15,
+            modelSizeBytes: Gb(15),
+            hasUsableGpu: true,
+            [],
+            new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.SpecNMax, false));
+
+        Assert.Equal("mid-moe-kvq8", decision.ProfileName);
+        Assert.DoesNotContain("--moe-cache-mib", decision.ExtraArgs);
     }
 
     [Fact]
@@ -89,9 +106,9 @@ public sealed class LlamaLaunchPolicyTests
             hasUsableGpu: true,
             []);
 
-        Assert.Equal("tight-moe-kvq4", decision.ProfileName);
+        Assert.Equal("tight-moe-kvq4-mcache2048", decision.ProfileName);
         Assert.Equal(
-            ["--cpu-moe", "--cache-type-k", "q4_0", "--cache-type-v", "q4_0"],
+            ["--cpu-moe", "--moe-cache-mib", "2048", "--cache-type-k", "q4_0", "--cache-type-v", "q4_0"],
             decision.ExtraArgs);
     }
 
@@ -114,7 +131,7 @@ public sealed class LlamaLaunchPolicyTests
     [Fact]
     public void RemoveCpuMoeArgs_DropsBothFlags()
     {
-        var args = new List<string> { "-ngl", "99", "--cpu-moe", "--n-cpu-moe", "8", "-c", "4096" };
+        var args = new List<string> { "-ngl", "99", "--cpu-moe", "--n-cpu-moe", "8", "--moe-cache-mib", "2048", "-c", "4096" };
         Assert.True(LlamaLaunchPolicy.RemoveCpuMoeArgs(args));
         Assert.Equal(["-ngl", "99", "-c", "4096"], args);
         Assert.False(LlamaLaunchPolicy.RemoveCpuMoeArgs(args));
@@ -243,7 +260,7 @@ public sealed class LlamaLaunchPolicyTests
             hasUsableGpu: true,
             [draft]);
 
-        Assert.Equal("mid-moe-kvq8", decision.ProfileName);
+        Assert.Equal("mid-moe-kvq8-mcache1536", decision.ProfileName);
         Assert.DoesNotContain("-md", decision.ExtraArgs);
     }
 
