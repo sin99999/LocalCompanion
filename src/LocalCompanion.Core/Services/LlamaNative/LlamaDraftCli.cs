@@ -9,11 +9,11 @@ internal enum LlamaDraftMaxFlag
     LegacyDraftMax,
 }
 
-internal readonly record struct LlamaDraftCliSupport(bool CanAttachModel, LlamaDraftMaxFlag MaxFlag, bool MoeCacheMib = false)
+internal readonly record struct LlamaDraftCliSupport(bool CanAttachModel, LlamaDraftMaxFlag MaxFlag)
 {
-    internal static LlamaDraftCliSupport AssumeCurrent { get; } = new(true, LlamaDraftMaxFlag.SpecNMax, true);
+    internal static LlamaDraftCliSupport AssumeCurrent { get; } = new(true, LlamaDraftMaxFlag.SpecNMax);
 
-    internal static LlamaDraftCliSupport None { get; } = new(false, LlamaDraftMaxFlag.None, false);
+    internal static LlamaDraftCliSupport None { get; } = new(false, LlamaDraftMaxFlag.None);
 
     internal string? MaxTokensArg => MaxFlag switch
     {
@@ -23,7 +23,7 @@ internal readonly record struct LlamaDraftCliSupport(bool CanAttachModel, LlamaD
     };
 }
 
-/// <summary>今の llama-server のヘルプから、下書きと MoE キャッシュの引数を見る。</summary>
+/// <summary>今の llama-server が下書き引数を受け付けるかだけを見る。</summary>
 internal static class LlamaDraftCli
 {
     internal static LlamaDraftCliSupport Probe(string exePath)
@@ -69,18 +69,17 @@ internal static class LlamaDraftCli
         if (string.IsNullOrWhiteSpace(helpText))
             return LlamaDraftCliSupport.None;
 
-        var moeCache = HasLiveOption(helpText, "--moe-cache-mib");
         var canAttach = HasLiveOption(helpText, "--spec-draft-model")
             || HasLiveOption(helpText, "--model-draft")
             || HasLiveOption(helpText, "-md");
         if (!canAttach)
-            return new LlamaDraftCliSupport(false, LlamaDraftMaxFlag.None, moeCache);
+            return LlamaDraftCliSupport.None;
 
         if (HasLiveOption(helpText, "--spec-draft-n-max"))
-            return new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.SpecNMax, moeCache);
+            return new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.SpecNMax);
         if (HasLiveOption(helpText, "--draft-max"))
-            return new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.LegacyDraftMax, moeCache);
-        return new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.None, moeCache);
+            return new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.LegacyDraftMax);
+        return new LlamaDraftCliSupport(true, LlamaDraftMaxFlag.None);
     }
 
     internal static bool LooksLikeCliArgRejected(string logText)

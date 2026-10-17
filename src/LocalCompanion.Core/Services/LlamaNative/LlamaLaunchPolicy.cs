@@ -54,16 +54,11 @@ internal static class LlamaLaunchPolicy
                 draftCandidates)
             : null;
 
-        var cacheMib = moe && cli.MoeCacheMib
-            ? ChooseMoeCacheMib(hardware.DedicatedVramBytes, band)
-            : null;
         var args = new List<string>();
         if (moe && band == VramBand.Tight)
             args.Add("--cpu-moe");
         else if (moe)
             args.AddRange(["--n-cpu-moe", MidCpuMoeLayers.ToString()]);
-        if (cacheMib is int cache)
-            args.AddRange(["--moe-cache-mib", cache.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
         if (kv is not null)
             args.AddRange(["--cache-type-k", kv, "--cache-type-v", kv]);
         if (draft is not null)
@@ -73,7 +68,7 @@ internal static class LlamaLaunchPolicy
                 args.AddRange([maxFlag, DraftMaxTokens.ToString()]);
         }
 
-        return new LlamaLaunchDecision(BuildProfileName(band, moe, kv, cacheMib, draft is not null), args);
+        return new LlamaLaunchDecision(BuildProfileName(band, moe, kv, draft is not null), args);
     }
 
     internal static VramBand ClassifyBand(LlamaHardwareSnapshot hardware, double modelSizeGb, bool hasUsableGpu)
@@ -112,9 +107,7 @@ internal static class LlamaLaunchPolicy
                 continue;
             }
 
-            if ((string.Equals(args[i], "--n-cpu-moe", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(args[i], "--moe-cache-mib", StringComparison.OrdinalIgnoreCase))
-                && i + 1 < args.Count)
+            if (string.Equals(args[i], "--n-cpu-moe", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Count)
             {
                 args.RemoveRange(i, 2);
                 removed = true;
@@ -130,28 +123,6 @@ internal static class LlamaLaunchPolicy
     private static readonly Regex ActiveExpertMark = new(
         @"(?:^|[^a-z0-9])a\d+b(?:[^a-z0-9]|$)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
-    /// <summary>
-    /// CPU に置いた専門家のうち、よく選ばれる分だけ GPU に残す MiB。
-    /// 全部載る帯では足さない。256MiB 単位。狭いとき VRAM の 1/4 で上限 4096、中間は 1/10 で上限 2048。
-    /// </summary>
-    internal static int? ChooseMoeCacheMib(long dedicatedVramBytes, VramBand band)
-    {
-        if (band is not (VramBand.Tight or VramBand.Mid))
-            return null;
-
-        var vramMib = dedicatedVramBytes / (1024.0 * 1024);
-        if (vramMib < 4096)
-            return null;
-
-        var fraction = band == VramBand.Tight ? 0.25 : 0.10;
-        var cap = band == VramBand.Tight ? 4096 : 2048;
-        var raw = (int)Math.Floor(vramMib * fraction);
-        raw -= raw % 256;
-        if (raw < 512)
-            return null;
-        return Math.Min(raw, cap);
-    }
 
     internal static string? ChooseKv(VramBand band, double modelSizeGb)
     {
@@ -343,7 +314,7 @@ internal static class LlamaLaunchPolicy
         || part.StartsWith("ud", StringComparison.Ordinal)
         || part is "qat" or "k" or "xl";
 
-    private static string BuildProfileName(VramBand band, bool moe, string? kv, int? cacheMib, bool draft)
+    private static string BuildProfileName(VramBand band, bool moe, string? kv, bool draft)
     {
         var parts = new List<string> { BandName(band) };
         if (moe)
@@ -352,8 +323,6 @@ internal static class LlamaLaunchPolicy
             parts.Add("kvq8");
         else if (kv is "q4_0")
             parts.Add("kvq4");
-        if (cacheMib is int mib)
-            parts.Add("mcache" + mib.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (draft)
             parts.Add("draft");
         return string.Join("-", parts);
