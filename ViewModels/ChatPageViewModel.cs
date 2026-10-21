@@ -129,7 +129,7 @@ public partial class ChatPageViewModel : ObservableObject
     public string SpeechInputGlyph => IsSpeechListening ? "\uE71A" : "\uE720";
 
     [ObservableProperty]
-    public partial bool UseReasoning { get; set; } = true;
+    public partial bool UseReasoning { get; set; } = false;
 
     [ObservableProperty]
     public partial CharacterChoiceViewModel? SelectedCharacter { get; set; }

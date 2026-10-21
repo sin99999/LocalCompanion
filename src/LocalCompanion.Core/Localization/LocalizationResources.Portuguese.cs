@@ -69,6 +69,7 @@ internal static partial class LocalizationResources
         ["Chat.Rag.Article.Ambiguous"] = "Há várias origens registradas com {0} ({1}). Pergunte de novo com o nome da lei.",
         ["Chat.History"] = "Histórico",
         ["Chat.Reasoning"] = "Raciocínio",
+        ["Chat.Reasoning.Hint"] = "O raciocínio começa desativado, para que as primeiras trocas fiquem mais leves. Ative-o se quiser que o modelo pense antes de responder. Quando estiver ativado, esse processo aparece no chat.",
         ["Chat.ClearHistory"] = "Excluir este histórico",
         ["Chat.ClearHistory.Confirm.Title"] = "Excluir este histórico?",
         ["Chat.ClearHistory.Confirm.Message"] = "O chat exibido agora e este tópico do histórico de conversas à esquerda serão excluídos. Esta ação não pode ser desfeita.",

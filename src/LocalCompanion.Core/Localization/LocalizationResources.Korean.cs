@@ -74,6 +74,7 @@ internal static partial class LocalizationResources
         ["Chat.Rag.Article.Ambiguous"] = "등록된 자료에 {0}이(가) 여러 개 있습니다({1}). 법령 이름을 붙여 다시 물어 주십시오.",
         ["Chat.History"] = "기록",
         ["Chat.Reasoning"] = "추론",
+        ["Chat.Reasoning.Hint"] = "추론은 처음에 꺼져 있습니다. 시작한 뒤의 대화를 가볍게 하기 위해서입니다. 모델이 생각한 뒤에 답하게 하려면 켜십시오. 켜면 생각하는 과정이 대화에 나옵니다.",
         ["Chat.ClearHistory"] = "이 기록 삭제",
         ["Chat.ClearHistory.Confirm.Title"] = "이 기록을 삭제하시겠습니까?",
         ["Chat.ClearHistory.Confirm.Message"] = "화면에 표시 중인 채팅과 왼쪽 대화 기록의 이 스레드가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",

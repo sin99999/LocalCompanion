@@ -69,6 +69,7 @@ internal static partial class LocalizationResources
         ["Chat.Rag.Article.Ambiguous"] = "Mehrere registrierte Quellen enthalten {0} ({1}). Fragen Sie erneut mit dem Gesetzesnamen.",
         ["Chat.History"] = "Verlauf",
         ["Chat.Reasoning"] = "Denkprozess",
+        ["Chat.Reasoning.Hint"] = "Der Denkprozess ist anfangs aus, damit die ersten Unterhaltungen leichter bleiben. Schalten Sie ihn ein, wenn das Modell vor der Antwort nachdenken soll. Wenn er eingeschaltet ist, erscheint dieser Prozess im Chat.",
         ["Chat.ClearHistory"] = "Diesen Verlauf löschen",
         ["Chat.ClearHistory.Confirm.Title"] = "Diesen Verlauf löschen?",
         ["Chat.ClearHistory.Confirm.Message"] = "Der aktuell angezeigte Chat und dieser Eintrag im Gesprächsverlauf links werden gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.",

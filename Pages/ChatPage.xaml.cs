@@ -158,7 +158,11 @@ public sealed partial class ChatPage : Page
         var optionsFlyout = new MenuFlyout();
         optionsFlyout.Items.Add(CreateToggleOption(ViewModel.UiRag, () => ViewModel.UseRag, v => ViewModel.UseRag = v));
         optionsFlyout.Items.Add(CreateToggleOption(ViewModel.UiHistory, () => ViewModel.UseHistory, v => ViewModel.UseHistory = v));
-        optionsFlyout.Items.Add(CreateToggleOption(ViewModel.UiReasoning, () => ViewModel.UseReasoning, v => ViewModel.UseReasoning = v));
+        optionsFlyout.Items.Add(CreateToggleOption(
+            ViewModel.UiReasoning,
+            () => ViewModel.UseReasoning,
+            v => ViewModel.UseReasoning = v,
+            ViewModel.UiReasoningHint));
         optionsFlyout.Items.Add(new MenuFlyoutSeparator());
         optionsFlyout.Items.Add(CreateActionOption(ViewModel.UiClearHistory, "\uE74D", () => _ = ConfirmAndClearHistoryAsync()));
         optionsFlyout.Opening += OnOptionsFlyoutOpening;
@@ -418,9 +422,12 @@ public sealed partial class ChatPage : Page
     private MenuFlyoutItem CreateToggleOption(
         string label,
         Func<bool> getter,
-        Action<bool> setter)
+        Action<bool> setter,
+        string? tooltip = null)
     {
         var item = new MenuFlyoutItem { Text = label };
+        if (!string.IsNullOrWhiteSpace(tooltip))
+            ToolTipService.SetToolTip(item, tooltip);
         void RefreshIcon() => item.Icon = CreateFlyoutLeadingIcon("\uE73E", getter());
 
         item.Loaded += (_, _) => RefreshIcon();

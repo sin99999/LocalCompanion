@@ -74,6 +74,7 @@ internal static partial class LocalizationResources
         ["Chat.Rag.Article.Ambiguous"] = "已登记资料中有多处{0}（{1}）。请加上法令名称后再问。",
         ["Chat.History"] = "历史",
         ["Chat.Reasoning"] = "推理",
+        ["Chat.Reasoning.Hint"] = "推理一开始是关闭的，好让启动后的对话更轻。想让模型先思考再回答时，请打开。打开后，思考过程会显示在对话里。",
         ["Chat.ClearHistory"] = "删除此记录",
         ["Chat.ClearHistory.Confirm.Title"] = "要删除此记录吗？",
         ["Chat.ClearHistory.Confirm.Message"] = "当前画面中的聊天内容，以及左侧对话记录中的此线程将被删除。此操作无法撤销。",

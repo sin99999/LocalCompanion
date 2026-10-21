@@ -11,6 +11,7 @@ public partial class ChatPageViewModel
     [ObservableProperty] public partial string UiRag { get; set; }
     [ObservableProperty] public partial string UiHistory { get; set; }
     [ObservableProperty] public partial string UiReasoning { get; set; }
+    [ObservableProperty] public partial string UiReasoningHint { get; set; }
     [ObservableProperty] public partial string UiClearHistory { get; set; }
     [ObservableProperty] public partial string UiInputPlaceholder { get; set; }
     [ObservableProperty] public partial string UiChatOptions { get; set; }
@@ -75,6 +76,7 @@ public partial class ChatPageViewModel
         UiRag = _loc.Get("Chat.Rag");
         UiHistory = _loc.Get("Chat.History");
         UiReasoning = _loc.Get("Chat.Reasoning");
+        UiReasoningHint = _loc.Get("Chat.Reasoning.Hint");
         UiClearHistory = _loc.Get("Chat.ClearHistory");
         UiInputPlaceholder = _loc.Get("Chat.InputPlaceholder");
         UiChatOptions = _loc.Get("Chat.Options");
