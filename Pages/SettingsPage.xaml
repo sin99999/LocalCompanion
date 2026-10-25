@@ -197,25 +197,6 @@
                             </Border>
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiGpuBackendHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                         </StackPanel>
-                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
-                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiChatEngine, Mode=OneWay}" />
-                            <Border Style="{StaticResource SettingsInputBorderStyle}">
-                                <ComboBox
-                                    DisplayMemberPath="Label"
-                                    ItemsSource="{x:Bind ViewModel.ChatEngineChoices, Mode=OneWay}"
-                                    SelectedItem="{x:Bind ViewModel.SelectedChatEngine, Mode=TwoWay}"
-                                    Style="{StaticResource SettingsInBorderComboBoxStyle}" />
-                            </Border>
-                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiChatEngineHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiStrataDataDir, Mode=OneWay}" />
-                            <Border Style="{StaticResource SettingsInputBorderStyle}">
-                                <TextBox
-                                    MaxLength="260"
-                                    Style="{StaticResource SettingsInBorderTextBoxStyle}"
-                                    Text="{x:Bind ViewModel.StrataDataDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </Border>
-                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiStrataDataDirHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                        </StackPanel>
                         <StackPanel Style="{StaticResource SettingsTabButtonRowStyle}">
                             <Button
                                 Command="{x:Bind ViewModel.SaveGeneralCommand}"

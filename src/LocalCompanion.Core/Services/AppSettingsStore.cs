@@ -99,10 +99,6 @@ public sealed class AppSettingsStore
             JuliaDevice = JuliaDevicePreferences.Normalize(dto.JuliaDevice),
             JuliaAutoUpdate = dto.JuliaAutoUpdate,
             GpuBackendPreference = LlamaGpuBackendPreferences.Normalize(dto.GpuBackendPreference),
-            InferenceEngine = InferenceEngineChoices.Normalize(dto.InferenceEngine),
-            StrataDataDirectory = ChatEnginePlan.TryNormalizeDataDirectory(dto.StrataDataDirectory, out var strataDir)
-                ? strataDir
-                : "",
             ShowChatTokenSpeed = dto.ShowChatTokenSpeed,
             SpecDraftMtp = dto.SpecDraftMtp,
         };
@@ -128,16 +124,5 @@ public sealed class AppSettingsStore
         {
             return new AppSettingsDto();
         }
-    }
-
-    public static void SetInferenceEngine(string dataDirectory, string engine)
-    {
-        if (string.IsNullOrWhiteSpace(dataDirectory))
-            return;
-
-        var dto = LoadOrDefault(dataDirectory);
-        dto.InferenceEngine = InferenceEngineChoices.Normalize(engine);
-        var path = Path.Combine(dataDirectory, "app-settings.json");
-        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(Normalize(dto), JsonOpts));
     }
 }

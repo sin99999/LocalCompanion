@@ -47,14 +47,6 @@ public partial class SettingsPageViewModel
     [ObservableProperty]
     public partial GpuBackendChoiceViewModel? SelectedGpuBackend { get; set; }
 
-    public ObservableCollection<ChatEngineChoiceViewModel> ChatEngineChoices { get; } = new();
-
-    [ObservableProperty]
-    public partial ChatEngineChoiceViewModel? SelectedChatEngine { get; set; }
-
-    [ObservableProperty]
-    public partial string StrataDataDirectory { get; set; } = "";
-
     public string UiSpeechInputEnabled { get; private set; } = "";
     public string UiSpeechInputEnabledHint { get; private set; } = "";
     public string UiLlamaCppAutoUpdate { get; private set; } = "";
@@ -67,10 +59,6 @@ public partial class SettingsPageViewModel
     public string UiJuliaAutoUpdateHint { get; private set; } = "";
     public string UiGpuBackend { get; private set; } = "";
     public string UiGpuBackendHint { get; private set; } = "";
-    public string UiChatEngine { get; private set; } = "";
-    public string UiChatEngineHint { get; private set; } = "";
-    public string UiStrataDataDir { get; private set; } = "";
-    public string UiStrataDataDirHint { get; private set; } = "";
 
     [ObservableProperty]
     public partial string GeneralStatusText { get; set; } = "";
@@ -106,8 +94,6 @@ public partial class SettingsPageViewModel
     partial void OnJuliaAutoUpdateChanged(bool value) => PersistGeneralToggles();
     partial void OnSelectedJuliaDeviceChanged(JuliaDeviceChoiceViewModel? value) => PersistGeneralToggles();
     partial void OnSelectedGpuBackendChanged(GpuBackendChoiceViewModel? value) => PersistGeneralToggles();
-    partial void OnSelectedChatEngineChanged(ChatEngineChoiceViewModel? value) => PersistGeneralToggles();
-    partial void OnStrataDataDirectoryChanged(string value) => PersistGeneralToggles();
 
     private void LoadGeneralSettings()
     {
@@ -137,8 +123,6 @@ public partial class SettingsPageViewModel
         JuliaAutoUpdate = settings.JuliaAutoUpdate;
         RefreshJuliaDeviceChoices(settings.JuliaDevice);
         RefreshGpuBackendChoices(settings.GpuBackendPreference);
-        RefreshChatEngineChoices(settings.InferenceEngine);
-        StrataDataDirectory = settings.StrataDataDirectory;
         GeneralChatFontSize = settings.ChatFontSize;
         SelectedChatFontFamily = ChatFontChoices.FirstOrDefault(f =>
             string.Equals(f, settings.ChatFontFamily, StringComparison.OrdinalIgnoreCase))
@@ -168,10 +152,6 @@ public partial class SettingsPageViewModel
         UiJuliaAutoUpdateHint = _loc.Get("Settings.General.JuliaAutoUpdate.Hint");
         UiGpuBackend = _loc.Get("Settings.General.GpuBackend");
         UiGpuBackendHint = _loc.Get("Settings.General.GpuBackend.Hint");
-        UiChatEngine = _loc.Get("Settings.General.ChatEngine");
-        UiChatEngineHint = _loc.Get("Settings.General.ChatEngine.Hint");
-        UiStrataDataDir = _loc.Get("Settings.General.StrataDataDir");
-        UiStrataDataDirHint = _loc.Get("Settings.General.StrataDataDir.Hint");
         OnPropertyChanged(nameof(UiLlamaCppAutoUpdate));
         OnPropertyChanged(nameof(UiLlamaCppAutoUpdateHint));
         OnPropertyChanged(nameof(UiJuliaDecision));
@@ -182,13 +162,8 @@ public partial class SettingsPageViewModel
         OnPropertyChanged(nameof(UiJuliaAutoUpdateHint));
         OnPropertyChanged(nameof(UiGpuBackend));
         OnPropertyChanged(nameof(UiGpuBackendHint));
-        OnPropertyChanged(nameof(UiChatEngine));
-        OnPropertyChanged(nameof(UiChatEngineHint));
-        OnPropertyChanged(nameof(UiStrataDataDir));
-        OnPropertyChanged(nameof(UiStrataDataDirHint));
         RefreshJuliaDeviceChoices();
         RefreshGpuBackendChoices();
-        RefreshChatEngineChoices();
     }
 
     private void RefreshJuliaDeviceChoices(string? selectedId = null)
@@ -227,23 +202,6 @@ public partial class SettingsPageViewModel
         _suppressGeneralOptionSave = suppress;
     }
 
-    private void RefreshChatEngineChoices(string? selectedId = null)
-    {
-        var keep = InferenceEngineChoices.Normalize(
-            selectedId
-            ?? SelectedChatEngine?.Id
-            ?? _appearance.Current.InferenceEngine);
-        var suppress = _suppressGeneralOptionSave;
-        _suppressGeneralOptionSave = true;
-        ChatEngineChoices.Clear();
-        ChatEngineChoices.Add(new(InferenceEngineChoices.LlamaCpp, _loc.Get("Settings.General.ChatEngine.Llama")));
-        ChatEngineChoices.Add(new(InferenceEngineChoices.Strata, _loc.Get("Settings.General.ChatEngine.Strata")));
-        SelectedChatEngine = ChatEngineChoices.FirstOrDefault(x =>
-            string.Equals(x.Id, keep, StringComparison.OrdinalIgnoreCase))
-            ?? ChatEngineChoices[0];
-        _suppressGeneralOptionSave = suppress;
-    }
-
     private void UpdateGeneralPreview()
     {
         GeneralPreviewText = _loc.Get("Settings.General.Preview.Sample");
@@ -268,8 +226,6 @@ public partial class SettingsPageViewModel
         dto.JuliaAutoUpdate = JuliaAutoUpdate;
         dto.JuliaDevice = SelectedJuliaDevice?.Id ?? JuliaDevicePreferences.Auto;
         dto.GpuBackendPreference = SelectedGpuBackend?.Id ?? LlamaGpuBackendPreferences.Auto;
-        dto.InferenceEngine = SelectedChatEngine?.Id ?? InferenceEngineChoices.LlamaCpp;
-        dto.StrataDataDirectory = StrataDataDirectory;
         _appearance.Save(dto);
         LayaSidecar.Apply(AppPaths.Current, JuliaDecisionEnabled);
     }
@@ -301,7 +257,6 @@ public partial class SettingsPageViewModel
         dto.JuliaAutoUpdate = defaults.JuliaAutoUpdate;
         dto.JuliaDevice = defaults.JuliaDevice;
         dto.GpuBackendPreference = defaults.GpuBackendPreference;
-        dto.InferenceEngine = defaults.InferenceEngine;
         var saved = _appearance.Save(dto);
         ApplyGeneralForm(saved);
         LayaSidecar.Apply(AppPaths.Current, saved.JuliaDecisionEnabled);
@@ -322,8 +277,6 @@ public partial class SettingsPageViewModel
         dto.JuliaAutoUpdate = JuliaAutoUpdate;
         dto.JuliaDevice = SelectedJuliaDevice?.Id ?? JuliaDevicePreferences.Auto;
         dto.GpuBackendPreference = SelectedGpuBackend?.Id ?? LlamaGpuBackendPreferences.Auto;
-        dto.InferenceEngine = SelectedChatEngine?.Id ?? InferenceEngineChoices.LlamaCpp;
-        dto.StrataDataDirectory = StrataDataDirectory;
         return dto;
     }
 }
