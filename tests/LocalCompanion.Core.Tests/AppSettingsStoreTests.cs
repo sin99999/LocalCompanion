@@ -166,6 +166,12 @@ public sealed class AppSettingsStoreTests
             var junk = store.Save(new AppSettingsDto { GpuBackendPreference = "cuda" });
             Assert.Equal(LlamaGpuBackendPreferences.Auto, junk.GpuBackendPreference);
 
+            var engine = store.Save(new AppSettingsDto { InferenceEngine = "STRATA" });
+            Assert.Equal(InferenceEngineChoices.Strata, engine.InferenceEngine);
+            Assert.Equal(
+                InferenceEngineChoices.LlamaCpp,
+                store.Save(new AppSettingsDto { InferenceEngine = "cuda" }).InferenceEngine);
+
             var juliaOff = store.Save(new AppSettingsDto
             {
                 JuliaDecisionEnabled = false,

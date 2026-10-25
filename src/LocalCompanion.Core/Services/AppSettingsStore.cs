@@ -99,6 +99,7 @@ public sealed class AppSettingsStore
             JuliaDevice = JuliaDevicePreferences.Normalize(dto.JuliaDevice),
             JuliaAutoUpdate = dto.JuliaAutoUpdate,
             GpuBackendPreference = LlamaGpuBackendPreferences.Normalize(dto.GpuBackendPreference),
+            InferenceEngine = InferenceEngineChoices.Normalize(dto.InferenceEngine),
             ShowChatTokenSpeed = dto.ShowChatTokenSpeed,
             SpecDraftMtp = dto.SpecDraftMtp,
         };
