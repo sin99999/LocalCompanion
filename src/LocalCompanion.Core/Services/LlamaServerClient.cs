@@ -189,17 +189,7 @@ public sealed class LlamaServerClient
         };
         ApplyTopK(body, topK);
         ApplyRepetitionGuard(body);
-        if (useReasoning)
-        {
-            body["reasoning_effort"] = "medium";
-            body["chat_template_kwargs"] = new Dictionary<string, object> { ["enable_thinking"] = true };
-        }
-        else
-        {
-            // Gemma 4: 思考トークンだけ消費して content が空になるのを防ぐ
-            body["reasoning_effort"] = "none";
-            body["chat_template_kwargs"] = new Dictionary<string, object> { ["enable_thinking"] = false };
-        }
+        ApplyThinking(body, useReasoning);
 
         using var req = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
         {
@@ -272,16 +262,7 @@ public sealed class LlamaServerClient
         };
         ApplyTopK(body, topK);
         ApplyRepetitionGuard(body);
-        if (useReasoning)
-        {
-            body["reasoning_effort"] = "medium";
-            body["chat_template_kwargs"] = new Dictionary<string, object> { ["enable_thinking"] = true };
-        }
-        else
-        {
-            body["reasoning_effort"] = "none";
-            body["chat_template_kwargs"] = new Dictionary<string, object> { ["enable_thinking"] = false };
-        }
+        ApplyThinking(body, useReasoning);
 
         using var req = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
         {
@@ -496,6 +477,16 @@ public sealed class LlamaServerClient
 
     private static InvalidOperationException ConnectionFailed(Exception ex) =>
         new(ConnectionFailedMessage, ex);
+
+    private static void ApplyThinking(Dictionary<string, object?> body, bool useReasoning)
+    {
+        body["reasoning_effort"] = useReasoning ? "medium" : "none";
+        if (ChatEngineHost.IsRunning)
+            return;
+
+        // Gemma 4: 思考トークンだけ消費して content が空になるのを防ぐ
+        body["chat_template_kwargs"] = new Dictionary<string, object> { ["enable_thinking"] = useReasoning };
+    }
 
     private void ApplyTopK(Dictionary<string, object?> body, int? topK = null)
     {

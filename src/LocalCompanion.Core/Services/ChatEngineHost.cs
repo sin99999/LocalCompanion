@@ -7,28 +7,63 @@ public static class ChatEngineHost
 {
     private static int _started;
 
+    public static bool IsRunning => Volatile.Read(ref _started) == 1;
+
     public static int StartAfterStoppingManagedLlama(AppPaths paths, ChatEnginePlan plan)
     {
         if (!plan.StartStrata)
             return 1;
 
-        ManagedLlamaProcess.StopManaged(paths.ToolsDirectory, waitAfterKill: true, requireMarker: false);
         var exe = ChatEnginePlan.FindExecutable();
         if (exe == null)
             return 1;
 
+        var start = CreateLaunchInfo(exe, plan.StrataArguments);
+        ManagedLlamaProcess.StopManaged(paths.ToolsDirectory, waitAfterKill: true, requireMarker: false);
+        Process.Start(start);
+        Interlocked.Exchange(ref _started, 1);
+        var code = WaitUntilHealthy();
+        if (code != 0)
+            StopIfStarted();
+        return code;
+    }
+
+    public static ProcessStartInfo CreateLaunchInfo(string executable, IReadOnlyList<string> args)
+    {
+        var extension = Path.GetExtension(executable);
+        if (extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".bat", StringComparison.OrdinalIgnoreCase))
+        {
+            var command = QuoteArg(executable);
+            foreach (var arg in args)
+                command += " " + QuoteArg(arg);
+            return new ProcessStartInfo
+            {
+                FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+                Arguments = "/d /s /c \"" + command + "\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+        }
+
         var start = new ProcessStartInfo
         {
-            FileName = exe,
+            FileName = executable,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        foreach (var arg in plan.StrataArguments)
+        foreach (var arg in args)
             start.ArgumentList.Add(arg);
+        return start;
+    }
 
-        Process.Start(start);
-        Interlocked.Exchange(ref _started, 1);
-        return WaitUntilHealthy();
+    private static string QuoteArg(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "\"\"";
+        if (value.IndexOfAny([' ', '\t', '"']) < 0)
+            return value;
+        return "\"" + value.Replace("\"", "\\\"") + "\"";
     }
 
     public static void StopIfStarted()
@@ -40,18 +75,9 @@ public static class ChatEngineHost
         if (exe == null)
             return;
 
-        var stop = new ProcessStartInfo
-        {
-            FileName = exe,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        foreach (var arg in ChatEnginePlan.StopArguments())
-            stop.ArgumentList.Add(arg);
-
         try
         {
-            Process.Start(stop);
+            Process.Start(CreateLaunchInfo(exe, ChatEnginePlan.StopArguments()));
         }
         catch (Exception ex)
         {
@@ -69,7 +95,8 @@ public static class ChatEngineHost
             try
             {
                 var body = http.GetStringAsync(url).GetAwaiter().GetResult();
-                if (body.Contains("ok", StringComparison.OrdinalIgnoreCase))
+                if (body.Contains("\"loaded\": true", StringComparison.OrdinalIgnoreCase)
+                    || body.Contains("\"loaded\":true", StringComparison.OrdinalIgnoreCase))
                     return 0;
             }
             catch

@@ -166,8 +166,16 @@ public sealed class AppSettingsStoreTests
             var junk = store.Save(new AppSettingsDto { GpuBackendPreference = "cuda" });
             Assert.Equal(LlamaGpuBackendPreferences.Auto, junk.GpuBackendPreference);
 
-            var engine = store.Save(new AppSettingsDto { InferenceEngine = "STRATA" });
+            var engine = store.Save(new AppSettingsDto
+            {
+                InferenceEngine = "STRATA",
+                StrataDataDirectory = @"H:\Strata-data",
+            });
             Assert.Equal(InferenceEngineChoices.Strata, engine.InferenceEngine);
+            Assert.Equal(@"H:\Strata-data", engine.StrataDataDirectory);
+            Assert.Equal(
+                "",
+                store.Save(new AppSettingsDto { StrataDataDirectory = @"H:\Strata-data --host 0.0.0.0" }).StrataDataDirectory);
             Assert.Equal(
                 InferenceEngineChoices.LlamaCpp,
                 store.Save(new AppSettingsDto { InferenceEngine = "cuda" }).InferenceEngine);

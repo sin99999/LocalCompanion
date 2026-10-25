@@ -65,8 +65,11 @@ public sealed class AppSettingsDto
     /// <summary>NVIDIA 以外: auto / hip-radeon / vulkan。NVIDIA は CUDA 固定。</summary>
     public string GpuBackendPreference { get; set; } = LlamaGpuBackendPreferences.Auto;
 
-    /// <summary>llama.cpp または strata。モデル取得を許すまでは起動は llama.cpp。</summary>
+    /// <summary>llama.cpp または strata。モデルファイルが無いあいだは起動は llama.cpp。</summary>
     public string InferenceEngine { get; set; } = InferenceEngineChoices.LlamaCpp;
+
+    /// <summary>Strata のモデルフォルダ。空なら Strata が覚えている場所。</summary>
+    public string StrataDataDirectory { get; set; } = "";
 
     /// <summary>チャット状態欄に直前の生成 tok/s を出す。</summary>
     public bool ShowChatTokenSpeed { get; set; }
@@ -99,6 +102,7 @@ public sealed class AppSettingsDto
         JuliaAutoUpdate = JuliaAutoUpdate,
         GpuBackendPreference = GpuBackendPreference,
         InferenceEngine = InferenceEngine,
+        StrataDataDirectory = StrataDataDirectory,
         ShowChatTokenSpeed = ShowChatTokenSpeed,
         SpecDraftMtp = SpecDraftMtp,
     };

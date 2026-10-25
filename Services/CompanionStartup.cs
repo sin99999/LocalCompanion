@@ -44,9 +44,23 @@ public static class CompanionStartup
             StartupProgress.ReportKey("Startup.LlamaPrepare", 5);
 
             var plan = ChatEnginePlan.ForInstalled(paths.Root);
-            var llamaCode = plan.StartStrata
-                ? await Task.Run(() => ChatEngineHost.StartAfterStoppingManagedLlama(paths, plan), ct).ConfigureAwait(true)
-                : await Task.Run(() => AppBootstrap.EnsureLlamaServer(paths), ct).ConfigureAwait(true);
+            var fellBack = false;
+            int llamaCode;
+            if (plan.StartStrata)
+            {
+                llamaCode = await Task.Run(() => ChatEngineHost.StartAfterStoppingManagedLlama(paths, plan), ct).ConfigureAwait(true);
+                if (llamaCode != 0)
+                {
+                    ChatEngineHost.StopIfStarted();
+                    ChatEnginePlan.RevertSavedEngineToLlama(paths.Root);
+                    fellBack = true;
+                    llamaCode = await Task.Run(() => AppBootstrap.EnsureLlamaServer(paths), ct).ConfigureAwait(true);
+                }
+            }
+            else
+            {
+                llamaCode = await Task.Run(() => AppBootstrap.EnsureLlamaServer(paths), ct).ConfigureAwait(true);
+            }
             if (llamaCode == 2)
                 throw new InvalidOperationException(loc.Get("Startup.PortInUseForeign"));
             if (llamaCode == 3)
@@ -56,7 +70,9 @@ public static class CompanionStartup
             if (llamaCode != 0)
                 throw new InvalidOperationException(loc.Get("Startup.LlamaFailed"));
 
-            if (plan.HoldStrataUntilDownload)
+            if (fellBack)
+                StartupProgress.ReportKey("Startup.StrataFellBack", 100);
+            else if (plan.HoldStrataUntilDownload)
                 StartupProgress.ReportKey("Startup.StrataHeld", 100);
             else
                 StartupProgress.ReportKey("Startup.Ready", 100);
