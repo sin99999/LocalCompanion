@@ -59,7 +59,7 @@ Windows 向けのローカル AI チャットアプリケーションです。�
 | オペレーティングシステム | Windows 10 ビルド 17763 以降です |
 | ランタイム | [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0)（未導入の場合は、初回のみインストールが必要です） |
 | WebView2 | [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)（**必須**。会話画面の表示に使用。Windows 11 では通常 OS に含まれます。Windows 10 でも多くの環境で導入済みですが、無い場合は Evergreen ランタイムをインストールしてください。ZIP には同梱しません） |
-| ネットワーク | 初回起動時に、AI エンジンと既定モデルをダウンロードします（自前 GGUF 指定時はモデル取得をスキップします）。任意の更新確認で GitHub にアクセスすることがあります |
+| ネットワーク | 初回起動時に、会話用の AI エンジンと既定のチャットモデルをダウンロードします（お手持ちの GGUF を指定したときは、そのチャットモデルの取得をスキップします）。会話用のエンジンが起動できたあと、既定では判断用の Julia-1 の重みも取得します。この取得は、お手持ちの GGUF を選んでもスキップしません。任意の更新確認で GitHub にアクセスすることがあります |
 | 読み上げ | 任意です。[VOICEVOX](https://voicevox.hiroshiba.jp/) を別途インストールしてください |
 
 WinUI の実行に必要なファイルはアプリに同梱されています。別途「開発者モード」をオンにする必要はありません。**WebView2 Runtime は同梱されない**ため、上記のとおり別途必要です（Edge 本体とは別コンポーネントです）。GitHub Actions のバッジはビルドとテストの結果です。配布 ZIP は [Releases](https://github.com/sin99999/LocalCompanion/releases) にあります。
@@ -82,7 +82,8 @@ ZIP を展開すると、おおむね次の構成になります（`data\` と `
 | `characters\` | キャラクター JSON です |
 | `docs\` | トラブルシューティング・ヘルプ HTML です |
 | `data\` | 会話・RAG・各種設定です（実行時に自動作成されます） |
-| `tools\llama-cpp\` | llama-server です（初回起動時に自動取得します） |
+| `tools\llama-cpp\` | 会話用の llama-server です（初回起動時に自動取得します） |
+| `tools\Julia\` | 判断用の Julia-1（`Julia-1-Q8_0.gguf`）です。会話用のエンジンが起動できたあと、既定で作成します。CPU で動かすときは、別の llama-server もここへ取得します |
 
 詳しいモデル配置は [models/README.md](models/README.md)、キャラクター設定は [characters/README.md](characters/README.md) をご覧ください。
 
@@ -107,12 +108,12 @@ ZIP を展開すると、おおむね次の構成になります（`data\` と `
 初回起動時の流れは次のとおりです。
 
 1. **言語選択**（日本語 / English / Español / Português / Deutsch / Français / Русский / 简体中文 / 繁體中文 / 한국어）
-2. **初回セットアップ** — 先に、GGUF のフォルダがあるかを聞きます。無いときだけ、既定のモデルを取得します
+2. **初回セットアップ** — 先に、GGUF のフォルダがあるかを聞きます。無いときだけ、既定のチャットモデルを取得します
 3. **自動準備** — 準備の進み具合を表示します
 
 ### お手持ちの GGUF がある場合（推奨・先に聞きます）
 
-初回セットアップ画面で **GGUF フォルダを選ぶ** と、指定フォルダ内の GGUF を読み取り専用で利用できます（フォルダ内のファイルは変更しません）。複数ある場合は **ファイルサイズが最小のチャット用 GGUF** を自動選択します。既定モデルのダウンロードは行いません。
+初回セットアップ画面で **GGUF フォルダを選ぶ** と、指定フォルダ内の GGUF を読み取り専用で利用できます（フォルダ内のファイルは変更しません）。複数ある場合は **ファイルサイズが最小のチャット用 GGUF** を自動選択します。既定のチャットモデルのダウンロードは行いません。判断用の Julia-1 の取得は、この選択ではスキップしません。
 
 vision 用の mmproj が必要な場合は、**アプリ側の `models\` フォルダ** に取得します（ユーザーの GGUF フォルダには書き込みません）。
 
@@ -123,8 +124,9 @@ vision 用の mmproj が必要な場合は、**アプリ側の `models\` フォ�
 | llama-server | この PC で AI を動かすエンジンです（llama.cpp） |
 | 既定のチャットモデル | Google **Gemma 4 E2B（QAT）** `gemma-4-E2B_q4_0-it.gguf`（`models\` が空の場合） |
 | vision 用ファイル（mmproj） | 画像を読むときに必要です。アプリは、自分の `models\` フォルダに取得します |
+| Julia-1 | 判断用の重みです。既定ではオンです。`tools\Julia\Julia-1-Q8_0.gguf` を取得します。お手持ちのチャット用 GGUF を選んでも、この取得はスキップしません。設定の基本タブで止められます |
 
-アプリは、お使いの GPU を確認し、適した設定で llama-server を起動します。この経路の初回は **インターネット接続** が必要です。
+アプリは、お使いの GPU を確認し、適した設定で llama-server を起動します。この経路の初回は **インターネット接続** が必要です。会話用の llama-server が起動できたあと、Julia-1 の取得を別途始めます。CPU で動かすときは、別の llama-server も `tools\Julia` に取得します。GPU で動かすときは、会話用に取得した llama-server を使います。
 
 2 回目以降は、すでに準備済みの場合はすぐ使い始められます。
 
@@ -138,7 +140,7 @@ vision 用の mmproj が必要な場合は、**アプリ側の `models\` フォ�
 | 画像の生成プロンプト | 画像ファイルを添付すると、PNG に保存されている生成時のプロンプトを読み、Stable Diffusion 用のプロンプトを作り直す手がかりにします。JPEG に同じ文章が文字として残っている場合も読みます。クリップボードから貼った画像や、画素の中だけに隠した情報は読めません |
 | 資料検索（RAG） | 登録したテキスト資料を検索して、回答に反映します。アプリは、語どうしの関係を概念グラフとして索引します。全体を見渡す質問では、まとまりごとに探します。設定の RAG から、索引を作り直せます。文字の無いスキャン画像だけの PDF は、文字認識に対応していません |
 | 会話の要約 | 名前付きキャラクターとの会話で、入りきらない古い発言を短い要約として残します（設定の記憶。既定ではオンです。デフォルト AI では使いません） |
-| Web 参照 | メッセージに書いた URL を、アプリが自動で取得します。「調べて」「ネットから探して」と頼むと、Web 検索もします。API キーは不要です。設定でオフにできます |
+| Web 参照 | メッセージに書いた URL を、アプリが自動で取得します。「調べて」「ネットから探して」と頼むと、Web 検索もします。API キーは不要です。画面の設定には、これをオフにする項目がありません。`appsettings.json` の `WebSearchEnabled` を false にするとオフになります |
 | Julia-1 | 返事を書くモデルとは別に動きます。送られた文章を読みますが、返事の文章は書きません。「ウェブで」と書いたとき、法令の名前を書いたとき、登録した資料の名前を書いたときは、アプリがその書き方のまま調べます。調べ先が文章から決まらないときだけ、Julia-1 が登録した資料を見るか、外のウェブを見るか、会話のままにするかを選びます。設定の基本タブで、使うか止めるか、動かす場所（自動、GPU、CPU）、起動のたびに取り直すかを選べます。自動では、重みがグラフィックカードの空きメモリに全部入るときだけ GPU を使います。ライセンスは Apache License 2.0 です |
 | チャット書き出し | 「デスクトップに保存して」などと頼むと、回答をテキストファイルとして保存します。依頼を見つけたあとで保存します。同じ名前のファイルがあるときは、チャットで上書きするか別名にするかを確認します。キャラクター設定の提案とは別で、設定ファイルを書き換える確認は出ません |
 | 会話からキャラクターを育てる | **設定 → キャラクター** で有効にできます（既定ではオフです）。提案は、確認ダイアログで承認したときだけ、キャラクター設定ファイルへ反映します |
@@ -187,7 +189,7 @@ Visual Studio や `dotnet build` からの起動（`bin\Debug` など）も、�
 
 1. [VOICEVOX 公式サイト](https://voicevox.hiroshiba.jp/) からインストール
 2. LocalCompanion を **再起動**（または設定画面を開き直す）— インストールを検出すると **VOICEVOX** タブが表示されます
-3. **設定 → VOICEVOX** で「**読み上げを有効**」をオンにし、話者を選択（変更は自動保存されます）
+3. エンジンに初めて繋がったとき、設定ファイルがまだ無ければ「**読み上げを有効**」と「**返答を自動読み上げ**」をオンにして保存します。話者の変更や、オフへの切り替えは **設定 → VOICEVOX** で行います（変更は自動保存されます）
 
 VOICEVOX **未インストール時は VOICEVOX タブは表示されません**。チャット・資料検索など **他の機能は通常どおり** 使えます。
 
@@ -198,14 +200,14 @@ The official VOICEVOX installer is **Japanese only**. If you cannot read the scr
 1. Use a translation tool (for example Google Lens) on the installer text.
 2. You can usually proceed by **clearing every checkbox** on each screen and clicking **Next** until installation finishes.
 
-Then **restart LocalCompanion** (or reopen Settings) so the **VOICEVOX** tab appears. Open **Settings** → **VOICEVOX**, enable speech, and choose a speaker. Changes are saved automatically.
+Then **restart LocalCompanion** (or reopen Settings) so the **VOICEVOX** tab appears. The first time the engine is reached, if a settings file does not exist yet, LocalCompanion turns on **Enable speech** and **Auto-read replies** and saves that choice. Open **Settings** → **VOICEVOX** to choose a speaker or turn speech off. Changes are saved automatically.
 
 <p align="right">(<a href="#top">トップへ</a>)</p>
 
 ## よくある質問
 
 **Q. 会話や資料はインターネットに送信されますか。**  
-A. 会話・RAG・添付の本文処理は PC 内で完結します。任意の更新確認で GitHub にアクセスすることがあり、VOICEVOX 利用時は VOICEVOX の更新確認でも GitHub にアクセスすることがあります。初回セットアップや mmproj 取得では Hugging Face 等へアクセスすることがあります。URL を読み込むときや、メッセージの URL を取るとき、「調べて」「ネットから探して」と頼んで Web を検索するときは、その先のサイトへアクセスします。既定の Web 検索は DuckDuckGo（HTML）で、検索語がそのサービスへ送られます（`appsettings.json` の `WebSearchEnabled` でオフにできます）。音声入力は Windows の音声認識を使うため、環境によってはオンライン認識になることがあります。
+A. 会話・RAG・添付の本文処理は PC 内で完結します。任意の更新確認で GitHub にアクセスすることがあり、VOICEVOX 利用時は VOICEVOX の更新確認でも GitHub にアクセスすることがあります。初回セットアップ、画像用ファイル（mmproj）の取得、Julia-1 の取得では Hugging Face 等へアクセスすることがあります。URL を読み込むときや、メッセージの URL を取るとき、「調べて」「ネットから探して」と頼んで Web を検索するときは、その先のサイトへアクセスします。既定の Web 検索は DuckDuckGo（HTML）で、検索語がそのサービスへ送られます（`appsettings.json` の `WebSearchEnabled` でオフにできます）。音声入力は Windows の音声認識を使うため、環境によってはオンライン認識になることがあります。
 
 **Q. 起動時に「Windows によって PC が保護されました」と出ます。**  
 A. コード署名を行っていないため、初回に表示されることがあります。「詳細情報」→「実行」で起動できます。
