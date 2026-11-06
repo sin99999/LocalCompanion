@@ -60,6 +60,7 @@ _ReSharper*/
 .idea/
 
 # Maintainer-local Cursor rules (not for the public repo)
+.cursor/
 docs/cursor-ren-user-rules-*.md
 AGENTS.md
 appsettings.local.json
