@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace LocalCompanion.Services;
 
-/// <summary>VOICEVOX 本体の GitHub リリースとローカルエンジン版を比較し、更新を適用する。</summary>
+/// <summary>VOICEVOX の GitHub リリースと、インストール済みの本体の版を比較し、更新を適用する。</summary>
 public sealed class VoicevoxUpdateService
 {
     private const string ReleasesLatestUrl = "https://api.github.com/repos/VOICEVOX/voicevox/releases/latest";
@@ -42,8 +42,7 @@ public sealed class VoicevoxUpdateService
         if (!_locator.IsInstalled)
             return new VoicevoxUpdateCheckResult(false, null, null, false, null, null);
 
-        var status = await _lifecycle.GetStatusAsync(ct);
-        var current = NormalizeVersion(status.Version);
+        var current = await CurrentInstalledVersionAsync(ct);
         var latest = await FetchLatestReleaseAsync(ct);
         if (latest is null)
             return new VoicevoxUpdateCheckResult(true, current, null, false, null, null);
@@ -97,17 +96,14 @@ public sealed class VoicevoxUpdateService
             while (DateTime.UtcNow < deadline)
             {
                 ct.ThrowIfCancellationRequested();
-                await Task.Delay(TimeSpan.FromSeconds(4), ct);
-
-                var status = await _lifecycle.GetStatusAsync(ct);
-                var now = NormalizeVersion(status.Version);
-                if (!string.IsNullOrWhiteSpace(now)
-                    && !string.IsNullOrWhiteSpace(target)
-                    && !IsNewerVersion(target, now))
+                var now = await CurrentInstalledVersionAsync(ct);
+                if (IsReleaseInstalled(target, now))
                 {
                     _log.LogInformation("VOICEVOX updated: {Before} -> {After}", before, now);
                     return true;
                 }
+
+                await Task.Delay(TimeSpan.FromSeconds(4), ct);
             }
 
             _log.LogDebug("VOICEVOX update wait timed out (before={Before}, target={Target})", before, target);
@@ -215,6 +211,54 @@ public sealed class VoicevoxUpdateService
         catch (Exception ex)
         {
             _log.LogWarning(ex, "VOICEVOX installer download failed");
+            return null;
+        }
+    }
+
+    /// <summary>本体の版があればそれを使い、無いときだけエンジンの版を使います。</summary>
+    internal static string? SelectInstalledVersion(string? editorVersion, string? engineVersion)
+    {
+        var editor = NormalizeVersion(editorVersion);
+        if (!string.IsNullOrWhiteSpace(editor))
+            return editor;
+        return NormalizeVersion(engineVersion);
+    }
+
+    /// <summary>インストール済みの版が、公開されている版以上なら true。</summary>
+    internal static bool IsReleaseInstalled(string? target, string? installed)
+    {
+        var want = NormalizeVersion(target);
+        var have = NormalizeVersion(installed);
+        if (string.IsNullOrWhiteSpace(want) || string.IsNullOrWhiteSpace(have))
+            return false;
+        return !IsNewerVersion(want, have);
+    }
+
+    private async Task<string?> CurrentInstalledVersionAsync(CancellationToken ct)
+    {
+        var editor = ReadEditorVersion();
+        if (!string.IsNullOrWhiteSpace(editor))
+            return editor;
+
+        var status = await _lifecycle.GetStatusAsync(ct);
+        return SelectInstalledVersion(null, status.Version);
+    }
+
+    private string? ReadEditorVersion()
+    {
+        var path = _locator.FindEditor();
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        try
+        {
+            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+            var raw = string.IsNullOrWhiteSpace(info.FileVersion) ? info.ProductVersion : info.FileVersion;
+            return NormalizeVersion(raw);
+        }
+        catch (Exception ex)
+        {
+            _log.LogDebug(ex, "VOICEVOX editor version unreadable");
             return null;
         }
     }

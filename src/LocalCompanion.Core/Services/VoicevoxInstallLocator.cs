@@ -9,6 +9,7 @@ public sealed class VoicevoxInstallLocator
 {
     private readonly VoicevoxOptions _opt;
     private string? _cachedLauncher;
+    private string? _cachedEditor;
 
     public VoicevoxInstallLocator(IOptions<VoicevoxOptions> opt) => _opt = opt.Value;
 
@@ -30,7 +31,56 @@ public sealed class VoicevoxInstallLocator
         return new VoicevoxInstallDto(false, null, hint);
     }
 
-    public void InvalidateCache() => _cachedLauncher = null;
+    public void InvalidateCache()
+    {
+        _cachedLauncher = null;
+        _cachedEditor = null;
+    }
+
+    /// <summary>編集画面の VOICEVOX.exe。エンジンの run.exe は返しません。</summary>
+    public string? FindEditor()
+    {
+        if (_opt.HideInstallForTesting)
+            return null;
+
+        if (_cachedEditor is not null && File.Exists(_cachedEditor))
+            return _cachedEditor;
+
+        var candidates = new List<string>();
+        foreach (var voicevoxDir in EnumerateVoicevoxInstallDirectories())
+            candidates.Add(Path.Combine(voicevoxDir, "VOICEVOX.exe"));
+
+        void AddNear(string? filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return;
+            try
+            {
+                var dir = Path.GetDirectoryName(Path.GetFullPath(filePath));
+                if (dir is null)
+                    return;
+                candidates.Add(Path.Combine(dir, "VOICEVOX.exe"));
+                var parent = Path.GetDirectoryName(dir);
+                if (parent is not null)
+                    candidates.Add(Path.Combine(parent, "VOICEVOX.exe"));
+            }
+            catch
+            {
+                /* ignore */
+            }
+        }
+
+        AddNear(_opt.EngineExePath);
+        AddNear(FindLauncher());
+
+        foreach (var path in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (File.Exists(path))
+                return _cachedEditor = path;
+        }
+
+        return null;
+    }
 
     /// <summary>実行中プロセスの照合に使う VOICEVOX インストール先ディレクトリ。</summary>
     public IReadOnlyList<string> GetInstallRootPaths()

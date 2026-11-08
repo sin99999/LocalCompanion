@@ -22,4 +22,24 @@ public sealed class VoicevoxUpdateServiceTests
     {
         Assert.Equal(expected, VoicevoxUpdateService.IsNewerVersion(latest, current));
     }
+
+    [Theory]
+    [InlineData("0.26.2", "0.26.1", "0.26.2")]
+    [InlineData("0.26.2.0", "0.26.0", "0.26.2.0")]
+    [InlineData(null, "0.26.1", "0.26.1")]
+    [InlineData("", "0.26.1", "0.26.1")]
+    public void SelectInstalledVersion_PrefersTheEditor(string? editor, string? engine, string expected)
+    {
+        Assert.Equal(expected, VoicevoxUpdateService.SelectInstalledVersion(editor, engine));
+    }
+
+    [Theory]
+    [InlineData("0.26.2", "0.26.2", true)]
+    [InlineData("0.26.2", "0.26.2.0", true)]
+    [InlineData("0.26.2", "0.26.1", false)]
+    [InlineData("0.26.2", null, false)]
+    public void IsReleaseInstalled_TreatsTheEditorVersionAsCurrent(string? target, string? installed, bool expected)
+    {
+        Assert.Equal(expected, VoicevoxUpdateService.IsReleaseInstalled(target, installed));
+    }
 }
