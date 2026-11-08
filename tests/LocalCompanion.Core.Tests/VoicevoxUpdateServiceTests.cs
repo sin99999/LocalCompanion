@@ -42,4 +42,13 @@ public sealed class VoicevoxUpdateServiceTests
     {
         Assert.Equal(expected, VoicevoxUpdateService.IsReleaseInstalled(target, installed));
     }
+
+    [Theory]
+    [InlineData("0.26.2", "0.26.1", "Powered by VOICEVOX 0.26.2")]
+    [InlineData(null, "0.26.1", "Powered by VOICEVOX 0.26.1")]
+    [InlineData(null, null, "Powered by VOICEVOX")]
+    public void FormatPoweredBy_ShowsTheEditorVersion(string? editor, string? engine, string expected)
+    {
+        Assert.Equal(expected, VoicevoxUpdateService.FormatPoweredBy(editor, engine));
+    }
 }

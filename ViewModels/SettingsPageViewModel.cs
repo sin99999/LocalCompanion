@@ -388,12 +388,10 @@ public partial class SettingsPageViewModel : ObservableObject
         }
     }
 
-    private void UpdateVoicevoxPoweredByText(string? version)
+    private void UpdateVoicevoxPoweredByText(string? engineVersion)
     {
-        var normalized = VoicevoxUpdateService.NormalizeVersion(version);
-        VoicevoxPoweredByText = string.IsNullOrWhiteSpace(normalized)
-            ? "Powered by VOICEVOX"
-            : $"Powered by VOICEVOX {normalized}";
+        var editor = VoicevoxUpdateService.ReadEditorFileVersion(_voicevoxLocator.FindEditor());
+        VoicevoxPoweredByText = VoicevoxUpdateService.FormatPoweredBy(editor, engineVersion);
     }
 
     private void SetVoicevoxSpeakersStatus(string text)

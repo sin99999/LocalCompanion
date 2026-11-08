@@ -224,6 +224,31 @@ public sealed class VoicevoxUpdateService
         return NormalizeVersion(engineVersion);
     }
 
+    internal static string FormatPoweredBy(string? editorVersion, string? engineVersion)
+    {
+        var version = SelectInstalledVersion(editorVersion, engineVersion);
+        return string.IsNullOrWhiteSpace(version)
+            ? "Powered by VOICEVOX"
+            : $"Powered by VOICEVOX {version}";
+    }
+
+    internal static string? ReadEditorFileVersion(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+            var raw = string.IsNullOrWhiteSpace(info.FileVersion) ? info.ProductVersion : info.FileVersion;
+            return NormalizeVersion(raw);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>インストール済みの版が、公開されている版以上なら true。</summary>
     internal static bool IsReleaseInstalled(string? target, string? installed)
     {
@@ -244,24 +269,7 @@ public sealed class VoicevoxUpdateService
         return SelectInstalledVersion(null, status.Version);
     }
 
-    private string? ReadEditorVersion()
-    {
-        var path = _locator.FindEditor();
-        if (string.IsNullOrWhiteSpace(path))
-            return null;
-
-        try
-        {
-            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
-            var raw = string.IsNullOrWhiteSpace(info.FileVersion) ? info.ProductVersion : info.FileVersion;
-            return NormalizeVersion(raw);
-        }
-        catch (Exception ex)
-        {
-            _log.LogDebug(ex, "VOICEVOX editor version unreadable");
-            return null;
-        }
-    }
+    private string? ReadEditorVersion() => ReadEditorFileVersion(_locator.FindEditor());
 
     public static string? NormalizeVersion(string? raw)
     {
