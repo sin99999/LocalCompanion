@@ -633,6 +633,7 @@ public partial class ChatPageViewModel : ObservableObject
             ContinueSession: _continueSession);
         ChatLineViewModel? assistantLine = null;
         string? replyText = null;
+        var replyAcc = new StringBuilder();
         _sendCts?.Cancel();
         _sendCts?.Dispose();
         _sendCts = new CancellationTokenSource();
@@ -640,7 +641,6 @@ public partial class ChatPageViewModel : ObservableObject
 
         try
         {
-            var replyAcc = new StringBuilder();
             var reasoningAcc = new StringBuilder();
 
             ChatLineViewModel EnsureAssistantLine()
@@ -704,6 +704,10 @@ public partial class ChatPageViewModel : ObservableObject
 
                     if (replyAcc.Length > 0 || !string.IsNullOrWhiteSpace(assistantLine.ReasoningText))
                         assistantLine.SetText(replyAcc.ToString());
+
+                    // 推論は読まない。本文が流れ始めたら、文の切れ目で読み上げる。
+                    if (chunk.Type == "content" && replyAcc.Length > 0)
+                        _voicevoxSpeech.NoteReplyText(replyAcc.ToString());
                 });
             }
 
@@ -711,6 +715,13 @@ public partial class ChatPageViewModel : ObservableObject
                 throw new InvalidOperationException(LocalizationService.Instance.Get("Chat.Status.EmptyReply"));
 
             replyText = replyAcc.ToString();
+            if (!string.IsNullOrWhiteSpace(replyText))
+            {
+                _voicevoxSpeech.FinishReply(replyText);
+                if (_voicevoxSpeech.ShouldSpeakTranslated)
+                    _ = _voicevoxSpeech.MaybeSpeakAssistantAsync(replyText);
+            }
+
             var isDefaultAi = CharacterPresetService.IsNoneSelection(_characters.GetActivePresetFileName());
             await RunOnUiAsync(() =>
             {
@@ -727,9 +738,6 @@ public partial class ChatPageViewModel : ObservableObject
                 if (!isDefaultAi)
                     MainWindow.Instance?.EnsureConversationHistoryVisible();
             });
-
-            if (!string.IsNullOrWhiteSpace(replyText))
-                _ = _voicevoxSpeech.MaybeSpeakAssistantAsync(replyText);
 
             _ = RefreshHealthAsync();
 
@@ -784,6 +792,7 @@ public partial class ChatPageViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            _voicevoxSpeech.FinishReply(replyAcc.ToString());
             await RunOnUiAsync(() =>
             {
                 SetError(ex);
