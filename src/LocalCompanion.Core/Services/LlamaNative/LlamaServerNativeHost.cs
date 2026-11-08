@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using LocalCompanion.Localization;
 using LocalCompanion.Services;
 

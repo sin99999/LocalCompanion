@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services.LlamaNative;
+namespace LocalCompanion.Services.LlamaNative;
 
 /// <summary>GGUF 名から MTP 対応っぽさを見る。中身の検証はしない。</summary>
 internal static class LlamaMtpSupport

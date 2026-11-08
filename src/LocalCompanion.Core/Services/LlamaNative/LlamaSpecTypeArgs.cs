@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services.LlamaNative;
+namespace LocalCompanion.Services.LlamaNative;
 
 /// <summary>ファイル名が MTP のとき、llama-server に投機デコードの引数を足す。</summary>
 internal static class LlamaSpecTypeArgs

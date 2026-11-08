@@ -1,4 +1,4 @@
-﻿# 変更履歴（CHANGELOG）
+# 変更履歴（CHANGELOG）
 
 本ファイルは LocalCompanion の利用者向け変更履歴です。
 バージョンは `LocalCompanion.csproj` の `<Version>` と一致させます。

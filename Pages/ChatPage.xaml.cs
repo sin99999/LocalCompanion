@@ -1,4 +1,4 @@
-﻿using LocalCompanion;
+using LocalCompanion;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;
 using LocalCompanion.Services;

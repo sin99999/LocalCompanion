@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Services;
+using LocalCompanion.Services;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;

@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services;
+namespace LocalCompanion.Services;
 
 internal enum JuliaRouteChoice
 {

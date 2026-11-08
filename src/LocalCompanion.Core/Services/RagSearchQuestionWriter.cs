@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services;
+namespace LocalCompanion.Services;
 
 /// <summary>
 /// 取り込み中だけ、断片につき1回聞く。検索中・チャット中は呼ばない。

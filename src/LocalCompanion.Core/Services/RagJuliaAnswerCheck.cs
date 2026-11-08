@@ -1,4 +1,4 @@
-﻿namespace LocalCompanion.Services;
+namespace LocalCompanion.Services;
 
 /// <summary>
 /// Julia の「この断片は、この質問に答えている？」を、残すか外すかに変える。

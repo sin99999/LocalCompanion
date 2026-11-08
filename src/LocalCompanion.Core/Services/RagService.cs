@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using LocalCompanion.Data;
 using LocalCompanion.Localization;
 using LocalCompanion.Models;

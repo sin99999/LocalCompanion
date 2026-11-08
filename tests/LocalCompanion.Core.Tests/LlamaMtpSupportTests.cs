@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Services.LlamaNative;
+using LocalCompanion.Services.LlamaNative;
 
 namespace LocalCompanion.Core.Tests;
 

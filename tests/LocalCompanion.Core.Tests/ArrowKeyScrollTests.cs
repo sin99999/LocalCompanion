@@ -1,4 +1,4 @@
-﻿using LocalCompanion.Services;
+using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
 

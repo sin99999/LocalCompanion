@@ -1,4 +1,4 @@
-﻿using LocalCompanion;
+using LocalCompanion;
 using LocalCompanion.Controls;
 using LocalCompanion.Services;
 using LocalCompanion.ViewModels;

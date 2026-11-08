@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using LocalCompanion.Services;
 
 namespace LocalCompanion.Core.Tests;
