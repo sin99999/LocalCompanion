@@ -42,17 +42,15 @@ public sealed class SpeechWavTests
     }
 
     [Fact]
-    public void Pull_EmitsOneSecondThenTheTail()
+    public void Pull_KeepsTheWholeUtteranceUntilTheSentenceEnds()
     {
         var bucket = new PcmBucket();
         bucket.Append(new byte[24000 * 2 + 1000]);
-        var first = SpeechWavPieces.Pull(bucket, sampleRate: 24000, channels: 1, flush: false);
-        Assert.NotNull(first);
-        Assert.Equal(44 + 24000 * 2, first!.Length);
-        Assert.Null(SpeechWavPieces.Pull(bucket, 24000, 1, flush: false));
-        var tail = SpeechWavPieces.Pull(bucket, 24000, 1, flush: true);
-        Assert.NotNull(tail);
-        Assert.Equal(44 + 1000, tail!.Length);
+        Assert.Null(SpeechWavPieces.Pull(bucket, sampleRate: 24000, channels: 1, flush: false));
+        var whole = SpeechWavPieces.Pull(bucket, 24000, 1, flush: true);
+        Assert.NotNull(whole);
+        Assert.Equal(44 + 24000 * 2 + 1000, whole!.Length);
+        Assert.Null(SpeechWavPieces.Pull(bucket, 24000, 1, flush: true));
     }
 
     [Theory]

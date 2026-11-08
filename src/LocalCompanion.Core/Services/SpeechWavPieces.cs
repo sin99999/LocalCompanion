@@ -1,22 +1,18 @@
 namespace LocalCompanion.Services;
 
-/// <summary>届いた PCM を、再生できる WAV の切れ目に分けます。</summary>
+/// <summary>句点までの PCM を溜めて、再生する WAV を1本にします。</summary>
 internal static class SpeechWavPieces
 {
     public static byte[]? Pull(PcmBucket bucket, int sampleRate, int channels, bool flush)
     {
-        if (sampleRate < 1 || channels is < 1 or > 2)
+        if (!flush || sampleRate < 1 || channels is < 1 or > 2)
             return null;
 
-        var frame = sampleRate * channels * 2;
         var aligned = bucket.Count - (bucket.Count % (channels * 2));
         if (aligned <= 0)
             return null;
-        if (!flush && aligned < frame)
-            return null;
 
-        var take = flush ? aligned : frame;
-        return WavPcmReader.BuildWav(sampleRate, channels, 16, bucket.Take(take));
+        return WavPcmReader.BuildWav(sampleRate, channels, 16, bucket.Take(aligned));
     }
 }
 

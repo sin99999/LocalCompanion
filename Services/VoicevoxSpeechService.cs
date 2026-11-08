@@ -356,11 +356,6 @@ public sealed class VoicevoxSpeechService
                 return true;
 
             bucket.Append(buf.AsSpan(0, n));
-            while (SpeechWavPieces.Pull(bucket, reader.SampleRate, reader.Channels, flush: false) is byte[] piece)
-            {
-                await writer.WriteAsync(piece, ct);
-                queued = true;
-            }
         }
 
         while (SpeechWavPieces.Pull(bucket, reader.SampleRate, reader.Channels, flush: true) is byte[] tail)
