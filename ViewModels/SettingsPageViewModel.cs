@@ -27,6 +27,7 @@ public partial class SettingsPageViewModel : ObservableObject
     private readonly AppAppearanceService _appearance;
     private readonly RuntimeHealthService _health;
     private readonly MemoryService _memory;
+    private readonly McpDoorService _mcpDoor;
     private int _voicevoxLoadGeneration;
     private bool _suppressVoicevoxSave;
     private CancellationTokenSource? _voicevoxSliderSaveCts;
@@ -46,7 +47,8 @@ public partial class SettingsPageViewModel : ObservableObject
         VoicevoxSpeakerCacheStore speakerCache,
         AppAppearanceService appearance,
         RuntimeHealthService health,
-        MemoryService memory)
+        MemoryService memory,
+        McpDoorService mcpDoor)
     {
         _paths = paths;
         _models = models;
@@ -63,6 +65,7 @@ public partial class SettingsPageViewModel : ObservableObject
         _appearance = appearance;
         _health = health;
         _memory = memory;
+        _mcpDoor = mcpDoor;
         InitializeLocalization();
         RefreshSliderLabels();
         RefreshChatFontChoices();

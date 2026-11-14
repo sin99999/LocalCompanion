@@ -236,6 +236,9 @@ public sealed class MemoryService
         IReadOnlyList<(string Role, string Content)> messages,
         CancellationToken ct = default)
     {
+        if (McpDoorPolicy.IsDoorSession(sessionId))
+            return 0;
+
         var settings = _appSettings.Load();
         if (!settings.MemoryEnabled || !settings.MemoryAutoExtractOnClose)
             return 0;

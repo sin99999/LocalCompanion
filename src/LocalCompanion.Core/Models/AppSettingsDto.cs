@@ -50,6 +50,9 @@ public sealed class AppSettingsDto
     /// <summary>音声入力（Windows 音声認識）を有効にする。</summary>
     public bool SpeechInputEnabled { get; set; }
 
+    /// <summary>同じ PC の MCP クライアントから、開いている会話へ 1 件送る。既定はオフ。</summary>
+    public bool McpEnabled { get; set; }
+
     /// <summary>起動のたびに llama.cpp の latest を見て古ければ取り直す。オフでも初回導入と GPU 切替は行う。</summary>
     public bool LlamaCppAutoUpdate { get; set; } = true;
 
@@ -90,6 +93,7 @@ public sealed class AppSettingsDto
         CharacterSelfImproveEnabled = CharacterSelfImproveEnabled,
         ChatSearchEnabled = ChatSearchEnabled,
         SpeechInputEnabled = SpeechInputEnabled,
+        McpEnabled = McpEnabled,
         LlamaCppAutoUpdate = LlamaCppAutoUpdate,
         JuliaDecisionEnabled = JuliaDecisionEnabled,
         JuliaDevice = JuliaDevice,

@@ -20,7 +20,8 @@ public sealed record ChatRequestDto(
     bool ContinueSession = false,
     IReadOnlyList<string>? WebSourceUrls = null,
     bool UsedAppearanceLocal = false,
-    bool UsedAppearanceWeb = false);
+    bool UsedAppearanceWeb = false,
+    bool LocalDoor = false);
 
 public sealed record ClearHistoryRequest(string? PresetKey = null);
 
@@ -182,6 +183,35 @@ public sealed class ChatService
         cmd.Parameters.AddWithValue("$t", now);
         cmd.ExecuteNonQuery();
         return id;
+    }
+
+    /// <summary>MCP の窓口用セッションを、同じ id で一度だけ作ります。</summary>
+    public void EnsureDoorSession(string sessionId, string presetKey)
+    {
+        if (!McpDoorPolicy.IsDoorSession(sessionId))
+            throw new ArgumentException("Not an MCP door session.", nameof(sessionId));
+        if (string.IsNullOrWhiteSpace(presetKey))
+            throw new ArgumentException("A character key is required.", nameof(presetKey));
+
+        using var conn = _db.Open();
+        conn.Open();
+        var check = conn.CreateCommand();
+        check.CommandText = "SELECT 1 FROM conversation_sessions WHERE id = $id";
+        check.Parameters.AddWithValue("$id", sessionId);
+        if (check.ExecuteScalar() is not null)
+            return;
+
+        var now = DateTime.UtcNow.ToString("O");
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO conversation_sessions (id, preset_key, title, summary, created_at, updated_at)
+            VALUES ($id, $k, $title, '', $t, $t)
+            """;
+        cmd.Parameters.AddWithValue("$id", sessionId);
+        cmd.Parameters.AddWithValue("$k", presetKey);
+        cmd.Parameters.AddWithValue("$title", McpDoorPolicy.SessionTitle);
+        cmd.Parameters.AddWithValue("$t", now);
+        cmd.ExecuteNonQuery();
     }
 
     /// <summary>DB からセッションの会話を UI 表示用に読み込む。</summary>
@@ -495,30 +525,41 @@ public sealed class ChatService
 
         var historyMode = ResolveHistory(req);
         req = ExpandChoiceReply(req, historyMode);
-        if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
+        var askedJulia = false;
+        var juliaChoice = JuliaRouteChoice.Keep;
+        ChatExportRequest? exportRequest = null;
+        string effectiveMessage;
+        if (req.LocalDoor)
         {
-            var conflictProfile = _character.Get();
-            var conflictRuntime = await _models.GetRuntimeStatusAsync(_llama, ct);
-            return new ChatResponseDto(
-                conflictReply,
-                conflictRagSources is { Length: > 0 },
-                conflictRagSources ?? Array.Empty<string>(),
-                conflictProfile.Name,
-                req.UseReasoning,
-                historyMode.Load,
-                !string.IsNullOrWhiteSpace(req.AttachedText),
-                conflictRuntime.ActiveModelFileName,
-                conflictRuntime.SelectedModelFileName,
-                conflictRuntime.LoadedModelFileName,
-                conflictRuntime.ModelMismatch,
-                conflictRuntime.StatusMessage);
+            effectiveMessage = req.Message;
         }
+        else
+        {
+            if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
+            {
+                var conflictProfile = _character.Get();
+                var conflictRuntime = await _models.GetRuntimeStatusAsync(_llama, ct);
+                return new ChatResponseDto(
+                    conflictReply,
+                    conflictRagSources is { Length: > 0 },
+                    conflictRagSources ?? Array.Empty<string>(),
+                    conflictProfile.Name,
+                    req.UseReasoning,
+                    historyMode.Load,
+                    !string.IsNullOrWhiteSpace(req.AttachedText),
+                    conflictRuntime.ActiveModelFileName,
+                    conflictRuntime.SelectedModelFileName,
+                    conflictRuntime.LoadedModelFileName,
+                    conflictRuntime.ModelMismatch,
+                    conflictRuntime.StatusMessage);
+            }
 
-        var previousForRoute = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-        var (askedJulia, juliaChoice) = await AskJuliaRouteAsync(req.Message, previousForRoute, ct);
-        req = await EnrichRequestWithWebContextAsync(
-            req, historyMode, JuliaRoutePolicy.WebOverride(juliaChoice, askedJulia), ct);
-        var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
+            var previousForRoute = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
+            (askedJulia, juliaChoice) = await AskJuliaRouteAsync(req.Message, previousForRoute, ct);
+            req = await EnrichRequestWithWebContextAsync(
+                req, historyMode, JuliaRoutePolicy.WebOverride(juliaChoice, askedJulia), ct);
+            (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
+        }
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
@@ -538,7 +579,7 @@ public sealed class ChatService
         var (systemParts, promptContext) = await BuildSystemPartsAsync(
             profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
         _ = TryAppendHistoryDigest(systemParts, historyMode, japaneseReply);
-        if (ChatAppearanceLookup.LooksLikeAppearanceRequest(req.Message))
+        if (!req.LocalDoor && ChatAppearanceLookup.LooksLikeAppearanceRequest(req.Message))
             systemParts.Add(ChatSystemPromptTexts.AppearanceReferenceInstruction(japaneseReply));
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));
@@ -702,7 +743,15 @@ public sealed class ChatService
 
         var historyMode = ResolveHistory(req);
         req = ExpandChoiceReply(req, historyMode);
-        if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
+        var askedJulia = false;
+        var juliaChoice = JuliaRouteChoice.Keep;
+        ChatExportRequest? exportRequest = null;
+        string effectiveMessage;
+        if (req.LocalDoor)
+        {
+            effectiveMessage = req.Message;
+        }
+        else if (TryBuildPendingExportConflictReply(req, historyMode, out var conflictReply, out var conflictRagSources))
         {
             var conflictProfile = _character.Get();
             var conflictRuntime = await _models.GetRuntimeStatusAsync(_llama, ct);
@@ -723,12 +772,14 @@ public sealed class ChatService
                 Done: true);
             yield break;
         }
-
-        var previousForRoute = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
-        var (askedJulia, juliaChoice) = await AskJuliaRouteAsync(req.Message, previousForRoute, ct);
-        req = await EnrichRequestWithWebContextAsync(
-            req, historyMode, JuliaRoutePolicy.WebOverride(juliaChoice, askedJulia), ct);
-        var (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
+        else
+        {
+            var previousForRoute = historyMode.Load ? GetPreviousUserMessage(historyMode.SessionId) : null;
+            (askedJulia, juliaChoice) = await AskJuliaRouteAsync(req.Message, previousForRoute, ct);
+            req = await EnrichRequestWithWebContextAsync(
+                req, historyMode, JuliaRoutePolicy.WebOverride(juliaChoice, askedJulia), ct);
+            (effectiveMessage, exportRequest) = ResolveExportRequest(req, historyMode);
+        }
         var profile = _character.Get();
         // 履歴・出力の予算は、実際に起動中の llama-server ctx を優先して計算する。
         var effectiveContext = ResolveEffectiveContext(profile.ContextLength);
@@ -748,7 +799,7 @@ public sealed class ChatService
         var (systemParts, promptContext) = await BuildSystemPartsAsync(
             profile, runtime, effectiveMessage, japaneseReply, hasFile, hasImage, ct);
         var usedHistoryDigest = TryAppendHistoryDigest(systemParts, historyMode, japaneseReply);
-        if (ChatAppearanceLookup.LooksLikeAppearanceRequest(req.Message))
+        if (!req.LocalDoor && ChatAppearanceLookup.LooksLikeAppearanceRequest(req.Message))
             systemParts.Add(ChatSystemPromptTexts.AppearanceReferenceInstruction(japaneseReply));
         if (exportRequest is not null)
             systemParts.Add(ChatSystemPromptTexts.ExportHandoffInstruction(japaneseReply));

@@ -25,6 +25,7 @@
     <SelfContained Condition="'$(SelfContained)' == ''">false</SelfContained>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <!-- 配布 publish: 英語・日本語のサテライトのみ。.NET / WinUI の多言語フォルダ削減。 -->
     <SatelliteResourceLanguages>en;ja</SatelliteResourceLanguages>
   </PropertyGroup>

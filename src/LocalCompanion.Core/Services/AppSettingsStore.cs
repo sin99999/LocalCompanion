@@ -94,6 +94,7 @@ public sealed class AppSettingsStore
             CharacterSelfImproveEnabled = dto.CharacterSelfImproveEnabled,
             ChatSearchEnabled = false,
             SpeechInputEnabled = dto.SpeechInputEnabled,
+            McpEnabled = dto.McpEnabled,
             LlamaCppAutoUpdate = dto.LlamaCppAutoUpdate,
             JuliaDecisionEnabled = dto.JuliaDecisionEnabled,
             JuliaDevice = JuliaDevicePreferences.Normalize(dto.JuliaDevice),

@@ -29,6 +29,17 @@ public partial class SettingsPageViewModel
     public partial bool SpeechInputEnabled { get; set; }
 
     [ObservableProperty]
+    public partial bool McpEnabled { get; set; }
+
+    public string UiMcpEnabled { get; private set; } = "";
+
+    public string UiMcpHint { get; private set; } = "";
+
+    public string UiMcpUsage { get; private set; } = "";
+
+    public string McpCommandLine { get; private set; } = "";
+
+    [ObservableProperty]
     public partial bool LlamaCppAutoUpdate { get; set; } = true;
 
     [ObservableProperty]
@@ -89,6 +100,13 @@ public partial class SettingsPageViewModel
 
     partial void OnConfirmHistoryDeleteChanged(bool value) => PersistGeneralToggles();
     partial void OnSpeechInputEnabledChanged(bool value) => PersistGeneralToggles();
+    partial void OnMcpEnabledChanged(bool value)
+    {
+        if (_suppressGeneralOptionSave)
+            return;
+        PersistGeneralToggles();
+        _mcpDoor.Apply(value);
+    }
     partial void OnLlamaCppAutoUpdateChanged(bool value) => PersistGeneralToggles();
     partial void OnJuliaDecisionEnabledChanged(bool value) => PersistGeneralToggles();
     partial void OnJuliaAutoUpdateChanged(bool value) => PersistGeneralToggles();
@@ -118,6 +136,7 @@ public partial class SettingsPageViewModel
         ConfirmHistoryDelete = settings.ConfirmHistoryDelete;
         UserDisplayName = settings.UserDisplayName;
         SpeechInputEnabled = settings.SpeechInputEnabled;
+        McpEnabled = settings.McpEnabled;
         LlamaCppAutoUpdate = settings.LlamaCppAutoUpdate;
         JuliaDecisionEnabled = settings.JuliaDecisionEnabled;
         JuliaAutoUpdate = settings.JuliaAutoUpdate;
@@ -138,6 +157,20 @@ public partial class SettingsPageViewModel
         UiSpeechInputEnabledHint = _loc.Get("Settings.SpeechInput.Enabled.Hint");
         OnPropertyChanged(nameof(UiSpeechInputEnabled));
         OnPropertyChanged(nameof(UiSpeechInputEnabledHint));
+        ApplyMcpLocalizedUi();
+    }
+
+    private void ApplyMcpLocalizedUi()
+    {
+        UiMcpEnabled = _loc.Get("Settings.Mcp.Enabled");
+        UiMcpHint = _loc.Get("Settings.Mcp.Hint");
+        UiMcpUsage = _loc.Get("Settings.Mcp.Usage");
+        var exe = Environment.ProcessPath ?? "LocalCompanion.exe";
+        McpCommandLine = exe + " " + McpStdioProxy.Argument;
+        OnPropertyChanged(nameof(UiMcpEnabled));
+        OnPropertyChanged(nameof(UiMcpHint));
+        OnPropertyChanged(nameof(UiMcpUsage));
+        OnPropertyChanged(nameof(McpCommandLine));
     }
 
     private void ApplyLlamaEngineLocalizedUi()
@@ -221,6 +254,7 @@ public partial class SettingsPageViewModel
         dto.ConfirmHistoryDelete = ConfirmHistoryDelete;
         dto.ThemeMode = AppThemeModes.Dark;
         dto.SpeechInputEnabled = SpeechInputEnabled;
+        dto.McpEnabled = McpEnabled;
         dto.LlamaCppAutoUpdate = LlamaCppAutoUpdate;
         dto.JuliaDecisionEnabled = JuliaDecisionEnabled;
         dto.JuliaAutoUpdate = JuliaAutoUpdate;
@@ -252,6 +286,7 @@ public partial class SettingsPageViewModel
         dto.ChatFontSize = defaults.ChatFontSize;
         dto.UserDisplayName = defaults.UserDisplayName;
         dto.SpeechInputEnabled = defaults.SpeechInputEnabled;
+        dto.McpEnabled = defaults.McpEnabled;
         dto.LlamaCppAutoUpdate = defaults.LlamaCppAutoUpdate;
         dto.JuliaDecisionEnabled = defaults.JuliaDecisionEnabled;
         dto.JuliaAutoUpdate = defaults.JuliaAutoUpdate;
@@ -259,6 +294,7 @@ public partial class SettingsPageViewModel
         dto.GpuBackendPreference = defaults.GpuBackendPreference;
         var saved = _appearance.Save(dto);
         ApplyGeneralForm(saved);
+        _mcpDoor.Apply(saved.McpEnabled);
         LayaSidecar.Apply(AppPaths.Current, saved.JuliaDecisionEnabled);
         SetGeneralStatus("Settings.General.ResetDone");
     }
@@ -272,6 +308,7 @@ public partial class SettingsPageViewModel
         dto.ChatFontSize = GeneralChatFontSize;
         dto.UserDisplayName = UserDisplayName;
         dto.SpeechInputEnabled = SpeechInputEnabled;
+        dto.McpEnabled = McpEnabled;
         dto.LlamaCppAutoUpdate = LlamaCppAutoUpdate;
         dto.JuliaDecisionEnabled = JuliaDecisionEnabled;
         dto.JuliaAutoUpdate = JuliaAutoUpdate;

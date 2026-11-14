@@ -66,6 +66,7 @@ public partial class App : Application
         }
 
         AppServices.Configure();
+        AppServices.Get<McpDoorService>().Apply(AppServices.Get<AppSettingsStore>().Load().McpEnabled);
         WinUiLanguageBridge.ApplyFromLocalization();
         LocalizationService.Instance.Changed += (_, _) => WinUiLanguageBridge.ApplyFromLocalization();
         AppServices.Get<AppAppearanceService>().ReloadFromStore();

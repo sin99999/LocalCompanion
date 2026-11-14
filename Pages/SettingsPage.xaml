@@ -161,6 +161,17 @@
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiSpeechInputEnabledHint, Mode=OneWay}" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
+                            <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiMcpEnabled, Mode=OneWay}" />
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.McpEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpUsage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                            <TextBox
+                                IsReadOnly="True"
+                                IsSpellCheckEnabled="False"
+                                Text="{x:Bind ViewModel.McpCommandLine, Mode=OneWay}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiLlamaCppAutoUpdate, Mode=OneWay}" />
                             <ToggleSwitch IsOn="{x:Bind ViewModel.LlamaCppAutoUpdate, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiLlamaCppAutoUpdateHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />

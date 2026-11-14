@@ -71,6 +71,7 @@ public static class AppServices
         services.AddSingleton<ModelCatalogService>();
         services.AddSingleton<LlamaLifecycleService>();
         services.AddSingleton<ChatService>();
+        services.AddSingleton<McpDoorService>();
         services.AddSingleton<RuntimeHealthService>();
         services.AddSingleton<AppSettingsStore>();
         services.AddSingleton<AppAppearanceService>();
