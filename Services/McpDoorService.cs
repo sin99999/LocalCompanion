@@ -64,6 +64,15 @@ public sealed class McpDoorService : IAsyncDisposable
                     SessionId: sessionId,
                     LocalDoor: true),
                 timeout.Token);
+            try
+            {
+                await _chatPage.ShowDoorSessionAsync(sessionId);
+            }
+            catch (Exception ex)
+            {
+                StartupLog.Write(ex, "MCP window");
+            }
+
             return response.Reply ?? "";
         }
         catch (McpDoorException)

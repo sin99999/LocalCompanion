@@ -59,6 +59,34 @@ public partial class ChatPageViewModel
         await tcs.Task;
     }
 
+    private async Task RunOnUiAsync(Func<Task> action)
+    {
+        if (_uiDispatcher is null || _uiDispatcher.HasThreadAccess)
+        {
+            await action().ConfigureAwait(true);
+            return;
+        }
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_uiDispatcher.TryEnqueue(() => _ = CompleteOnUiAsync(action, tcs)))
+            throw new InvalidOperationException("UI dispatcher is unavailable.");
+
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    private static async Task CompleteOnUiAsync(Func<Task> action, TaskCompletionSource<bool> done)
+    {
+        try
+        {
+            await action().ConfigureAwait(true);
+            done.TrySetResult(true);
+        }
+        catch (Exception ex)
+        {
+            done.TrySetException(ex);
+        }
+    }
+
     private async Task AwaitUiFrameAsync()
     {
         if (_uiDispatcher is null)

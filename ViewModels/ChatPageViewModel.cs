@@ -436,7 +436,7 @@ public partial class ChatPageViewModel : ObservableObject
                 {
                     var line = new ChatLineViewModel(role, content, role == "assistant" ? assistantLabel : null);
                     if (role == "user")
-                        ApplyUserDisplayName(line);
+                        ApplyStoredUserLabel(line, sessionId, assistantLabel);
                     Messages.Add(line);
                 }
 
@@ -466,11 +466,28 @@ public partial class ChatPageViewModel : ObservableObject
             SetStatusByKey(Messages.Count > 0 ? "Chat.Status.ThreadLoaded" : "Chat.Status.ThreadEmpty");
             HasError = false;
             ErrorText = string.Empty;
+            if (McpDoorPolicy.IsDoorSession(sessionId))
+                ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
         }
         finally
         {
             _sessionFinalizeGate.Release();
         }
+    }
+
+    /// <summary>MCP の会話を、開いているチャットの画面へ出します。</summary>
+    public Task ShowDoorSessionAsync(string sessionId)
+    {
+        if (!McpDoorPolicy.IsDoorSession(sessionId) || _uiDispatcher is null)
+            return Task.CompletedTask;
+
+        return RunOnUiAsync(async () =>
+        {
+            if (!IsBusy)
+                await SwitchToConversationSessionAsync(sessionId);
+            else
+                ConversationThreadsChanged?.Invoke(this, EventArgs.Empty);
+        });
     }
 
     public bool RecallPreviousInput()
@@ -1007,11 +1024,20 @@ public partial class ChatPageViewModel : ObservableObject
 
     public void RefreshUserMessageHeaders()
     {
+        var characterName = GetAssistantDisplayName();
         foreach (var line in Messages)
         {
             if (line.Role == "user")
-                ApplyUserDisplayName(line);
+                ApplyStoredUserLabel(line, _activeSessionId, characterName);
         }
+    }
+
+    private void ApplyStoredUserLabel(ChatLineViewModel line, string? sessionId, string characterName)
+    {
+        if (McpDoorPolicy.IsDoorSession(sessionId))
+            line.SetUserLabel(characterName);
+        else
+            ApplyUserDisplayName(line);
     }
 
     private void ApplyUserDisplayName(ChatLineViewModel line)
