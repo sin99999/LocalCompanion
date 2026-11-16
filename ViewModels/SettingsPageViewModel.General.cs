@@ -3,7 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalCompanion.Models;
 using LocalCompanion.Services;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace LocalCompanion.ViewModels;
 
@@ -45,6 +47,14 @@ public partial class SettingsPageViewModel
 
     public string UiMcpLimits { get; private set; } = "";
 
+    public string McpJsonCopyLabel { get; private set; } = "";
+
+    public string McpCommandCopyLabel { get; private set; } = "";
+
+    public string McpAskCopyLabel { get; private set; } = "";
+
+    private DispatcherQueueTimer? _mcpCopyResetTimer;
+
     public string McpCommandLine { get; private set; } = "";
 
     public string McpCursorJson { get; private set; } = "";
@@ -61,6 +71,79 @@ public partial class SettingsPageViewModel
     {
         OnPropertyChanged(nameof(McpDetailsVisibility));
         OnPropertyChanged(nameof(McpDetailsChevronGlyph));
+    }
+
+    [RelayCommand]
+    private void CopyMcpJson() => CopyMcpText(McpCopySlot.Json, McpCursorJson);
+
+    [RelayCommand]
+    private void CopyMcpCommand() => CopyMcpText(McpCopySlot.Command, McpCommandLine);
+
+    [RelayCommand]
+    private void CopyMcpAsk() => CopyMcpText(McpCopySlot.Ask, UiMcpAskExample);
+
+    private void CopyMcpText(McpCopySlot slot, string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        try
+        {
+            var package = new DataPackage();
+            package.SetText(text);
+            Clipboard.SetContent(package);
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write(ex, "MCP copy");
+            return;
+        }
+
+        var copy = _loc.Get("Common.Copy");
+        var copied = _loc.Get("Common.Copied");
+        McpJsonCopyLabel = slot == McpCopySlot.Json ? copied : copy;
+        McpCommandCopyLabel = slot == McpCopySlot.Command ? copied : copy;
+        McpAskCopyLabel = slot == McpCopySlot.Ask ? copied : copy;
+        OnPropertyChanged(nameof(McpJsonCopyLabel));
+        OnPropertyChanged(nameof(McpCommandCopyLabel));
+        OnPropertyChanged(nameof(McpAskCopyLabel));
+        ScheduleMcpCopyReset();
+    }
+
+    private void SetMcpCopyLabels(string label)
+    {
+        McpJsonCopyLabel = label;
+        McpCommandCopyLabel = label;
+        McpAskCopyLabel = label;
+    }
+
+    private void ScheduleMcpCopyReset()
+    {
+        if (_uiDispatcher is null)
+            return;
+
+        _mcpCopyResetTimer ??= _uiDispatcher.CreateTimer();
+        _mcpCopyResetTimer.IsRepeating = false;
+        _mcpCopyResetTimer.Interval = TimeSpan.FromMilliseconds(1600);
+        _mcpCopyResetTimer.Tick -= OnMcpCopyResetTick;
+        _mcpCopyResetTimer.Tick += OnMcpCopyResetTick;
+        _mcpCopyResetTimer.Start();
+    }
+
+    private void OnMcpCopyResetTick(DispatcherQueueTimer sender, object args)
+    {
+        sender.Tick -= OnMcpCopyResetTick;
+        SetMcpCopyLabels(_loc.Get("Common.Copy"));
+        OnPropertyChanged(nameof(McpJsonCopyLabel));
+        OnPropertyChanged(nameof(McpCommandCopyLabel));
+        OnPropertyChanged(nameof(McpAskCopyLabel));
+    }
+
+    private enum McpCopySlot
+    {
+        Json,
+        Command,
+        Ask,
     }
 
     [ObservableProperty]
@@ -193,6 +276,7 @@ public partial class SettingsPageViewModel
         UiMcpCursorNote = _loc.Get("Settings.Mcp.CursorNote");
         UiMcpAskExample = _loc.Get("Settings.Mcp.AskExample");
         UiMcpLimits = _loc.Get("Settings.Mcp.Limits");
+        SetMcpCopyLabels(_loc.Get("Common.Copy"));
         var exe = Environment.ProcessPath ?? "LocalCompanion.exe";
         McpCommandLine = exe + " " + McpStdioProxy.Argument;
         McpCursorJson = McpStdioProxy.CursorConfigJson(exe);
@@ -203,6 +287,9 @@ public partial class SettingsPageViewModel
         OnPropertyChanged(nameof(UiMcpCursorNote));
         OnPropertyChanged(nameof(UiMcpAskExample));
         OnPropertyChanged(nameof(UiMcpLimits));
+        OnPropertyChanged(nameof(McpJsonCopyLabel));
+        OnPropertyChanged(nameof(McpCommandCopyLabel));
+        OnPropertyChanged(nameof(McpAskCopyLabel));
         OnPropertyChanged(nameof(McpCommandLine));
         OnPropertyChanged(nameof(McpCursorJson));
     }

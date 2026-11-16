@@ -204,33 +204,66 @@
                             </ToggleButton>
                             <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.McpDetailsVisibility, Mode=OneWay}">
                                 <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpCursorNote, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                                <Border Style="{StaticResource SettingsInputBorderStyle}">
-                                    <TextBox
-                                        AcceptsReturn="True"
-                                        IsReadOnly="True"
-                                        IsSpellCheckEnabled="False"
-                                        Style="{StaticResource SettingsInBorderTextBoxStyle}"
-                                        Text="{x:Bind ViewModel.McpCursorJson, Mode=OneWay}"
-                                        TextWrapping="Wrap" />
-                                </Border>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource SettingsInputBorderStyle}">
+                                        <TextBox
+                                            AcceptsReturn="True"
+                                            IsReadOnly="True"
+                                            IsSpellCheckEnabled="False"
+                                            Style="{StaticResource SettingsInBorderTextBoxStyle}"
+                                            Text="{x:Bind ViewModel.McpCursorJson, Mode=OneWay}"
+                                            TextWrapping="Wrap" />
+                                    </Border>
+                                    <Button
+                                        Grid.Column="1"
+                                        VerticalAlignment="Top"
+                                        Command="{x:Bind ViewModel.CopyMcpJsonCommand}"
+                                        Content="{x:Bind ViewModel.McpJsonCopyLabel, Mode=OneWay}" />
+                                </Grid>
                                 <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpUsage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                                <Border Style="{StaticResource SettingsInputBorderStyle}">
-                                    <TextBox
-                                        IsReadOnly="True"
-                                        IsSpellCheckEnabled="False"
-                                        Style="{StaticResource SettingsInBorderTextBoxStyle}"
-                                        Text="{x:Bind ViewModel.McpCommandLine, Mode=OneWay}"
-                                        TextWrapping="Wrap" />
-                                </Border>
-                                <Border Style="{StaticResource SettingsInputBorderStyle}">
-                                    <TextBox
-                                        AcceptsReturn="True"
-                                        IsReadOnly="True"
-                                        IsSpellCheckEnabled="False"
-                                        Style="{StaticResource SettingsInBorderTextBoxStyle}"
-                                        Text="{x:Bind ViewModel.UiMcpAskExample, Mode=OneWay}"
-                                        TextWrapping="Wrap" />
-                                </Border>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource SettingsInputBorderStyle}">
+                                        <TextBox
+                                            IsReadOnly="True"
+                                            IsSpellCheckEnabled="False"
+                                            Style="{StaticResource SettingsInBorderTextBoxStyle}"
+                                            Text="{x:Bind ViewModel.McpCommandLine, Mode=OneWay}"
+                                            TextWrapping="Wrap" />
+                                    </Border>
+                                    <Button
+                                        Grid.Column="1"
+                                        VerticalAlignment="Top"
+                                        Command="{x:Bind ViewModel.CopyMcpCommandCommand}"
+                                        Content="{x:Bind ViewModel.McpCommandCopyLabel, Mode=OneWay}" />
+                                </Grid>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource SettingsInputBorderStyle}">
+                                        <TextBox
+                                            AcceptsReturn="True"
+                                            IsReadOnly="True"
+                                            IsSpellCheckEnabled="False"
+                                            Style="{StaticResource SettingsInBorderTextBoxStyle}"
+                                            Text="{x:Bind ViewModel.UiMcpAskExample, Mode=OneWay}"
+                                            TextWrapping="Wrap" />
+                                    </Border>
+                                    <Button
+                                        Grid.Column="1"
+                                        VerticalAlignment="Top"
+                                        Command="{x:Bind ViewModel.CopyMcpAskCommand}"
+                                        Content="{x:Bind ViewModel.McpAskCopyLabel, Mode=OneWay}" />
+                                </Grid>
                                 <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpLimits, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                             </StackPanel>
                         </StackPanel>
