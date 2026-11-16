@@ -112,17 +112,49 @@ public sealed class McpDoorTests
     [Fact]
     public void Languages_HaveTheMcpCopy()
     {
-        var japaneseHint = LocalizationResources.For(AppLanguage.Japanese)["Settings.Mcp.Hint"];
+        var japanese = LocalizationResources.For(AppLanguage.Japanese);
+        string[] keys =
+        [
+            "Settings.Mcp.Enabled",
+            "Settings.Mcp.Hint",
+            "Settings.Mcp.DetailsHeader",
+            "Settings.Mcp.CursorNote",
+            "Settings.Mcp.Usage",
+            "Settings.Mcp.AskExample",
+            "Settings.Mcp.Limits",
+        ];
         foreach (var language in AppLanguages.All)
         {
             var table = LocalizationResources.For(language);
-            Assert.False(string.IsNullOrWhiteSpace(table["Settings.Mcp.Enabled"]));
-            Assert.False(string.IsNullOrWhiteSpace(table["Settings.Mcp.Hint"]));
-            Assert.False(string.IsNullOrWhiteSpace(table["Settings.Mcp.Usage"]));
+            foreach (var key in keys)
+                Assert.False(string.IsNullOrWhiteSpace(table[key]));
             Assert.Contains("say", table["Settings.Mcp.Usage"], StringComparison.Ordinal);
             Assert.Contains("--mcp-stdio", table["Settings.Mcp.Usage"], StringComparison.Ordinal);
-            if (language != AppLanguage.Japanese)
-                Assert.NotEqual(japaneseHint, table["Settings.Mcp.Hint"]);
+            Assert.Contains("say", table["Settings.Mcp.AskExample"], StringComparison.Ordinal);
+            Assert.Contains("--mcp-stdio", table["Settings.Mcp.AskExample"], StringComparison.Ordinal);
+            Assert.Contains("message", table["Settings.Mcp.AskExample"], StringComparison.Ordinal);
+            Assert.Contains("Cursor", table["Settings.Mcp.CursorNote"], StringComparison.Ordinal);
+            Assert.Contains("mcpServers", table["Settings.Mcp.CursorNote"], StringComparison.Ordinal);
+            if (language == AppLanguage.Japanese)
+                continue;
+            foreach (var key in keys)
+                Assert.NotEqual(japanese[key], table[key]);
         }
+    }
+
+    [Fact]
+    public void CursorConfigJson_UsesTheRunningProgramAndDoublesBackslashes()
+    {
+        var path = @"C:\Tools\LocalCompanion.exe";
+        var json = McpStdioProxy.CursorConfigJson(path);
+        using var doc = JsonDocument.Parse(json);
+        var server = doc.RootElement.GetProperty("mcpServers").GetProperty("LocalCompanion");
+        Assert.Equal(path, server.GetProperty("command").GetString());
+        var args = server.GetProperty("args");
+        Assert.Equal(1, args.GetArrayLength());
+        Assert.Equal("--mcp-stdio", args[0].GetString());
+        Assert.Contains(@"C:\\Tools\\LocalCompanion.exe", json, StringComparison.Ordinal);
+        Assert.Equal("LocalCompanion.exe", JsonDocument.Parse(McpStdioProxy.CursorConfigJson("  ")).RootElement
+            .GetProperty("mcpServers").GetProperty("LocalCompanion").GetProperty("command").GetString());
     }
 }

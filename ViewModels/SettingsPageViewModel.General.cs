@@ -37,7 +37,31 @@ public partial class SettingsPageViewModel
 
     public string UiMcpUsage { get; private set; } = "";
 
+    public string UiMcpDetailsHeader { get; private set; } = "";
+
+    public string UiMcpCursorNote { get; private set; } = "";
+
+    public string UiMcpAskExample { get; private set; } = "";
+
+    public string UiMcpLimits { get; private set; } = "";
+
     public string McpCommandLine { get; private set; } = "";
+
+    public string McpCursorJson { get; private set; } = "";
+
+    [ObservableProperty]
+    public partial bool McpDetailsOpen { get; set; }
+
+    public Visibility McpDetailsVisibility =>
+        McpDetailsOpen ? Visibility.Visible : Visibility.Collapsed;
+
+    public string McpDetailsChevronGlyph => McpDetailsOpen ? "\uE70E" : "\uE70D";
+
+    partial void OnMcpDetailsOpenChanged(bool value)
+    {
+        OnPropertyChanged(nameof(McpDetailsVisibility));
+        OnPropertyChanged(nameof(McpDetailsChevronGlyph));
+    }
 
     [ObservableProperty]
     public partial bool LlamaCppAutoUpdate { get; set; } = true;
@@ -165,12 +189,22 @@ public partial class SettingsPageViewModel
         UiMcpEnabled = _loc.Get("Settings.Mcp.Enabled");
         UiMcpHint = _loc.Get("Settings.Mcp.Hint");
         UiMcpUsage = _loc.Get("Settings.Mcp.Usage");
+        UiMcpDetailsHeader = _loc.Get("Settings.Mcp.DetailsHeader");
+        UiMcpCursorNote = _loc.Get("Settings.Mcp.CursorNote");
+        UiMcpAskExample = _loc.Get("Settings.Mcp.AskExample");
+        UiMcpLimits = _loc.Get("Settings.Mcp.Limits");
         var exe = Environment.ProcessPath ?? "LocalCompanion.exe";
         McpCommandLine = exe + " " + McpStdioProxy.Argument;
+        McpCursorJson = McpStdioProxy.CursorConfigJson(exe);
         OnPropertyChanged(nameof(UiMcpEnabled));
         OnPropertyChanged(nameof(UiMcpHint));
         OnPropertyChanged(nameof(UiMcpUsage));
+        OnPropertyChanged(nameof(UiMcpDetailsHeader));
+        OnPropertyChanged(nameof(UiMcpCursorNote));
+        OnPropertyChanged(nameof(UiMcpAskExample));
+        OnPropertyChanged(nameof(UiMcpLimits));
         OnPropertyChanged(nameof(McpCommandLine));
+        OnPropertyChanged(nameof(McpCursorJson));
     }
 
     private void ApplyLlamaEngineLocalizedUi()

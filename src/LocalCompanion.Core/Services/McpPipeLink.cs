@@ -135,8 +135,30 @@ public static class McpStdioProxy
 {
     public const string Argument = "--mcp-stdio";
 
+    private static readonly JsonSerializerOptions CursorConfigJsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
     public static bool IsRequested(IReadOnlyList<string> args) =>
         args.Any(a => string.Equals(a, Argument, StringComparison.OrdinalIgnoreCase));
+
+    public static string CursorConfigJson(string? executablePath)
+    {
+        var path = string.IsNullOrWhiteSpace(executablePath) ? "LocalCompanion.exe" : executablePath;
+        var payload = new Dictionary<string, object>
+        {
+            ["mcpServers"] = new Dictionary<string, object>
+            {
+                ["LocalCompanion"] = new Dictionary<string, object>
+                {
+                    ["command"] = path,
+                    ["args"] = new[] { Argument },
+                },
+            },
+        };
+        return JsonSerializer.Serialize(payload, CursorConfigJsonOptions);
+    }
 
     public static void Run()
     {

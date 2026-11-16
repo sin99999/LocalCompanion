@@ -45,6 +45,23 @@
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
+        <Style x:Key="SettingsDisclosureButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0,4" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="SettingsSectionLabelStyle" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="NoWrap" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -164,12 +181,58 @@
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiMcpEnabled, Mode=OneWay}" />
                             <ToggleSwitch IsOn="{x:Bind ViewModel.McpEnabled, Mode=TwoWay}" OffContent="{x:Bind ViewModel.UiOff, Mode=OneWay}" OnContent="{x:Bind ViewModel.UiOn, Mode=OneWay}" />
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpHint, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                            <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpUsage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                            <TextBox
-                                IsReadOnly="True"
-                                IsSpellCheckEnabled="False"
-                                Text="{x:Bind ViewModel.McpCommandLine, Mode=OneWay}"
-                                TextWrapping="Wrap" />
+                            <ToggleButton IsChecked="{x:Bind ViewModel.McpDetailsOpen, Mode=TwoWay}" Style="{StaticResource SettingsDisclosureButtonStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        Grid.Column="0"
+                                        Style="{StaticResource SettingsFieldLabelStyle}"
+                                        Text="{x:Bind ViewModel.UiMcpDetailsHeader, Mode=OneWay}"
+                                        TextWrapping="WrapWholeWords"
+                                        VerticalAlignment="Center" />
+                                    <FontIcon
+                                        Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        FontSize="12"
+                                        Glyph="{x:Bind ViewModel.McpDetailsChevronGlyph, Mode=OneWay}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center" />
+                                </Grid>
+                            </ToggleButton>
+                            <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.McpDetailsVisibility, Mode=OneWay}">
+                                <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpCursorNote, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                                <Border Style="{StaticResource SettingsInputBorderStyle}">
+                                    <TextBox
+                                        AcceptsReturn="True"
+                                        IsReadOnly="True"
+                                        IsSpellCheckEnabled="False"
+                                        Style="{StaticResource SettingsInBorderTextBoxStyle}"
+                                        Text="{x:Bind ViewModel.McpCursorJson, Mode=OneWay}"
+                                        TextWrapping="Wrap" />
+                                </Border>
+                                <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpUsage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                                <Border Style="{StaticResource SettingsInputBorderStyle}">
+                                    <TextBox
+                                        IsReadOnly="True"
+                                        IsSpellCheckEnabled="False"
+                                        Style="{StaticResource SettingsInBorderTextBoxStyle}"
+                                        Text="{x:Bind ViewModel.McpCommandLine, Mode=OneWay}"
+                                        TextWrapping="Wrap" />
+                                </Border>
+                                <Border Style="{StaticResource SettingsInputBorderStyle}">
+                                    <TextBox
+                                        AcceptsReturn="True"
+                                        IsReadOnly="True"
+                                        IsSpellCheckEnabled="False"
+                                        Style="{StaticResource SettingsInBorderTextBoxStyle}"
+                                        Text="{x:Bind ViewModel.UiMcpAskExample, Mode=OneWay}"
+                                        TextWrapping="Wrap" />
+                                </Border>
+                                <TextBlock Style="{StaticResource SettingsHintTextStyle}" Text="{x:Bind ViewModel.UiMcpLimits, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                            </StackPanel>
                         </StackPanel>
                         <StackPanel Style="{StaticResource SettingsFieldHostStyle}">
                             <TextBlock Style="{StaticResource SettingsFieldLabelStyle}" Text="{x:Bind ViewModel.UiLlamaCppAutoUpdate, Mode=OneWay}" />
